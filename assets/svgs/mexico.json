@@ -1,0 +1,38 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Jalisco" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-104.0, 20.0], [-104.0, 21.5], [-102.0, 21.5],
+          [-102.0, 20.0], [-104.0, 20.0]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Ciudad de México" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-99.3, 19.2], [-99.3, 19.6], [-98.9, 19.6],
+          [-98.9, 19.2], [-99.3, 19.2]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Puebla" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-98.5, 18.5], [-98.5, 19.0], [-97.8, 19.0],
+          [-97.8, 18.5], [-98.5, 18.5]
+        ]]
+      }
+    }
+  ]
+}
