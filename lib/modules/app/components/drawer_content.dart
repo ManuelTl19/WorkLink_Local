@@ -1,6 +1,7 @@
 import 'package:worklink_local/modules/app/screens/dashboard_screen.dart';
 import 'package:worklink_local/modules/app/screens/starter/login_screen.dart';
 import 'package:worklink_local/modules/settings/screens/settings_screen.dart';
+import 'package:worklink_local/modules/users/screens/profile_screen.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/utils/utils.dart';
 
@@ -30,6 +31,9 @@ class DrawerContent extends StatelessWidget {
               child: GestureDetector(
                 onTap: () {
                   dashboardKey.currentState!.closeDrawer();
+                  Navigator.of(
+                    context,
+                  ).push(Transitions.slideUpTransition(const ProfileScreen()));
                 },
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.start,
@@ -220,6 +224,17 @@ class DrawerContent extends StatelessWidget {
                 screenIndex = 0;
                 app.notify();
                 dashboardKey.currentState!.closeDrawer();
+              },
+            ),
+
+            _normalTile(
+              title: MultiLanguages.of(context)!.translate('profile'),
+              icon: Icons.person_rounded,
+              onTap: () {
+                dashboardKey.currentState!.closeDrawer();
+                Navigator.of(
+                  context,
+                ).push(Transitions.slideUpTransition(const ProfileScreen()));
               },
             ),
 

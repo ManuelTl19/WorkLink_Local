@@ -418,7 +418,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Dialogs.showSimpleDialog(
           context,
           title: result.message,
-          message: '${result.user.nombre} ${result.user.apellido}'.trim(),
+          message: '${result.user.nombre} ${result.user.apellidoP}'.trim(),
           color: Style.getPrimaryColor(),
           svg: Assets.svgCheckIcon,
           duration: 1800,
