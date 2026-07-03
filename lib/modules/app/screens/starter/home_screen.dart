@@ -1,9 +1,13 @@
+import 'package:worklink_local/modules/app/components/general/form/form_widgets.dart';
 import 'package:worklink_local/utils/utils.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 
 import 'package:worklink_local/modules/app/screens/dashboard_screen.dart';
+import 'package:worklink_local/modules/users/models/user_model.dart';
 
 import 'package:shimmer/shimmer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +22,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   int mode = 0;
   bool isLoading = true;
+  UserModel? _user;
+  int _notificationCount = 0;
 
   void _onPageChanged(int index) {
     setState(() {
@@ -42,6 +48,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void initState() {
+    _loadHeaderData();
     getData().then((value) {
       setState(() {
         isLoading = false;
@@ -96,76 +103,243 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  Future<void> _loadHeaderData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userRaw = prefs.getString(Constants.userEmailKey);
+
+      if (userRaw != null && userRaw.isNotEmpty) {
+        final userMap = jsonDecode(userRaw) as Map<String, dynamic>;
+        _user = UserModel.fromJson(userMap);
+      }
+    } catch (e) {
+      logWarning('No se pudo cargar la cabecera de inicio: $e');
+    } finally {
+      if (mounted) setState(() {});
+    }
+  }
+
   Widget header() {
     return Padding(
       padding: Style.getPaddingHorizontal(),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Flexible(
-            flex: 4,
-            fit: FlexFit.tight,
-            child: GestureDetector(
+      child: Container(
+        padding: EdgeInsets.all(14.w),
+        decoration: BoxDecoration(
+          color: Style.getCardColor(),
+          borderRadius: Style.getBorderRadius(),
+          border: Border.all(
+            color: Style.getObscureTextColor().withValues(alpha: .08),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Style.getShadowColor(),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            GestureDetector(
               onTap: () => showDrawer(),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+              child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  CircleAvatar(
-                    backgroundColor: Style.getPrimaryColor(),
-                    radius: 20.w,
-                    child: CachedNetworkImage(
-                      imageUrl: Assets.userAvatar,
-                      imageBuilder: (context, imageProvider) => CircleAvatar(
-                        backgroundImage: imageProvider,
-                        radius: 20.w,
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Style.getPrimaryColor().withValues(alpha: .22),
+                          Style.getPrimaryColor().withValues(alpha: .08),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      placeholder: (context, url) =>
-                          const CircularProgressIndicator(),
-                      errorWidget: (context, url, error) =>
-                          const Icon(Icons.error),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: EdgeInsets.all(2.5.w),
+                    child: CircleAvatar(
+                      radius: 21.w,
+                      backgroundColor: Style.getCardColor(),
+                      child: ClipOval(child: _profileAvatar()),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        salute(),
-                        style: Style.getHeaderThree(
-                          color: Style.getObscureTextColor(),
-                          fontSize: 10,
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 10.w,
+                      height: 10.w,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF28C76F),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Style.getCardColor(),
+                          width: 2,
                         ),
                       ),
-                      Text(
-                        "Jose Manuel",
-                        style: Style.getHeaderThree(
-                          color: Style.getTextColor(),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-          const Spacer(),
-          Flexible(
-            flex: 1,
-            fit: FlexFit.tight,
-            child: IconButton(
-              onPressed: () {},
-              icon: Icon(
-                Icons.notifications_rounded,
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    salute(),
+                    style: Style.getHeaderThree(
+                      color: Style.getObscureTextColor(),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: 2.h),
+                  Text(
+                    _fullName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Style.getHeaderTwo(
+                      color: Style.getTextColor(),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 4.h),
+                ],
+              ),
+            ),
+            SizedBox(width: 10.w),
+            _notificationButton(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _profileAvatar() {
+    final imageUrl = (_user?.fotoPerfil ?? '').trim();
+
+    if (imageUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
+        width: 42.w,
+        height: 42.w,
+        fit: BoxFit.cover,
+        placeholder: (context, url) =>
+            Container(color: Style.getPrimaryColor().withValues(alpha: .08)),
+        errorWidget: (context, url, error) => _avatarInitials(),
+      );
+    }
+
+    return _avatarInitials();
+  }
+
+  Widget _avatarInitials() {
+    return Container(
+      alignment: Alignment.center,
+      color: Style.getPrimaryColor().withValues(alpha: .10),
+      child: Text(
+        _initials,
+        style: Style.getHeaderThree(
+          color: Style.getPrimaryColor(),
+          fontWeight: FontWeight.w700,
+          fontSize: 11,
+        ),
+      ),
+    );
+  }
+
+  Widget _notificationButton() {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Material(
+          color: Style.getBackgroundColor().lighten(.02),
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () {},
+            child: Container(
+              width: 42.w,
+              height: 42.w,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Style.getObscureTextColor().withValues(alpha: .08),
+                ),
+              ),
+              child: Icon(
+                Icons.notifications_none_rounded,
                 color: Style.getPrimaryColor(),
-                size: 22.w,
+                size: 21.w,
               ),
             ),
           ),
-        ],
-      ),
+        ),
+        if (_notificationCount > 0)
+          Positioned(
+            right: -1,
+            top: -1,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+              decoration: BoxDecoration(
+                color: Style.getErrorColor(),
+                borderRadius: Style.getCircularBorderRadius(100),
+                border: Border.all(
+                  color: Style.getBackgroundColor(),
+                  width: 1.5,
+                ),
+              ),
+              child: Text(
+                '$_notificationCount',
+                style: Style.getTextStyle(
+                  color: Style.white,
+                  fontSize: 7,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
+  }
+
+  String get _fullName {
+    final name = [
+      _user?.nombre ?? '',
+      _user?.apellidoP ?? '',
+      _user?.apellidoM ?? '',
+    ].where((part) => part.trim().isNotEmpty).join(' ');
+
+    return name.isEmpty ? 'Jose Manuel' : name;
+  }
+
+  String get _role {
+    final roles = _user?.roles ?? [];
+    if (roles.isNotEmpty) return roles.first;
+
+    final tipoCuenta = (_user?.tipoCuenta ?? '').trim();
+    if (tipoCuenta.isNotEmpty) return tipoCuenta;
+
+    return 'Administrador';
+  }
+
+  String get _initials {
+    final parts = _fullName
+        .split(' ')
+        .where((part) => part.trim().isNotEmpty)
+        .toList();
+
+    if (parts.isEmpty) return 'JM';
+
+    final first = parts.first.substring(0, 1).toUpperCase();
+    final second = parts.length > 1
+        ? parts[1].substring(0, 1).toUpperCase()
+        : '';
+    return '$first$second';
   }
 
   String salute() {
@@ -191,26 +365,20 @@ class _HomeScreenState extends State<HomeScreen>
         shadowColor: Style.getShadowColor(),
         child: Padding(
           padding: const EdgeInsets.all(10.0),
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: MultiLanguages.of(context)!.translate('search_home'),
-              hintStyle: TextStyle(
+          child: CustomInputField(
+            controller: TextEditingController(),
+            label: MultiLanguages.of(context)!.translate('search_home'),
+            hintText: MultiLanguages.of(context)!.translate('search_home'),
+            prefixIcon: Icon(Icons.search, color: Style.grey, size: 20.w),
+            suffixIcon: InkWell(
+              onTap: () {},
+              borderRadius: Style.getCircularBorderRadius(100),
+              child: Icon(
+                Icons.filter_list_rounded,
                 color: Style.grey,
-                fontWeight: FontWeight.w600,
-              ),
-              border: InputBorder.none,
-              icon: Icon(Icons.search, color: Style.grey, size: 20.w),
-              suffixIcon: InkWell(
-                onTap: () {},
-                borderRadius: Style.getCircularBorderRadius(100),
-                child: Icon(
-                  Icons.filter_list_rounded,
-                  color: Style.grey,
-                  size: 20.w,
-                ),
+                size: 20.w,
               ),
             ),
-            style: TextStyle(color: Style.getTextColor()),
           ),
         ),
       ),
@@ -233,7 +401,7 @@ class _HomeScreenState extends State<HomeScreen>
         physics: const BouncingScrollPhysics(),
         children: [
           box(
-            icon:  Assets.iconUsers,
+            icon: Assets.iconUsers,
             quantity: 0,
             reverse: false,
             color: Style.getPrimaryColor(),
@@ -528,11 +696,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Column(
       key: const Key('overview'),
       children: [
-        title(
-          "Categorías",
-          icon: Icons.category_rounded,
-          action: () {},
-        ),
+        title("Categorías", icon: Icons.category_rounded, action: () {}),
 
         if (isLoading) ...[
           Container(
@@ -572,11 +736,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
 
-        title(
-          "vacantes",
-          icon: Icons.category_rounded,
-          action: () {},
-        ),
+        title("vacantes", icon: Icons.category_rounded, action: () {}),
 
         if (isLoading) ...[
           Container(
@@ -618,11 +778,7 @@ class _HomeScreenState extends State<HomeScreen>
 
         SizedBox(height: 10.h),
 
-        title(
-          "Solicitudes",
-          icon: Icons.assignment_rounded,
-          action: () {},
-        ),
+        title("Solicitudes", icon: Icons.assignment_rounded, action: () {}),
 
         if (isLoading) ...[
           GridView.builder(

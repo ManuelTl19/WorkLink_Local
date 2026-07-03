@@ -15,13 +15,15 @@ class Style {
 
   // ------- Dynamic Colors
   static Color getPrimaryColor() => AppSettings.isDarkModeOn
-      ? AppSettings.primaryLightColor
+      ? AppSettings.primaryDarkColor
       : AppSettings.primaryLightColor;
+
   static Color getSecondaryColor() => AppSettings.isDarkModeOn
-      ? AppSettings.secondaryLightColor
+      ? AppSettings.secondaryDarkColor
       : AppSettings.secondaryLightColor;
+
   static Color getAccentColor() => AppSettings.isDarkModeOn
-      ? AppSettings.accentLightColor
+      ? AppSettings.accentDarkColor
       : AppSettings.accentLightColor;
 
   static Color getTextColor() => AppSettings.isDarkModeOn ? white : black;

@@ -2,6 +2,8 @@ import 'package:worklink_local/modules/messages/models/message_model.dart';
 import 'package:worklink_local/modules/messages/models/chat_model.dart';
 
 class MessageService {
+  static int _nextChatId = 5;
+
   static final Map<int, List<MessageModel>> _demoThreads = {
     1: [
       MessageModel(
@@ -125,6 +127,43 @@ class MessageService {
     ),
   ];
 
+  static Future<ChatModel> getOrCreateChat({
+    required String name,
+    required String avatarSeed,
+    String? subtitle,
+    String? avatarUrl,
+    bool isOnline = false,
+    int? relatedEntityId,
+    String? relatedEntityType,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 180));
+
+    for (final chat in _demoChats) {
+      if (chat.relatedEntityId == relatedEntityId &&
+          chat.relatedEntityType == relatedEntityType) {
+        return chat;
+      }
+    }
+
+    final chat = ChatModel(
+      id: _nextChatId++,
+      name: name,
+      avatarSeed: avatarSeed,
+      isOnline: isOnline,
+      lastMessage: 'Nueva conversación',
+      lastMessageAt: DateTime.now(),
+      unreadCount: 0,
+      subtitle: subtitle,
+      avatarUrl: avatarUrl,
+      relatedEntityId: relatedEntityId,
+      relatedEntityType: relatedEntityType,
+    );
+
+    _demoChats.insert(0, chat);
+    _demoThreads[chat.id] = <MessageModel>[];
+    return chat;
+  }
+
   static Future<List<ChatModel>> loadDemoChats() async {
     await Future.delayed(const Duration(milliseconds: 600));
     return List<ChatModel>.from(_demoChats);
@@ -165,6 +204,10 @@ class MessageService {
         lastMessage: newMessage.text,
         lastMessageAt: newMessage.sentAt,
         unreadCount: chat.unreadCount,
+        subtitle: chat.subtitle,
+        avatarUrl: chat.avatarUrl,
+        relatedEntityId: chat.relatedEntityId,
+        relatedEntityType: chat.relatedEntityType,
       );
     }
 

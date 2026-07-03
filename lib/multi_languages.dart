@@ -40,7 +40,12 @@ class MultiLanguages {
   void setLocaleKey(BuildContext context, Locale locale) {
     keepLocaleKey(locale.languageCode);
     logSuccess('Setting Locale Key: ${locale.languageCode}');
-    // Intentionally do not call MyApp.setLocale here to avoid tight coupling
+    // Notify registered listener to update the app locale (avoids tight coupling)
+    try {
+      LocaleManager.notifyLocaleChanged(locale);
+    } catch (e) {
+      logImportant('LocaleManager notify failed: $e');
+    }
   }
 
   static const LocalizationsDelegate<MultiLanguages> delegate =
@@ -117,7 +122,6 @@ class MultiLanguages {
                         context,
                         const Locale.fromSubtags(languageCode: 'es'),
                       );
-                      keepLocaleKey('es');
                       Navigator.pop(context);
                     },
                   ),
@@ -133,7 +137,6 @@ class MultiLanguages {
                         context,
                         const Locale.fromSubtags(languageCode: 'en'),
                       );
-                      keepLocaleKey('en');
                       Navigator.pop(context);
                     },
                   ),

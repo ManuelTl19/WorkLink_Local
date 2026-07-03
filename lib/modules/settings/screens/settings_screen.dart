@@ -15,6 +15,23 @@ class SettingsScreenState extends State<SettingsScreen> {
 
   bool _notificationsEnabled = true;
   bool _biometricEnabled = false;
+  bool _biometricSupported = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _biometricEnabled = prefs.getBool('biometric_enabled') ?? false;
+    _loadBiometricSupport();
+  }
+
+  Future<void> _loadBiometricSupport() async {
+    final biometricService = BiometricService();
+    final supported = await biometricService.isSupported();
+    if (!mounted) return;
+    setState(() {
+      _biometricSupported = supported;
+    });
+  }
 
   @override
   void dispose() {
@@ -126,22 +143,39 @@ class SettingsScreenState extends State<SettingsScreen> {
                       ),
                       _sectionCard(
                         children: [
-                          Tiles.switchTile(
-                            dense: true,
-                            title: MultiLanguages.of(
-                              context,
-                            )!.translate('biometric_authentication'),
-                            subtitle: MultiLanguages.of(context)!.translate(
-                              'biometric_authentication_description',
+                          if (_biometricSupported)
+                            Tiles.switchTile(
+                              dense: true,
+                              title: MultiLanguages.of(
+                                context,
+                              )!.translate('biometric_authentication'),
+                              subtitle: MultiLanguages.of(context)!.translate(
+                                'biometric_authentication_description',
+                              ),
+                              icon: Icons.fingerprint_rounded,
+                              value: _biometricEnabled,
+                              onChanged: (value) {
+                                setState(() {
+                                  _biometricEnabled = value;
+                                });
+
+                                AppSettings.isBiometricEnabled = value;
+                              },
+                            )
+                          else
+                            Tiles.settingTile(
+                              dense: true,
+                              title: MultiLanguages.of(
+                                context,
+                              )!.translate('biometric_authentication'),
+                              subtitle: 'Este dispositivo no soporta biometría',
+                              icon: Icon(
+                                Icons.fingerprint_rounded,
+                                color: Style.getSecondaryColor(),
+                                size: 18.w,
+                              ),
+                              onTap: () {},
                             ),
-                            icon: Icons.fingerprint_rounded,
-                            value: _biometricEnabled,
-                            onChanged: (value) {
-                              setState(() {
-                                _biometricEnabled = value;
-                              });
-                            },
-                          ),
                         ],
                       ),
                       SizedBox(height: 18.h),

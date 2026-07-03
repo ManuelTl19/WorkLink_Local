@@ -14,7 +14,7 @@ class Apis {
 
   static int successCode = 200;
 
-  static final String baseUrl = 'http://192.168.1.5:8000';
+  static final String baseUrl = 'http://192.168.1.6:8000';
   static final String accessKey = '-';
   // ---- Auth ----
 

@@ -1,3 +1,4 @@
+import 'package:worklink_local/modules/app/components/general/form/form_widgets.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 
 class MessageComposer extends StatelessWidget {
@@ -31,24 +32,13 @@ class MessageComposer extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: TextField(
+              child: CustomInputField(
                 controller: controller,
+                label: 'Mensaje',
+                hintText: 'Escribe un mensaje de prueba...',
                 enabled: enabled,
                 textInputAction: TextInputAction.send,
-                onSubmitted: (_) => onSend(),
-                decoration: InputDecoration(
-                  hintText: 'Escribe un mensaje de prueba...',
-                  filled: true,
-                  fillColor: Style.getBackgroundColor(),
-                  border: OutlineInputBorder(
-                    borderRadius: Style.getBorderRadius(),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 14.w,
-                    vertical: 12.h,
-                  ),
-                ),
+                onFieldSubmitted: (_) => onSend(),
               ),
             ),
             SizedBox(width: 10.w),

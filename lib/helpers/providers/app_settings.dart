@@ -18,13 +18,15 @@ class AppSettings extends ChangeNotifier {
   Color _primaryLightColor = const Color.fromARGB(255, 108, 29, 255);
   Color _secondaryLightColor = Style.lightBlue;
   Color _accentLightColor = Style.yellow;
-  // Color _primaryDarkColor = Style.yellow;
-  // Color _secondaryDarkColor = Style.lightBlue;
-  // Color _accentDarkColor = Style.yellow;
+
+  Color _primaryDarkColor = const Color(0xFF6366F1);
+  Color _secondaryDarkColor = const Color(0xFF818CF8);
+  Color _accentDarkColor = const Color(0xFF94A3B8);
 
   bool _isDarkModeOn = false;
   bool _isSignedIn = false;
   bool _isOnboarding = false;
+  bool _isBiometricEnabled = false;
 
   // App Info
   // CollaboratorModel? _user;
@@ -35,13 +37,14 @@ class AppSettings extends ChangeNotifier {
   static Color get primaryLightColor => _instance._primaryLightColor;
   static Color get secondaryLightColor => _instance._secondaryLightColor;
   static Color get accentLightColor => _instance._accentLightColor;
-  // static Color get primaryDarkColor    => _instance._primaryDarkColor;
-  // static Color get secondaryDarkColor  => _instance._secondaryDarkColor;
-  // static Color get accentDarkColor     => _instance._accentDarkColor;
+  static Color get primaryDarkColor => _instance._primaryDarkColor;
+  static Color get secondaryDarkColor => _instance._secondaryDarkColor;
+  static Color get accentDarkColor => _instance._accentDarkColor;
 
   static bool get isDarkModeOn => _instance._isDarkModeOn;
   static bool get isSignedIn => _instance._isSignedIn;
   static bool get doneOnboarding => _instance._isOnboarding;
+  static bool get isBiometricEnabled => _instance._isBiometricEnabled;
 
   // static CollaboratorModel? get currentUser => _instance._user;
   static String? get loginDate => _instance._loginDate;
@@ -55,9 +58,11 @@ class AppSettings extends ChangeNotifier {
       _instance._secondaryLightColor = value;
   static set accentLightColor(Color value) =>
       _instance._accentLightColor = value;
-  // static set primaryDarkColor(Color value)    => _instance._primaryDarkColor = value;
-  // static set secondaryDarkColor(Color value)  => _instance._secondaryDarkColor = value;
-  // static set accentDarkColor(Color value)     => _instance._accentDarkColor = value;
+  static set primaryDarkColor(Color value) =>
+      _instance._primaryDarkColor = value;
+  static set secondaryDarkColor(Color value) =>
+      _instance._secondaryDarkColor = value;
+  static set accentDarkColor(Color value) => _instance._accentDarkColor = value;
 
   static set isDarkModeOn(bool value) {
     _instance._isDarkModeOn = value;
@@ -66,6 +71,11 @@ class AppSettings extends ChangeNotifier {
 
   static set isSignedIn(bool value) {
     _instance._isSignedIn = value;
+  }
+
+  static set isBiometricEnabled(bool value) {
+    _instance._isBiometricEnabled = value;
+    prefs.setBool('biometric_enabled', value);
   }
 
   static set doneOnboarding(bool value) {
@@ -107,8 +117,18 @@ class AppSettings extends ChangeNotifier {
   static Future<void> getSettings() async {
     isDarkModeOn = await getDarkMode();
     doneOnboarding = await getOnboarding();
+    _instance._isBiometricEnabled = prefs.getBool('biometric_enabled') ?? false;
     _instance._loginDate =
         prefs.getString(Constants.loginDateKey) ?? DateTime.now().toString();
+  }
+
+  static Future<bool> getBiometricEnabled() async {
+    return prefs.getBool('biometric_enabled') ?? false;
+  }
+
+  static Future<void> syncBiometricPreference() async {
+    _instance._isBiometricEnabled = await getBiometricEnabled();
+    _instance.notifyListeners();
   }
 
   // ----------- SAVE VALUES ----------- //
@@ -144,6 +164,11 @@ class AppSettings extends ChangeNotifier {
   // Save login date
   static Future<bool> saveLoginDate(String date) async {
     return prefs.setString(Constants.loginDateKey, date);
+  }
+
+  static Future<bool> saveBiometricEnabled(bool value) async {
+    isBiometricEnabled = value;
+    return true;
   }
 
   // Save last enter date

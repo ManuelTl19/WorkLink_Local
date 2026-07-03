@@ -45,18 +45,25 @@ class _MyAppState extends State<MyApp> {
   void getLocale() async {
     final multiLanguages = MultiLanguages();
     var localeKey = await multiLanguages.getLocaleKey();
-
+    Locale newLocale;
     if (localeKey == 'es') {
-      _locale = const Locale.fromSubtags(languageCode: 'es');
+      newLocale = const Locale.fromSubtags(languageCode: 'es');
     } else {
-      _locale = const Locale.fromSubtags(languageCode: 'en');
+      newLocale = const Locale.fromSubtags(languageCode: 'en');
     }
+    setState(() {
+      _locale = newLocale;
+    });
   }
 
   @override
   void initState() {
     super.initState();
     getLocale();
+    // Register the locale change callback so MultiLanguages can notify us
+    LocaleManager.setLocaleCallback((locale) {
+      changeLocale(locale);
+    });
     setDeviceOrientation(1);
   }
 

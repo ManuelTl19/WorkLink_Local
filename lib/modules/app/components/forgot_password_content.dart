@@ -1,3 +1,4 @@
+import 'package:worklink_local/modules/app/components/general/form/form_widgets.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/utils/utils.dart';
 
@@ -49,31 +50,18 @@ class ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
 
           Form(
             key: _formKey,
-            child: TextFormField(
+            child: CustomInputField(
               controller: _emailController,
+              label: "Correo electrónico",
+              hintText: "Ingrese su correo electrónico",
               keyboardType: TextInputType.emailAddress,
-              style: Style.getTextStyle(),
-              decoration: InputDecoration(
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(
-                    Style.circularBorderRadius,
-                  ),
-                  borderSide: const BorderSide(color: Style.grey),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(
-                    Style.circularBorderRadius,
-                  ),
-                  borderSide: BorderSide(color: Style.getPrimaryColor()),
-                ),
-                prefixIcon: Icon(
-                  Icons.mail_rounded,
-                  color: Style.getPrimaryColor(),
-                  size: Style.bigIconSize,
-                ),
+              prefixIcon: Icon(
+                Icons.mail_rounded,
+                color: Style.getPrimaryColor(),
+                size: Style.bigIconSize,
               ),
               validator: (value) {
-                if (value!.isEmpty) {
+                if (value == null || value.isEmpty) {
                   return "Por favor, ingrese su correo electrónico";
                 } else {
                   if (!value.isEmail) {

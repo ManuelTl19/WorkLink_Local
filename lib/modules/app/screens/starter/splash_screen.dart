@@ -1,4 +1,3 @@
-import 'package:worklink_local/modules/app/screens/dashboard_screen.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/app/screens/starter/login_screen.dart';
 import 'package:worklink_local/utils/utils.dart';
@@ -47,17 +46,7 @@ class SplashScreenState extends State<SplashScreen>
 
     _animationController.forward().whenComplete(() async {
       if (AppSettings.doneOnboarding && mounted) {
-        if (AppSettings.isSignedIn &&
-            !AppSettings.lastEnterDate.toDateTime().afterDays(5)) {
-          push(context, DashboardScreen(), replace: true);
-          AppSettings.lastEnterDate = DateTime.now().toString();
-        } else {
-          push(
-            context,
-            const LoginScreen(showByeMesssage: false),
-            replace: true,
-          );
-        }
+        push(context, const LoginScreen(showByeMesssage: false), replace: true);
       } else {
         if (mounted) push(context, const OnBoardingScreen(), replace: true);
       }

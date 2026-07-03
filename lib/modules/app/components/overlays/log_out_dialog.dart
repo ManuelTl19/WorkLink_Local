@@ -32,22 +32,21 @@ class _LogOutDialogState extends State<LogOutDialog> {
               SizedBox(height: 20.h),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
-                child:
-                    isLoading
-                        ? CircularProgressIndicator(
-                          key: const Key('loading_indicator'),
-                          color: Style.getPrimaryColor(),
-                          strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Style.getPrimaryColor(),
-                          ),
-                        )
-                        : Icon(
-                          key: const Key('logout_icon'),
-                          Icons.exit_to_app_rounded,
-                          color: Style.getPrimaryColor(),
-                          size: 30.w,
+                child: isLoading
+                    ? CircularProgressIndicator(
+                        key: const Key('loading_indicator'),
+                        color: Style.getPrimaryColor(),
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Style.getPrimaryColor(),
                         ),
+                      )
+                    : Icon(
+                        key: const Key('logout_icon'),
+                        Icons.exit_to_app_rounded,
+                        color: Style.getPrimaryColor(),
+                        size: 30.w,
+                      ),
               ),
               SizedBox(height: 10.h),
               Text(
@@ -97,6 +96,8 @@ class _LogOutDialogState extends State<LogOutDialog> {
                   setState(() {
                     isLoading = false;
                   });
+
+                  await AuthService.logout();
 
                   if (context.mounted)
                     push(context, const LoginScreen(), replace: true);

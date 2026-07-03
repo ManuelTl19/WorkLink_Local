@@ -125,32 +125,11 @@ class _ConversationScreenState extends State<ConversationScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text(
-                    widget.chat.isOnline
-                        ? 'En línea'
-                        : 'Última vez recientemente',
-                    style: Style.getHeaderThree(
-                      color: widget.chat.isOnline
-                          ? Colors.green
-                          : Style.getObscureTextColor(),
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
                 ],
               ),
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.call_rounded, color: Style.getTextColor()),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.videocam_rounded, color: Style.getTextColor()),
-          ),
-        ],
       ),
       body: Column(
         children: [

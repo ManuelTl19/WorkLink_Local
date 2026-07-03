@@ -1,3 +1,6 @@
+import 'dart:ui';
+
+import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
 import 'package:worklink_local/utils/logger.dart';
 
 import '../../../utils/widgets/widgets.dart';
@@ -96,56 +99,7 @@ class DashboardScreenState extends State<DashboardScreen> {
               },
             ),
           ),
-          bottomNavigationBar: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20.r),
-              color: Style.transparent,
-              boxShadow: [
-                BoxShadow(
-                  color: Style.getShadowColor(),
-                  blurRadius: 8,
-                  spreadRadius: 3,
-                  offset: const Offset(0, 0),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20.r),
-              child: BottomNavigationBar(
-                type: BottomNavigationBarType.shifting,
-                backgroundColor: Style.getCardColor(),
-                selectedItemColor: Style.getPrimaryColor(),
-                unselectedItemColor: AppSettings.isDarkModeOn
-                    ? Style.white
-                    : Style.kingBlue,
-                showUnselectedLabels: false,
-                showSelectedLabels: true,
-                currentIndex: screenIndex,
-                onTap: (index) => _buttonPress(index),
-                items: [
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.chat_bubble_outline_rounded),
-                    activeIcon: Icon(Icons.chat_bubble_rounded),
-                    label: 'Mensajes',
-                    backgroundColor: Style.getCardColor(),
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.home_outlined),
-                    activeIcon: Icon(Icons.home_rounded),
-                    label: 'Inicio',
-                    backgroundColor: Style.getCardColor(),
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.settings_outlined),
-                    activeIcon: Icon(Icons.settings_rounded),
-                    label: 'Configuración',
-                    backgroundColor: Style.getCardColor(),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          bottomNavigationBar: _floatingNavigationBar(),
         ),
       ),
     );
@@ -155,7 +109,118 @@ class DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       screenIndex = index;
     });
-    dashController.jumpToPage(index);
+    dashController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Widget _floatingNavigationBar() {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(14.w, 0, 14.w, 12.h),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(32.r),
+          child: AnimatedBottomNavigationBar.builder(
+            itemCount: 3,
+            activeIndex: screenIndex,
+            leftCornerRadius: 32,
+            rightCornerRadius: 32,
+            height: 78.h,
+            gapLocation: GapLocation.none,
+            blurEffect: true,
+            imageFilter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            backgroundColor: Style.getBackgroundColor().withValues(alpha: .01),
+            borderColor: Style.getPrimaryColor().withValues(alpha: .08),
+            borderWidth: 1.0,
+            elevation: 18,
+            splashColor: Style.getPrimaryColor().withValues(alpha: .18),
+            shadow: Shadow(
+              color: Style.getShadowColor().withValues(alpha: .18),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+            tabBuilder: (index, isActive) => _navTab(index, isActive),
+            onTap: _buttonPress,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _navTab(int index, bool isActive) {
+    final label = index == 0
+        ? 'Chat'
+        : index == 1
+        ? 'Inicio'
+        : 'Configuración';
+    final icon = index == 0
+        ? Icons.chat_bubble_outline_rounded
+        : index == 1
+        ? Icons.home_outlined
+        : Icons.settings_outlined;
+    final activeIcon = index == 0
+        ? Icons.chat_bubble_rounded
+        : index == 1
+        ? Icons.home_rounded
+        : Icons.settings_rounded;
+
+    if (!isActive) {
+      return SizedBox(
+        key: ValueKey('inactive-$index'),
+        height: 86.h,
+        child: Center(
+          child: Icon(
+            icon,
+            size: 24.w,
+            color: Style.getTextColor(),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      key: ValueKey('active-$index'),
+      height: 78.h,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeOutCubic,
+              width: 40.w,
+              height: 40.w,
+              decoration: BoxDecoration(
+                color: Style.getPrimaryColor().withValues(alpha: .18),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Style.getPrimaryColor().withValues(alpha: .24),
+                ),
+              ),
+              child: Icon(
+                activeIcon,
+                size: 18.w,
+                color: Style.getPrimaryColor(),
+              ),
+            ),
+            SizedBox(height: 3.h),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Style.getTextStyle(
+                color: Style.getPrimaryColor(),
+                fontWeight: FontWeight.w700,
+                fontSize: 9,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String greating() {

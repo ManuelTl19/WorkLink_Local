@@ -1,3 +1,4 @@
+import 'package:worklink_local/modules/app/components/general/form/form_widgets.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/utils/utils.dart';
 
@@ -166,57 +167,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: Style.getHeaderThree(
-              color: Style.getTextColor(),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          SizedBox(height: 8.h),
-          TextFormField(
-            controller: controller,
-            obscureText: obscure,
-            style: Style.getTextStyle(),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: Style.getHintStyle(color: Style.getObscureTextColor()),
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 12.w,
-                vertical: 10.h,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: Style.getBorderRadius(),
-                borderSide: BorderSide(color: Style.getBorderColor(), width: 1),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: Style.getBorderRadius(),
-                borderSide: BorderSide(
-                  color: Style.getPrimaryColor(),
-                  width: 1,
-                ),
-              ),
-              suffixIcon: IconButton(
-                onPressed: onToggle,
-                icon: Icon(
-                  obscure
-                      ? Icons.visibility_rounded
-                      : Icons.visibility_off_rounded,
-                  color: Style.getPrimaryColor(),
-                  size: 18.w,
-                ),
-              ),
-            ),
-            validator:
-                validator ??
-                (value) => (value ?? '').isEmpty
-                    ? MultiLanguages.of(context)!.translate('field_required')
-                    : null,
-          ),
-        ],
+      child: CustomPasswordField(
+        controller: controller,
+        label: title,
+        hintText: hint,
+        validator:
+            validator ??
+            (value) => (value ?? '').isEmpty
+                ? MultiLanguages.of(context)!.translate('field_required')
+                : null,
       ),
     );
   }
