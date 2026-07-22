@@ -3,9 +3,13 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:worklink_local/helpers/helpers.dart';
+import 'package:worklink_local/main.dart';
 import 'package:worklink_local/modules/app/screens/dashboard_screen.dart';
 import 'package:worklink_local/modules/app/screens/starter/login_screen.dart';
+import 'package:worklink_local/modules/companies/screens/companies_screen.dart';
+import 'package:worklink_local/modules/companies/screens/company_profile_screen.dart';
 import 'package:worklink_local/modules/freelancers/freelancers.dart';
+import 'package:worklink_local/modules/notifications/screens/notifications_screen.dart';
 import 'package:worklink_local/modules/requests/requests.dart';
 import 'package:worklink_local/modules/services/services.dart';
 import 'package:worklink_local/modules/vacancies/screens/my_vacancies_screen.dart';
@@ -21,11 +25,33 @@ class DrawerContent extends StatefulWidget {
   State<DrawerContent> createState() => _DrawerContentState();
 }
 
-class _DrawerContentState extends State<DrawerContent> {
+class _DrawerContentState extends State<DrawerContent> with RouteAware {
   UserModel? _user;
+  // ignore: unused_field
   bool _isLoading = true;
   String? _activeSection;
   String? _activeItem;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+    _syncActiveRoute();
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    _loadUser();
+  }
 
   @override
   void initState() {
@@ -55,7 +81,9 @@ class _DrawerContentState extends State<DrawerContent> {
   }
 
   void _syncActiveRoute() {
-    final index = screenIndex;
+    // Get the current dashboard state to determine active section
+    final dashboardState = currentDashboardState as DashboardScreenState?;
+    final index = dashboardState?.screenIndex ?? 1;
     if (index == 1) {
       _activeSection = 'general';
       _activeItem = 'inicio';
@@ -66,12 +94,6 @@ class _DrawerContentState extends State<DrawerContent> {
       _activeSection = 'general';
       _activeItem = 'inicio';
     }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _syncActiveRoute();
   }
 
   @override
@@ -87,9 +109,9 @@ class _DrawerContentState extends State<DrawerContent> {
                 child: ListView(
                   padding: EdgeInsets.only(top: 8.h, bottom: 12.h),
                   children: [
-                    _groupTitle('GENERAL'),
+                    _groupTitle(MultiLanguages.of(context)!.translate('general')),
                     _navItem(
-                      title: 'Inicio',
+                      title: MultiLanguages.of(context)!.translate('home'),
                       icon: Icons.home_rounded,
                       section: 'general',
                       item: 'inicio',
@@ -97,148 +119,11 @@ class _DrawerContentState extends State<DrawerContent> {
                         _navigateToDashboard(1);
                       },
                     ),
+                    ..._buildRoleMenuItems(),
                     SizedBox(height: 8.h),
-                    _groupTitle('GESTIÓN'),
-                    _navExpansionTile(
-                      title: 'Clientes',
-                      icon: Icons.groups_rounded,
-                      section: 'gestion',
-                      children: [
-                        _subNavItem(
-                          title: 'Mis Contrataciones',
-                          icon: Icons.assignment_turned_in_rounded,
-                          onTap: () {},
-                        ),
-                        _subNavItem(
-                          title: 'Favoritos',
-                          icon: Icons.favorite_rounded,
-                          onTap: () {},
-                        ),
-                        _subNavItem(
-                          title: 'Historial',
-                          icon: Icons.history_rounded,
-                          onTap: () {},
-                        ),
-                      ],
-                    ),
-                    _navExpansionTile(
-                      title: 'Empresas',
-                      icon: Icons.apartment_rounded,
-                      section: 'gestion',
-                      children: [
-                        _subNavItem(
-                          title: 'Mis Vacantes',
-                          icon: Icons.work_rounded,
-                          onTap: () {
-                            _pushMyVacancies();
-                          },
-                        ),
-                        _subNavItem(
-                          title: 'Postulaciones',
-                          icon: Icons.how_to_reg_rounded,
-                          onTap: () {
-                            _pushMyVacancies();
-                          },
-                        ),
-                        _subNavItem(
-                          title: 'Historial',
-                          icon: Icons.history_rounded,
-                          onTap: () {},
-                        ),
-                      ],
-                    ),
-                    _navExpansionTile(
-                      title: 'Freelancers',
-                      icon: Icons.badge_rounded,
-                      section: 'gestion',
-                      children: [
-                        _subNavItem(
-                          title: 'Vacantes',
-                          icon: Icons.work_outline_rounded,
-                          onTap: () {
-                            _pushVacancies();
-                          },
-                        ),
-                        _subNavItem(
-                          title: 'Explorar Freelancers',
-                          icon: Icons.manage_search_rounded,
-                          onTap: () {
-                            _pushFreelancers();
-                          },
-                        ),
-                        _subNavItem(
-                          title: 'Mi Portafolio',
-                          icon: Icons.work_history_rounded,
-                          onTap: () {},
-                        ),
-                        _subNavItem(
-                          title: 'Mis Servicios',
-                          icon: Icons.schedule_rounded,
-                          onTap: () {},
-                        ),
-                        _subNavItem(
-                          title: 'Disponibilidad',
-                          icon: Icons.event_available_rounded,
-                          onTap: () {},
-                        ),
-                        _subNavItem(
-                          title: 'Solicitudes recibidas',
-                          icon: Icons.inbox_rounded,
-                          onTap: () {},
-                        ),
-                        _subNavItem(
-                          title: 'Historial de trabajos',
-                          icon: Icons.fact_check_rounded,
-                          onTap: () {},
-                        ),
-                      ],
-                    ),
-                    _navExpansionTile(
-                      title: 'Servicios',
-                      icon: Icons.design_services_rounded,
-                      section: 'gestion',
-                      children: [
-                        _subNavItem(
-                          title: 'Servicios',
-                          icon: Icons.storefront_rounded,
-                          onTap: () {
-                            _pushServices();
-                          },
-                        ),
-                        _subNavItem(
-                          title: 'Mis Servicios',
-                          icon: Icons.work_history_rounded,
-                          onTap: () {
-                            _pushMyServices();
-                          },
-                        ),
-                      ],
-                    ),
-                    _navExpansionTile(
-                      title: 'Solicitudes',
-                      icon: Icons.assignment_rounded,
-                      section: 'gestion',
-                      children: [
-                        _subNavItem(
-                          title: 'Solicitudes',
-                          icon: Icons.assignment_turned_in_rounded,
-                          onTap: () {
-                            _pushRequests();
-                          },
-                        ),
-                        _subNavItem(
-                          title: 'Mis Solicitudes',
-                          icon: Icons.playlist_add_check_rounded,
-                          onTap: () {
-                            _pushMyRequests();
-                          },
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 8.h),
-                    _groupTitle('CUENTA'),
+                    _groupTitle(MultiLanguages.of(context)!.translate('account')),
                     _navItem(
-                      title: 'Perfil',
+                      title: MultiLanguages.of(context)!.translate('profile'),
                       icon: Icons.person_rounded,
                       section: 'cuenta',
                       item: 'perfil',
@@ -246,27 +131,23 @@ class _DrawerContentState extends State<DrawerContent> {
                         _pushProfile();
                       },
                     ),
+                    if (_hasRole('admin'))
+                      _navItem(
+                        title: MultiLanguages.of(context)!.translate('dashboard'),
+                        icon: Icons.dashboard_rounded,
+                        section: 'general',
+                        item: 'dashboard_admin',
+                        onTap: () {
+                          _navigateToDashboard(1);
+                        },
+                      ),
                     _navItem(
-                      title: 'Configuración',
+                      title: MultiLanguages.of(context)!.translate('settings'),
                       icon: Icons.settings_rounded,
                       section: 'cuenta',
                       item: 'configuracion',
                       onTap: () {
                         _navigateToDashboard(2);
-                      },
-                    ),
-                    SizedBox(height: 8.h),
-                    _groupTitle('SOPORTE'),
-                    _navItem(
-                      title: 'Centro de ayuda',
-                      icon: Icons.support_agent_rounded,
-                      section: 'soporte',
-                      item: 'soporte',
-                      onTap: () {
-                        _showInfo(
-                          title: 'Centro de ayuda',
-                          message: 'Acceso a ayuda y soporte próximamente.',
-                        );
                       },
                     ),
                   ],
@@ -307,7 +188,7 @@ class _DrawerContentState extends State<DrawerContent> {
   Widget _buildHeader(BuildContext context) {
     final fullName = _fullName;
     final email = _email;
-    final role = _role;
+    final role = _role; // ignore: unused_local_variable
 
     return Container(
       margin: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 6.h),
@@ -414,151 +295,34 @@ class _DrawerContentState extends State<DrawerContent> {
           ),
         ),
       ),
-      child: ListTile(
-        dense: true,
-        visualDensity: const VisualDensity(vertical: -3),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 0),
-        leading: Icon(icon, color: iconColor, size: 18.w),
-        title: Text(
-          title,
-          style: Style.getTextStyle(
-            color: textColor,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        trailing: isSelected
-            ? Icon(Icons.circle, size: 8.w, color: Style.getPrimaryColor())
-            : null,
-        onTap: onTap,
-      ),
-    );
-  }
-
-  Widget _navExpansionTile({
-    required String title,
-    required IconData icon,
-    required String section,
-    required List<Widget> children,
-  }) {
-    final isExpandedGroup = _activeSection == section;
-
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 12.w, vertical: 2.h),
-      decoration: BoxDecoration(
+      child: Material(
+        color: Colors.transparent,
         borderRadius: Style.getCircularBorderRadius(14),
-        border: Border.all(
-          color: isExpandedGroup
-              ? Style.getPrimaryColor().withValues(alpha: .18)
-              : Colors.transparent,
-        ),
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: isExpandedGroup,
-          tilePadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 0),
-          childrenPadding: EdgeInsets.only(left: 18.w, right: 8.w, bottom: 8.h),
-          iconColor: Style.getPrimaryColor(),
-          collapsedIconColor: Style.getObscureTextColor(),
-          backgroundColor: Colors.transparent,
-          collapsedBackgroundColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: Style.getCircularBorderRadius(14),
-          ),
-          collapsedShape: RoundedRectangleBorder(
-            borderRadius: Style.getCircularBorderRadius(14),
-          ),
-          leading: Container(
-            padding: EdgeInsets.all(7.w),
-            decoration: BoxDecoration(
-              color: isExpandedGroup
-                  ? Style.getPrimaryColor().withValues(alpha: .12)
-                  : Style.getBackgroundColor().darken(.05),
-              borderRadius: Style.getCircularBorderRadius(100),
-            ),
-            child: Icon(
-              icon,
-              size: 16.w,
-              color: isExpandedGroup
-                  ? Style.getPrimaryColor()
-                  : Style.getTextColor(),
-            ),
-          ),
-          title: Text(
-            title,
-            style: Style.getTextStyle(
-              color: isExpandedGroup
-                  ? Style.getPrimaryColor()
-                  : Style.getTextColor(),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          trailing: Icon(
-            isExpandedGroup
-                ? Icons.expand_less_rounded
-                : Icons.expand_more_rounded,
-            color: isExpandedGroup
-                ? Style.getPrimaryColor()
-                : Style.getObscureTextColor(),
-          ),
-          children: [
-            Container(
-              margin: EdgeInsets.only(left: 8.w),
-              padding: EdgeInsets.only(left: 12.w),
-              decoration: BoxDecoration(
-                border: Border(
-                  left: BorderSide(
-                    color: Style.getPrimaryColor().withValues(alpha: .18),
-                    width: 1.4,
+        child: InkWell(
+          borderRadius: Style.getCircularBorderRadius(14),
+          splashColor: Style.getPrimaryColor().withValues(alpha: .12),
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 11.h),
+            child: Row(
+              children: [
+                Icon(icon, color: iconColor, size: 18.w),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Style.getTextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: 1),
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                builder: (context, value, child) {
-                  return Opacity(
-                    opacity: value,
-                    child: Transform.translate(
-                      offset: Offset(0, 6 * (1 - value)),
-                      child: child,
-                    ),
-                  );
-                },
-                child: Column(children: children),
-              ),
+                if (isSelected)
+                  Icon(Icons.circle, size: 8.w, color: Style.getPrimaryColor()),
+              ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _subNavItem({
-    required String title,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      margin: EdgeInsets.only(left: 4.w, top: 2.h, bottom: 2.h),
-      decoration: BoxDecoration(
-        color: Style.getBackgroundColor().darken(.02),
-        borderRadius: Style.getCircularBorderRadius(12),
-      ),
-      child: ListTile(
-        dense: true,
-        visualDensity: const VisualDensity(vertical: -4),
-        contentPadding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 0),
-        leading: Icon(icon, size: 16.w, color: Style.getSecondaryColor()),
-        title: Text(
-          title,
-          style: Style.getTextStyle(
-            color: Style.getTextColor(),
-            fontWeight: FontWeight.w600,
           ),
         ),
-        onTap: onTap,
       ),
     );
   }
@@ -602,17 +366,13 @@ class _DrawerContentState extends State<DrawerContent> {
 
   void _navigateToDashboard(int index) {
     Navigator.of(context).pop();
-    if (screenIndex != index) {
-      setState(() {
-        screenIndex = index;
-      });
-      dashController.jumpToPage(index);
-      return;
-    }
 
-    if (index == 1) {
-      dashController.jumpToPage(index);
-    }
+    // Get the current dashboard state
+    final dashboardState = currentDashboardState as DashboardScreenState?;
+    if (dashboardState == null) return;
+
+    // Navigate to the selected page
+    dashboardState.goToPage(index);
   }
 
   void _pushProfile() {
@@ -624,47 +384,88 @@ class _DrawerContentState extends State<DrawerContent> {
 
   void _pushFreelancers() {
     Navigator.of(context).pop();
-    Navigator.of(context).push(Transitions.slideUpTransition(const FreelancersScreen()));
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const FreelancersScreen()));
+  }
+
+  void _pushProfessionalProfile() {
+    Navigator.of(context).pop();
+    Navigator.of(context).push(
+      Transitions.slideUpTransition(
+        const FreelancerServiceProfileScreen(
+          freelancerId: null,
+          ownerPreview: true,
+        ),
+      ),
+    );
+  }
+
+  void _pushFreelancerAvailability() {
+    Navigator.of(context).pop();
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const FreelancerAvailabilityScreen()));
   }
 
   void _pushVacancies() {
     Navigator.of(context).pop();
-    Navigator.of(context).push(Transitions.slideUpTransition(const VacanciesScreen()));
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const VacanciesScreen()));
   }
 
   void _pushMyVacancies() {
     Navigator.of(context).pop();
-    Navigator.of(context).push(Transitions.slideUpTransition(const MyVacanciesScreen()));
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const MyVacanciesScreen()));
   }
 
   void _pushServices() {
     Navigator.of(context).pop();
-    Navigator.of(context).push(Transitions.slideUpTransition(const ServicesScreen()));
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const ServicesScreen()));
   }
 
   void _pushMyServices() {
     Navigator.of(context).pop();
-    Navigator.of(context).push(Transitions.slideUpTransition(const MyServicesScreen()));
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const MyServicesScreen()));
   }
 
   void _pushRequests() {
     Navigator.of(context).pop();
-    Navigator.of(context).push(Transitions.slideUpTransition(const RequestsScreen()));
-  }
-
-  void _pushMyRequests() {
-    Navigator.of(context).pop();
-    Navigator.of(context).push(Transitions.slideUpTransition(const MyRequestsScreen()));
-  }
-
-  void _showInfo({required String title, required String message}) {
-    Dialogs.showSimpleDialog(
+    Navigator.of(
       context,
-      title: title,
-      message: message,
-      color: Style.getPrimaryColor(),
-      icon: Icons.info_outline_rounded,
-    );
+    ).push(Transitions.slideUpTransition(const RequestsScreen()));
+  }
+
+  void _pushCompanies() {
+    Navigator.of(context).pop();
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const CompaniesScreen()));
+  }
+
+  void _pushCompanyProfile() {
+    Navigator.of(context).pop();
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const CompanyProfileScreen()));
+  }
+
+  void _pushNotifications() {
+    Navigator.of(context).pop();
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const NotificationsScreen()));
+  }
+
+  void _goToChats() {
+    _navigateToDashboard(0);
   }
 
   String get _fullName {
@@ -709,5 +510,224 @@ class _DrawerContentState extends State<DrawerContent> {
         ? parts[1].substring(0, 1).toUpperCase()
         : '';
     return '$first$second';
+  }
+
+  bool _hasRole(String role) {
+    final normalizedRoles =
+        _user?.roles
+            .map((value) => value.toLowerCase().trim())
+            .where((value) => value.isNotEmpty)
+            .toList() ??
+        [];
+    final roleName = role.toLowerCase().trim();
+    final currentType = (_user?.tipoCuenta ?? '').toLowerCase().trim();
+
+    if (normalizedRoles.contains(roleName) || currentType == roleName) {
+      return true;
+    }
+
+    if (roleName == 'admin') {
+      return normalizedRoles.contains('administrador') ||
+          currentType == 'administrador';
+    }
+
+    return false;
+  }
+
+  List<Widget> _buildRoleMenuItems() {
+    if (_hasRole('admin')) {
+      return [
+        SizedBox(height: 8.h),
+        _groupTitle(MultiLanguages.of(context)!.translate('administration')),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('companies'),
+          icon: Icons.apartment_rounded,
+          section: 'gestion',
+          item: 'empresas_admin',
+          onTap: _pushCompanies,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('freelancers'),
+          icon: Icons.badge_rounded,
+          section: 'gestion',
+          item: 'freelancers_admin',
+          onTap: _pushFreelancers,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('services'),
+          icon: Icons.design_services_rounded,
+          section: 'gestion',
+          item: 'servicios_admin',
+          onTap: _pushServices,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('requests'),
+          icon: Icons.assignment_rounded,
+          section: 'gestion',
+          item: 'solicitudes_admin',
+          onTap: _pushRequests,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('vacancies'),
+          icon: Icons.work_outline_rounded,
+          section: 'gestion',
+          item: 'vacantes_admin',
+          onTap: _pushVacancies,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('notifications'),
+          icon: Icons.notifications_rounded,
+          section: 'gestion',
+          item: 'notificaciones_admin',
+          onTap: _pushNotifications,
+        ),
+      ];
+    }
+
+    if (_hasRole('empresa')) {
+      return [
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('freelancers'),
+          icon: Icons.badge_rounded,
+          section: 'gestion',
+          item: 'freelancers_empresa',
+          onTap: _pushFreelancers,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('services'),
+          icon: Icons.design_services_rounded,
+          section: 'gestion',
+          item: 'servicios_empresa',
+          onTap: _pushServices,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('my_vacancies'),
+          icon: Icons.business_center_rounded,
+          section: 'gestion',
+          item: 'mis_vacantes_empresa',
+          onTap: _pushMyVacancies,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('vacancies'),
+          icon: Icons.work_outline_rounded,
+          section: 'gestion',
+          item: 'vacantes_empresa',
+          onTap: _pushVacancies,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('chats'),
+          icon: Icons.chat_bubble_rounded,
+          section: 'gestion',
+          item: 'chats_empresa',
+          onTap: _goToChats,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('business_profile'),
+          icon: Icons.apartment_rounded,
+          section: 'gestion',
+          item: 'perfil_empresa',
+          onTap: _pushCompanyProfile,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('notifications'),
+          icon: Icons.notifications_rounded,
+          section: 'gestion',
+          item: 'notificaciones_empresa',
+          onTap: _pushNotifications,
+        ),
+      ];
+    }
+
+    if (_hasRole('freelancer')) {
+      return [
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('my_services'),
+          icon: Icons.work_history_rounded,
+          section: 'gestion',
+          item: 'mis_servicios_freelancer',
+          onTap: _pushMyServices,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('vacancies'),
+          icon: Icons.work_outline_rounded,
+          section: 'gestion',
+          item: 'vacantes_freelancer',
+          onTap: _pushVacancies,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('requests'),
+          icon: Icons.assignment_rounded,
+          section: 'gestion',
+          item: 'solicitudes_freelancer',
+          onTap: _pushRequests,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('chats'),
+          icon: Icons.chat_bubble_rounded,
+          section: 'gestion',
+          item: 'chats_freelancer',
+          onTap: _goToChats,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('professional_profile'),
+          icon: Icons.person_rounded,
+          section: 'gestion',
+          item: 'perfil_freelancer',
+          onTap: _pushProfessionalProfile,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('availability'),
+          icon: Icons.calendar_month_rounded,
+          section: 'gestion',
+          item: 'disponibilidad_freelancer',
+          onTap: _pushFreelancerAvailability,
+        ),
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('notifications'),
+          icon: Icons.notifications_rounded,
+          section: 'gestion',
+          item: 'notificaciones_freelancer',
+          onTap: _pushNotifications,
+        ),
+      ];
+    }
+
+    return [
+      _navItem(
+        title: MultiLanguages.of(context)!.translate('freelancers'),
+        icon: Icons.badge_rounded,
+        section: 'gestion',
+        item: 'freelancers_cliente',
+        onTap: _pushFreelancers,
+      ),
+      _navItem(
+        title: MultiLanguages.of(context)!.translate('services'),
+        icon: Icons.design_services_rounded,
+        section: 'gestion',
+        item: 'servicios_cliente',
+        onTap: _pushServices,
+      ),
+      _navItem(
+        title: MultiLanguages.of(context)!.translate('requests'),
+        icon: Icons.assignment_rounded,
+        section: 'gestion',
+        item: 'solicitudes_cliente',
+        onTap: _pushRequests,
+      ),
+      _navItem(
+        title: MultiLanguages.of(context)!.translate('chats'),
+        icon: Icons.chat_bubble_rounded,
+        section: 'gestion',
+        item: 'chats_cliente',
+        onTap: _goToChats,
+      ),
+      _navItem(
+        title: MultiLanguages.of(context)!.translate('notifications'),
+        icon: Icons.notifications_rounded,
+        section: 'gestion',
+        item: 'notificaciones_cliente',
+        onTap: _pushNotifications,
+      ),
+    ];
   }
 }

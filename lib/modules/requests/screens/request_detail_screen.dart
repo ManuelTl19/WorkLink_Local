@@ -51,7 +51,9 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     );
 
     if (!mounted) return;
-    Navigator.of(context).push(Transitions.slideUpTransition(ConversationScreen(chat: chat)));
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(ConversationScreen(chat: chat)));
   }
 
   @override
@@ -72,25 +74,67 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               onPressed: () => Navigator.pop(context),
               icon: Icon(Icons.arrow_back_ios_new_rounded, color: Style.white),
             ),
-            actions: [IconButton(onPressed: _loadData, icon: Icon(Icons.refresh_rounded, color: Style.white))],
-            title: Text('Detalle de solicitud', style: Style.getHeaderTwo(color: Style.white, fontWeight: FontWeight.w700)),
-            flexibleSpace: FlexibleSpaceBar(background: _loading ? Center(child: CustomWidgets.mProgress(Style.getPrimaryColor())) : _hero()),
+            actions: [
+              IconButton(
+                onPressed: _loadData,
+                icon: Icon(Icons.refresh_rounded, color: Style.white),
+              ),
+            ],
+            title: Text(
+              MultiLanguages.of(context)?.translate('requests_detail_title') ??
+                  'Detalle de solicitud',
+              style: Style.getHeaderTwo(
+                color: Style.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            flexibleSpace: FlexibleSpaceBar(
+              background: _loading
+                  ? Center(
+                      child: CustomWidgets.mProgress(Style.getPrimaryColor()),
+                    )
+                  : _hero(),
+            ),
           ),
           if (_loading)
             SliverToBoxAdapter(child: SizedBox(height: 24.h))
           else if (_request == null)
-            SliverFillRemaining(hasScrollBody: false, child: Center(child: Text('La solicitud no existe.', style: Style.getTextStyle(color: Style.getObscureTextColor()))))
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Text(
+                  MultiLanguages.of(context)?.translate('requests_not_found') ??
+                      'La solicitud no existe.',
+                  style: Style.getTextStyle(color: Style.getObscureTextColor()),
+                ),
+              ),
+            )
           else ...[
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 16.h, Style.horizontalPadding.w, 12.h),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  16.h,
+                  Style.horizontalPadding.w,
+                  12.h,
+                ),
                 child: Row(
                   children: [
                     Expanded(
                       child: CustomWidgets.button(
                         onTap: _contactRequester,
                         color: Style.getPrimaryColor(),
-                        child: Text('Me interesa realizar este trabajo', style: Style.getHeaderThree(color: Style.white, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+                        child: Text(
+                          MultiLanguages.of(
+                                context,
+                              )?.translate('requests_interest_button') ??
+                              'Me interesa realizar este trabajo',
+                          style: Style.getHeaderThree(
+                            color: Style.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
                   ],
@@ -99,26 +143,78 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: Style.horizontalPadding.w),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Style.horizontalPadding.w,
+                ),
                 child: _infoCard(
-                  title: 'Descripción completa',
-                  child: Text(_request!.description, style: Style.getTextStyle(color: Style.getTextColor()).copyWith(height: 1.5)),
+                  title:
+                      MultiLanguages.of(
+                        context,
+                      )?.translate('services_full_description') ??
+                      'Descripción completa',
+                  child: Text(
+                    _request!.description,
+                    style: Style.getTextStyle(
+                      color: Style.getTextColor(),
+                    ).copyWith(height: 1.5),
+                  ),
                 ),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 12.h, Style.horizontalPadding.w, 0),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  12.h,
+                  Style.horizontalPadding.w,
+                  0,
+                ),
                 child: _infoCard(
-                  title: 'Información de la solicitud',
+                  title:
+                      MultiLanguages.of(
+                        context,
+                      )?.translate('requests_information') ??
+                      'Información de la solicitud',
                   child: Column(
                     children: [
-                      _detailRow('Categoría', _request!.category),
-                      _detailRow('Presupuesto', _request!.budgetLabel),
-                      _detailRow('Ubicación', _request!.location),
-                      _detailRow('Modalidad', _request!.modality.label),
-                      _detailRow('Fecha de publicación', DateFormat('dd MMM yyyy').format(_request!.postedAt)),
-                      _detailRow('Estado', _request!.status.label),
+                      _detailRow(
+                        MultiLanguages.of(
+                              context,
+                            )?.translate('services_category') ??
+                            'Categoría',
+                        _request!.category,
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(
+                              context,
+                            )?.translate('requests_budget') ??
+                            'Presupuesto',
+                        _request!.budgetLabel,
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(context)?.translate('location') ??
+                            'Ubicación',
+                        _request!.location,
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(
+                              context,
+                            )?.translate('services_modality') ??
+                            'Modalidad',
+                        _request!.modality.label,
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(
+                              context,
+                            )?.translate('requests_publish_date') ??
+                            'Fecha de publicación',
+                        DateFormat('dd MMM yyyy').format(_request!.postedAt),
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(context)?.translate('status') ??
+                            'Estado',
+                        _request!.status.label,
+                      ),
                     ],
                   ),
                 ),
@@ -126,7 +222,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 12.h, Style.horizontalPadding.w, 0),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  12.h,
+                  Style.horizontalPadding.w,
+                  0,
+                ),
                 child: _requesterCard(),
               ),
             ),
@@ -142,13 +243,20 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        CachedNetworkImage(imageUrl: request.requesterAvatarUrl, fit: BoxFit.cover),
+        CachedNetworkImage(
+          imageUrl: request.requesterAvatarUrl,
+          fit: BoxFit.cover,
+        ),
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Colors.transparent, Colors.black.withValues(alpha: .4), Style.getBackgroundColor().withValues(alpha: .95)],
+              colors: [
+                Style.transparent,
+                Style.black.withValues(alpha: .4),
+                Style.getBackgroundColor().withValues(alpha: .95),
+              ],
             ),
           ),
         ),
@@ -160,7 +268,14 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(request.title, style: Style.getHeaderTwo(color: Style.white, fontWeight: FontWeight.w800, fontSize: 22)),
+                Text(
+                  request.title,
+                  style: Style.getHeaderTwo(
+                    color: Style.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 22,
+                  ),
+                ),
                 SizedBox(height: 10.h),
                 Wrap(
                   spacing: 8.w,
@@ -189,27 +304,54 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(24.r),
         onTap: () {
-          Navigator.of(context).push(Transitions.slideUpTransition(RequesterProfileScreen(requesterId: request.requesterId)));
+          Navigator.of(context).push(
+            Transitions.slideUpTransition(
+              RequesterProfileScreen(requesterId: request.requesterId),
+            ),
+          );
         },
         child: Padding(
           padding: EdgeInsets.all(16.w),
           child: Row(
             children: [
-              CircleAvatar(radius: 30.w, backgroundImage: NetworkImage(request.requesterAvatarUrl)),
+              CircleAvatar(
+                radius: 30.w,
+                backgroundImage: NetworkImage(request.requesterAvatarUrl),
+              ),
               SizedBox(width: 14.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(request.requesterName, style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+                    Text(
+                      request.requesterName,
+                      style: Style.getHeaderTwo(
+                        color: Style.getTextColor(),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     SizedBox(height: 4.h),
-                    Text(request.requesterAccountType, style: Style.getTextStyle(color: Style.getPrimaryColor(), fontWeight: FontWeight.w700)),
+                    Text(
+                      request.requesterAccountType,
+                      style: Style.getTextStyle(
+                        color: Style.getPrimaryColor(),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     SizedBox(height: 6.h),
-                    Text(request.requesterDescription, style: Style.getTextStyle(color: Style.getTextColor()).copyWith(height: 1.3)),
+                    Text(
+                      request.requesterDescription,
+                      style: Style.getTextStyle(
+                        color: Style.getTextColor(),
+                      ).copyWith(height: 1.3),
+                    ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: Style.getObscureTextColor()),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: Style.getObscureTextColor(),
+              ),
             ],
           ),
         ),
@@ -228,7 +370,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Style.getHeaderThree(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+            Text(
+              title,
+              style: Style.getHeaderThree(
+                color: Style.getTextColor(),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             SizedBox(height: 12.h),
             child,
           ],
@@ -242,9 +390,28 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       padding: EdgeInsets.only(bottom: 10.h),
       child: Row(
         children: [
-          Expanded(flex: 4, child: Text(label, style: Style.getTextStyle(color: Style.getObscureTextColor(), fontWeight: FontWeight.w600))),
+          Expanded(
+            flex: 4,
+            child: Text(
+              label,
+              style: Style.getTextStyle(
+                color: Style.getObscureTextColor(),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
           SizedBox(width: 12.w),
-          Expanded(flex: 6, child: Text(value, textAlign: TextAlign.right, style: Style.getTextStyle(color: Style.getTextColor(), fontWeight: FontWeight.w700))),
+          Expanded(
+            flex: 6,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: Style.getTextStyle(
+                color: Style.getTextColor(),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -253,8 +420,18 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   Widget _pill(String label) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-      decoration: BoxDecoration(color: Style.white.withValues(alpha: .16), borderRadius: BorderRadius.circular(999), border: Border.all(color: Style.white.withValues(alpha: .22))),
-      child: Text(label, style: Style.getTextStyle(color: Style.white, fontWeight: FontWeight.w700)),
+      decoration: BoxDecoration(
+        color: Style.white.withValues(alpha: .16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Style.white.withValues(alpha: .22)),
+      ),
+      child: Text(
+        label,
+        style: Style.getTextStyle(
+          color: Style.white,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }

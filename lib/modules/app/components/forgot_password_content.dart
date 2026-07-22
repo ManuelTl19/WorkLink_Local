@@ -19,7 +19,7 @@ class ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
       backgroundColor: Style.getBackgroundColor(),
       shape: RoundedRectangleBorder(borderRadius: Style.getBorderRadius()),
       title: Text(
-        MultiLanguages.of(context)!.translate('Ingresar correo electrónico'),
+        MultiLanguages.of(context)!.translate('reset_password'),
         style: Style.getHeaderTwo(
           color: Style.getPrimaryColor(),
           fontWeight: FontWeight.bold,
@@ -29,7 +29,7 @@ class ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            "Ingrese su correo electrónico para restablecer su contraseña",
+            MultiLanguages.of(context)!.translate('enter_email_description'),
             style: Style.getHeaderThree(
               color: Style.getTextColor(),
               fontWeight: FontWeight.normal,
@@ -39,7 +39,7 @@ class ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
           SizedBox(height: 10.h),
 
           Text(
-            "Correo electrónico",
+            MultiLanguages.of(context)!.translate('login_email'),
             style: Style.getHeaderThree(
               color: Style.getTextColor(),
               fontWeight: FontWeight.normal,
@@ -52,8 +52,8 @@ class ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
             key: _formKey,
             child: CustomInputField(
               controller: _emailController,
-              label: "Correo electrónico",
-              hintText: "Ingrese su correo electrónico",
+              label: MultiLanguages.of(context)!.translate('login_email'),
+              hintText: MultiLanguages.of(context)!.translate('login_email_hint'),
               keyboardType: TextInputType.emailAddress,
               prefixIcon: Icon(
                 Icons.mail_rounded,
@@ -62,10 +62,12 @@ class ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return "Por favor, ingrese su correo electrónico";
+                  return MultiLanguages.of(context)!.translate('enter_email');
                 } else {
                   if (!value.isEmail) {
-                    return "Por favor, ingrese un correo electrónico válido";
+                    return MultiLanguages.of(
+                      context,
+                    )!.translate('enter_valid_email');
                   }
 
                   return null;
@@ -86,7 +88,7 @@ class ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
             ),
           ),
           child: Text(
-            "Cancelar",
+            MultiLanguages.of(context)!.translate('cancel'),
             style: Style.getHeaderThree(color: Style.getPrimaryColor()),
           ),
         ),
@@ -105,7 +107,7 @@ class ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
             ),
           ),
           child: Text(
-            "Enviar",
+            MultiLanguages.of(context)!.translate('send'),
             style: Style.getHeaderThree(color: Style.white),
           ),
         ),

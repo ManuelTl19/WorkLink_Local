@@ -1,6 +1,6 @@
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/services/models/service_model.dart';
-import 'package:worklink_local/utils/utils.dart';
+import 'package:worklink_local/utils/widgets/custom_widgets.dart';
 
 enum ServiceCardMode { browse, owner }
 
@@ -37,12 +37,11 @@ class ServiceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24.r),
         onTap: onTap,
         child: Padding(
-          padding: EdgeInsets.all(14.w),
+          padding: EdgeInsets.all(12.w),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _imageHeader(),
-              SizedBox(height: 12.h),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -57,10 +56,10 @@ class ServiceCard extends StatelessWidget {
                           style: Style.getHeaderTwo(
                             color: Style.getTextColor(),
                             fontWeight: FontWeight.w800,
-                            fontSize: 15,
+                            fontSize: 14,
                           ),
                         ),
-                        SizedBox(height: 4.h),
+                        SizedBox(height: 3.h),
                         Text(
                           service.category,
                           style: Style.getTextStyle(
@@ -71,160 +70,44 @@ class ServiceCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _statusChip(service.status),
+                  if (mode == ServiceCardMode.owner)
+                    _ownerQuickActions(context),
                 ],
               ),
-              SizedBox(height: 8.h),
-              if (mode == ServiceCardMode.browse)
-                Text(
-                  service.freelancerName,
-                  style: Style.getTextStyle(
-                    color: Style.getSecondaryColor(),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              SizedBox(height: 8.h),
-              Row(
+              SizedBox(height: 6.h),
+              Wrap(
+                spacing: 8.w,
+                runSpacing: 6.h,
                 children: [
-                  Icon(Icons.star_rounded, color: const Color(0xFFFFC107), size: 16.w),
-                  SizedBox(width: 4.w),
-                  Text(
-                    service.averageRating.toStringAsFixed(1),
-                    style: Style.getTextStyle(
-                      color: Style.getTextColor(),
-                      fontWeight: FontWeight.w700,
-                    ),
+                  if (_priceText.isNotEmpty) _infoChip(_priceText),
+                  _infoChip(
+                    service.location.isEmpty
+                        ? (MultiLanguages.of(context)?.translate('remote') ??
+                              'Remoto')
+                        : service.location,
                   ),
-                  SizedBox(width: 12.w),
-                  _infoChip(service.priceLabel),
-                  SizedBox(width: 8.w),
-                  _infoChip(service.modality.label),
                 ],
               ),
-              SizedBox(height: 10.h),
+              SizedBox(height: 8.h),
               Text(
-                service.shortDescription,
-                maxLines: 3,
+                _descriptionText(context),
+                maxLines: mode == ServiceCardMode.browse ? 2 : 3,
                 overflow: TextOverflow.ellipsis,
-                style: Style.getTextStyle(color: Style.getObscureTextColor()).copyWith(height: 1.4),
+                style: Style.getTextStyle(
+                  color: Style.getObscureTextColor(),
+                ).copyWith(height: 1.4),
               ),
-              SizedBox(height: 12.h),
-              if (mode == ServiceCardMode.browse) _browseActions() else _ownerActions(),
+              if (mode == ServiceCardMode.owner) ...[
+                SizedBox(height: 10.h),
+                _ownerVisibilityRow(context),
+              ],
+              if (mode == ServiceCardMode.browse)
+                _browseActions(context)
+              else
+                const SizedBox.shrink(),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _imageHeader() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20.r),
-      child: SizedBox(
-        height: 180.h,
-        width: double.infinity,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            CachedNetworkImage(
-              imageUrl: service.mainImageUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => Container(color: Style.getPrimaryColor().withValues(alpha: .08)),
-              errorWidget: (_, __, ___) => Container(
-                color: Style.getPrimaryColor().withValues(alpha: .08),
-                child: Icon(Icons.design_services_rounded, color: Style.getPrimaryColor(), size: 36.w),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withValues(alpha: .45)],
-                ),
-              ),
-            ),
-            Positioned(
-              top: 12.h,
-              left: 12.w,
-              right: 12.w,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _statusBadge(),
-                  if (service.featured)
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-                      decoration: BoxDecoration(
-                        color: Style.getPrimaryColor().withValues(alpha: .92),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        'Destacado',
-                        style: Style.getTextStyle(color: Style.white, fontWeight: FontWeight.w700, fontSize: 7),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Positioned(
-              left: 12.w,
-              right: 12.w,
-              bottom: 12.h,
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 18.w,
-                    backgroundImage: service.freelancerAvatarUrl.isNotEmpty ? NetworkImage(service.freelancerAvatarUrl) : null,
-                    backgroundColor: Style.white.withValues(alpha: .18),
-                    child: service.freelancerAvatarUrl.isEmpty
-                        ? Icon(Icons.person_rounded, color: Style.white, size: 16.w)
-                        : null,
-                  ),
-                  SizedBox(width: 10.w),
-                  Expanded(
-                    child: Text(
-                      service.freelancerName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Style.getHeaderThree(color: Style.white, fontWeight: FontWeight.w800, fontSize: 10),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _statusBadge() {
-    final color = _statusColor(service.status);
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .92),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        service.status.label,
-        style: Style.getTextStyle(color: Style.white, fontWeight: FontWeight.w700, fontSize: 7),
-      ),
-    );
-  }
-
-  Widget _statusChip(ServiceStatus status) {
-    final color = _statusColor(status);
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        status.label,
-        style: Style.getTextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 8),
       ),
     );
   }
@@ -235,7 +118,9 @@ class ServiceCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Style.getBackgroundColor(),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Style.getBorderColor().withValues(alpha: .25)),
+        border: Border.all(
+          color: Style.getBorderColor().withValues(alpha: .25),
+        ),
       ),
       child: Text(
         text,
@@ -248,44 +133,123 @@ class ServiceCard extends StatelessWidget {
     );
   }
 
-  Widget _browseActions() {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: onTap,
-            icon: Icon(Icons.visibility_rounded, size: 16.w),
-            label: const Text('Ver detalle'),
+  Widget _browseActions(BuildContext context) {
+    if (onRequest == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(top: 10.h),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: onRequest,
+          icon: Icon(Icons.send_rounded, size: 16.w),
+          label: Text(
+            MultiLanguages.of(context)?.translate('request_service') ??
+                'Solicitar',
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Style.getPrimaryColor(),
+            foregroundColor: Style.white,
           ),
         ),
-        SizedBox(width: 10.w),
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: onRequest,
-            icon: Icon(Icons.send_rounded, size: 16.w),
-            label: const Text('Solicitar'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Style.getPrimaryColor(),
-              foregroundColor: Style.white,
+      ),
+    );
+  }
+
+  Widget _ownerQuickActions(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
+          color: Style.getPrimaryColor().withValues(alpha: .10),
+          shape: const CircleBorder(),
+          child: IconButton(
+            onPressed: onStatusPressed,
+            tooltip: service.status == ServiceStatus.activo
+                ? (MultiLanguages.of(context)?.translate('hidden') ??
+                      'No visible')
+                : (MultiLanguages.of(context)?.translate('visible') ??
+                      'Visible'),
+            icon: Icon(
+              service.status == ServiceStatus.activo
+                  ? Icons.visibility_rounded
+                  : Icons.visibility_off_rounded,
+              color: service.status == ServiceStatus.activo
+                  ? Style.getPrimaryColor()
+                  : Style.getObscureTextColor(),
+              size: 18.w,
             ),
           ),
+        ),
+        SizedBox(width: 2.w),
+        CustomPopupActions(
+          backgroundColor: Style.getCardColor(),
+          actions: [
+            if (onEdit != null)
+              PopupAction(
+                value: 'edit',
+                label:
+                    MultiLanguages.of(context)?.translate('edit_profile') ??
+                    'Editar',
+                icon: Icons.edit_rounded,
+                color: Style.getPrimaryColor(),
+                onPressed: onEdit!,
+              ),
+            if (onDelete != null)
+              PopupAction(
+                value: 'delete',
+                label:
+                    MultiLanguages.of(context)?.translate('delete') ??
+                    'Eliminar',
+                icon: Icons.delete_rounded,
+                color: Style.getErrorColor(),
+                onPressed: onDelete!,
+              ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _ownerActions() {
-    return Wrap(
-      spacing: 8.w,
-      runSpacing: 8.h,
-      children: [
-        _actionButton(label: 'Ver', icon: Icons.visibility_rounded, onPressed: onTap, filled: false),
-        _actionButton(label: 'Editar', icon: Icons.edit_rounded, onPressed: onEdit),
-        _actionButton(label: 'Eliminar', icon: Icons.delete_rounded, onPressed: onDelete, destructive: true, filled: false),
-        _actionButton(label: 'Interesados', icon: Icons.people_alt_rounded, onPressed: onViewRequests),
-        if (onStatusPressed != null)
-          _actionButton(label: 'Estado', icon: Icons.sync_alt_rounded, onPressed: onStatusPressed, filled: false),
-      ],
+  Widget _ownerVisibilityRow(BuildContext context) {
+    final isVisible = service.status == ServiceStatus.activo;
+    final color = isVisible
+        ? Style.getPrimaryColor()
+        : Style.getObscureTextColor();
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: color.withValues(alpha: .18)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+            color: color,
+            size: 18.w,
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: Text(
+              isVisible
+                  ? (MultiLanguages.of(context)?.translate('visible') ??
+                        'Visible')
+                  : (MultiLanguages.of(context)?.translate('hidden') ??
+                        'No visible'),
+              style: Style.getTextStyle(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -296,8 +260,9 @@ class ServiceCard extends StatelessWidget {
     bool filled = true,
     bool destructive = false,
   }) {
-    final foreground = destructive ? Style.getErrorColor() : Style.white;
-    final background = destructive ? Style.getErrorColor() : Style.getPrimaryColor();
+    final background = destructive
+        ? Style.getErrorColor()
+        : Style.getPrimaryColor();
 
     return filled
         ? ElevatedButton.icon(
@@ -306,7 +271,8 @@ class ServiceCard extends StatelessWidget {
             label: Text(label),
             style: ElevatedButton.styleFrom(
               backgroundColor: background,
-              foregroundColor: foreground,
+              foregroundColor: Style.white,
+              visualDensity: VisualDensity.compact,
             ),
           )
         : OutlinedButton.icon(
@@ -314,8 +280,15 @@ class ServiceCard extends StatelessWidget {
             icon: Icon(icon, size: 16.w),
             label: Text(label),
             style: OutlinedButton.styleFrom(
-              foregroundColor: destructive ? Style.getErrorColor() : Style.getTextColor(),
-              side: BorderSide(color: destructive ? Style.getErrorColor() : Style.getBorderColor()),
+              foregroundColor: destructive
+                  ? Style.getErrorColor()
+                  : Style.getTextColor(),
+              side: BorderSide(
+                color: destructive
+                    ? Style.getErrorColor()
+                    : Style.getBorderColor(),
+              ),
+              visualDensity: VisualDensity.compact,
             ),
           );
   }
@@ -323,11 +296,33 @@ class ServiceCard extends StatelessWidget {
   Color _statusColor(ServiceStatus status) {
     switch (status) {
       case ServiceStatus.activo:
-        return const Color(0xFF28C76F);
-      case ServiceStatus.pausado:
-        return const Color(0xFFFFA500);
-      case ServiceStatus.archivado:
-        return Style.getErrorColor();
+        return Style.getPrimaryColor();
+      case ServiceStatus.inactivo:
+        return Style.getObscureTextColor();
     }
+  }
+
+  String _descriptionText(BuildContext context) {
+    final text = service.shortDescription.trim().isNotEmpty
+        ? service.shortDescription.trim()
+        : service.description.trim();
+    if (text.isNotEmpty) return text;
+    return MultiLanguages.of(context)?.translate('no_description') ??
+        'Sin descripcion';
+  }
+
+  String get _priceText {
+    final label = service.priceLabel.trim();
+    if (label.isNotEmpty) return label;
+    return service.priceValue <= 0
+        ? ''
+        : '\$${service.priceValue.toStringAsFixed(0)}';
+  }
+
+  String _formatDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
+    return '$day/$month/$year';
   }
 }

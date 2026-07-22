@@ -11,7 +11,6 @@ class FreelancersScreen extends StatefulWidget {
 }
 
 class _FreelancersScreenState extends State<FreelancersScreen> {
-  final FreelancersService _service = FreelancersService();
   final ScrollController _scrollController = ScrollController();
 
   bool _isLoading = true;
@@ -31,7 +30,7 @@ class _FreelancersScreenState extends State<FreelancersScreen> {
 
   Future<void> _loadFreelancers() async {
     setState(() => _isLoading = true);
-    final freelancers = await _service.getFreelancers();
+    final freelancers = await FreelancersService.getFreelancers();
     if (!mounted) return;
     setState(() {
       _freelancers = freelancers;

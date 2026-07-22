@@ -47,30 +47,15 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       return;
     }
 
-    final freelancer = FreelancersService().getFreelancerById(serviceModel.freelancerId);
+    final freelancer = await FreelancersService.getFreelancerById(
+      serviceModel.freelancerId,
+    );
     if (!mounted) return;
     setState(() {
       _serviceModel = serviceModel;
       _freelancer = freelancer;
       _loading = false;
     });
-  }
-
-  Future<void> _requestService() async {
-    final serviceModel = _serviceModel;
-    if (serviceModel == null || !serviceModel.isActive) return;
-
-    await _service.requestService(
-      serviceId: serviceModel.id,
-      requesterId: ServicesService.currentRequesterId,
-      requesterName: ServicesService.currentRequesterName,
-      accountType: ServicesService.currentRequesterAccountType,
-      avatarUrl: ServicesService.currentRequesterAvatarUrl,
-    );
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Solicitud enviada a ${serviceModel.freelancerName}.')));
-    await _loadData();
   }
 
   Future<void> _contactFreelancer() async {
@@ -87,7 +72,9 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     );
 
     if (!mounted) return;
-    Navigator.of(context).push(Transitions.slideUpTransition(ConversationScreen(chat: chat)));
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(ConversationScreen(chat: chat)));
   }
 
   @override
@@ -109,38 +96,64 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               onPressed: () => Navigator.pop(context),
               icon: Icon(Icons.arrow_back_ios_new_rounded, color: Style.white),
             ),
-            actions: [IconButton(onPressed: _loadData, icon: Icon(Icons.refresh_rounded, color: Style.white))],
-            title: Text('Detalle del servicio', style: Style.getHeaderTwo(color: Style.white, fontWeight: FontWeight.w700)),
-            flexibleSpace: FlexibleSpaceBar(background: _loading ? Center(child: CustomWidgets.mProgress(Style.getPrimaryColor())) : _hero()),
+            actions: [
+              IconButton(
+                onPressed: _loadData,
+                icon: Icon(Icons.refresh_rounded, color: Style.white),
+              ),
+            ],
+            title: Text(
+              MultiLanguages.of(context)?.translate('services_detail_title') ??
+                  'Detalle del servicio',
+              style: Style.getHeaderTwo(
+                color: Style.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            flexibleSpace: FlexibleSpaceBar(
+              background: _loading
+                  ? Center(
+                      child: CustomWidgets.mProgress(Style.getPrimaryColor()),
+                    )
+                  : _hero(),
+            ),
           ),
           if (_loading)
             SliverToBoxAdapter(child: SizedBox(height: 24.h))
           else if (_serviceModel == null)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: Center(child: Text('El servicio no existe.', style: Style.getTextStyle(color: Style.getObscureTextColor()))),
+              child: Center(
+                child: Text(
+                  MultiLanguages.of(context)?.translate('services_not_found') ??
+                      'El servicio no existe.',
+                  style: Style.getTextStyle(color: Style.getObscureTextColor()),
+                ),
+              ),
             )
           else ...[
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 16.h, Style.horizontalPadding.w, 12.h),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  16.h,
+                  Style.horizontalPadding.w,
+                  12.h,
+                ),
                 child: Row(
                   children: [
                     Expanded(
                       child: CustomWidgets.button(
                         onTap: _contactFreelancer,
                         color: Style.getPrimaryColor(),
-                        child: Text('Contactar', style: Style.getHeaderThree(color: Style.white, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                    SizedBox(width: 10.w),
-                    Expanded(
-                      child: CustomWidgets.button(
-                        onTap: _requestService,
-                        color: Style.getCardColor(),
-                        isFilled: false,
-                        withBorder: true,
-                        child: Text('Solicitar contratación', style: Style.getHeaderThree(color: Style.getTextColor(), fontWeight: FontWeight.w700)),
+                        child: Text(
+                          MultiLanguages.of(context)?.translate('contact') ??
+                              'Contactar',
+                          style: Style.getHeaderThree(
+                            color: Style.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -149,26 +162,94 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: Style.horizontalPadding.w),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Style.horizontalPadding.w,
+                ),
                 child: _infoCard(
-                  title: 'Descripción completa',
-                  child: Text(_serviceModel!.description, style: Style.getTextStyle(color: Style.getTextColor()).copyWith(height: 1.5)),
+                  title:
+                      MultiLanguages.of(
+                        context,
+                      )?.translate('services_full_description') ??
+                      'Descripción completa',
+                  child: Text(
+                    _serviceModel!.description,
+                    style: Style.getTextStyle(
+                      color: Style.getTextColor(),
+                    ).copyWith(height: 1.5),
+                  ),
                 ),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 12.h, Style.horizontalPadding.w, 0),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  12.h,
+                  Style.horizontalPadding.w,
+                  0,
+                ),
                 child: _infoCard(
-                  title: 'Información del servicio',
+                  title:
+                      MultiLanguages.of(
+                        context,
+                      )?.translate('services_information') ??
+                      'Información del servicio',
                   child: Column(
                     children: [
-                      _detailRow('Categoría', _serviceModel!.category),
-                      _detailRow('Precio', _serviceModel!.priceLabel),
-                      _detailRow('Modalidad', _serviceModel!.modality.label),
-                      _detailRow('Tiempo estimado', _serviceModel!.estimatedTime),
-                      _detailRow('Calificación', _serviceModel!.averageRating.toStringAsFixed(1)),
-                      _detailRow('Publicado', DateFormat('dd MMM yyyy').format(_serviceModel!.createdAt)),
+                      _detailRow(
+                        MultiLanguages.of(
+                              context,
+                            )?.translate('services_category') ??
+                            'Categoría',
+                        _serviceModel!.category,
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(context)?.translate('location') ??
+                            'Ubicación',
+                        _serviceModel!.location.isEmpty
+                            ? (MultiLanguages.of(
+                                    context,
+                                  )?.translate('not_specified') ??
+                                  'No especificada')
+                            : _serviceModel!.location,
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(
+                              context,
+                            )?.translate('services_price') ??
+                            'Precio',
+                        _serviceModel!.priceLabel,
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(
+                              context,
+                            )?.translate('services_modality') ??
+                            'Modalidad',
+                        _serviceModel!.modality.label,
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(
+                              context,
+                            )?.translate('services_estimated_time') ??
+                            'Tiempo estimado',
+                        _serviceModel!.estimatedTime,
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(
+                              context,
+                            )?.translate('services_rating') ??
+                            'Calificación',
+                        _serviceModel!.averageRating.toStringAsFixed(1),
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(
+                              context,
+                            )?.translate('services_published') ??
+                            'Publicado',
+                        DateFormat(
+                          'dd MMM yyyy',
+                        ).format(_serviceModel!.createdAt),
+                      ),
                     ],
                   ),
                 ),
@@ -176,13 +257,23 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 12.h, Style.horizontalPadding.w, 0),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  12.h,
+                  Style.horizontalPadding.w,
+                  0,
+                ),
                 child: _galleryCard(),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 12.h, Style.horizontalPadding.w, 0),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  12.h,
+                  Style.horizontalPadding.w,
+                  0,
+                ),
                 child: _freelancerCard(),
               ),
             ),
@@ -198,13 +289,20 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        CachedNetworkImage(imageUrl: serviceModel.mainImageUrl, fit: BoxFit.cover),
+        CachedNetworkImage(
+          imageUrl: serviceModel.mainImageUrl,
+          fit: BoxFit.cover,
+        ),
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Colors.transparent, Colors.black.withValues(alpha: .42), Style.getBackgroundColor().withValues(alpha: .96)],
+              colors: [
+                Style.transparent,
+                Style.black.withValues(alpha: .42),
+                Style.getBackgroundColor().withValues(alpha: .96),
+              ],
             ),
           ),
         ),
@@ -216,7 +314,14 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(serviceModel.title, style: Style.getHeaderTwo(color: Style.white, fontWeight: FontWeight.w800, fontSize: 22)),
+                Text(
+                  serviceModel.title,
+                  style: Style.getHeaderTwo(
+                    color: Style.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 22,
+                  ),
+                ),
                 SizedBox(height: 10.h),
                 Wrap(
                   spacing: 8.w,
@@ -238,16 +343,20 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
   Widget _galleryCard() {
     final serviceModel = _serviceModel!;
     return _infoCard(
-      title: 'Galería',
+      title: MultiLanguages.of(context)?.translate('gallery') ?? 'Galería',
       child: SizedBox(
         height: 150.h,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
-          itemCount: serviceModel.galleryImages.isEmpty ? 1 : serviceModel.galleryImages.length,
+          itemCount: serviceModel.galleryImages.isEmpty
+              ? 1
+              : serviceModel.galleryImages.length,
           separatorBuilder: (_, __) => SizedBox(width: 10.w),
           itemBuilder: (context, index) {
-            final image = serviceModel.galleryImages.isEmpty ? serviceModel.mainImageUrl : serviceModel.galleryImages[index];
+            final image = serviceModel.galleryImages.isEmpty
+                ? serviceModel.mainImageUrl
+                : serviceModel.galleryImages[index];
             return ClipRRect(
               borderRadius: BorderRadius.circular(18.r),
               child: SizedBox(
@@ -271,27 +380,54 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(24.r),
         onTap: () {
-          Navigator.of(context).push(Transitions.slideUpTransition(FreelancerServiceProfileScreen(freelancerId: freelancer.id)));
+          Navigator.of(context).push(
+            Transitions.slideUpTransition(
+              FreelancerServiceProfileScreen(freelancerId: freelancer.id),
+            ),
+          );
         },
         child: Padding(
           padding: EdgeInsets.all(16.w),
           child: Row(
             children: [
-              CircleAvatar(radius: 30.w, backgroundImage: NetworkImage(freelancer.avatarUrl)),
+              CircleAvatar(
+                radius: 30.w,
+                backgroundImage: NetworkImage(freelancer.avatarUrl),
+              ),
               SizedBox(width: 14.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(freelancer.fullName, style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+                    Text(
+                      freelancer.fullName,
+                      style: Style.getHeaderTwo(
+                        color: Style.getTextColor(),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     SizedBox(height: 4.h),
-                    Text(freelancer.specialty, style: Style.getTextStyle(color: Style.getObscureTextColor(), fontWeight: FontWeight.w600)),
+                    Text(
+                      freelancer.specialty,
+                      style: Style.getTextStyle(
+                        color: Style.getObscureTextColor(),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     SizedBox(height: 6.h),
-                    Text(freelancer.shortDescription, style: Style.getTextStyle(color: Style.getTextColor()).copyWith(height: 1.3)),
+                    Text(
+                      freelancer.shortDescription ?? freelancer.description,
+                      style: Style.getTextStyle(
+                        color: Style.getTextColor(),
+                      ).copyWith(height: 1.3),
+                    ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: Style.getObscureTextColor()),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: Style.getObscureTextColor(),
+              ),
             ],
           ),
         ),
@@ -310,7 +446,13 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Style.getHeaderThree(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+            Text(
+              title,
+              style: Style.getHeaderThree(
+                color: Style.getTextColor(),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             SizedBox(height: 12.h),
             child,
           ],
@@ -324,9 +466,28 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       padding: EdgeInsets.only(bottom: 10.h),
       child: Row(
         children: [
-          Expanded(flex: 4, child: Text(label, style: Style.getTextStyle(color: Style.getObscureTextColor(), fontWeight: FontWeight.w600))),
+          Expanded(
+            flex: 4,
+            child: Text(
+              label,
+              style: Style.getTextStyle(
+                color: Style.getObscureTextColor(),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
           SizedBox(width: 12.w),
-          Expanded(flex: 6, child: Text(value, textAlign: TextAlign.right, style: Style.getTextStyle(color: Style.getTextColor(), fontWeight: FontWeight.w700))),
+          Expanded(
+            flex: 6,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: Style.getTextStyle(
+                color: Style.getTextColor(),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -335,8 +496,18 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
   Widget _pill(String label) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-      decoration: BoxDecoration(color: Style.white.withValues(alpha: .16), borderRadius: BorderRadius.circular(999), border: Border.all(color: Style.white.withValues(alpha: .22))),
-      child: Text(label, style: Style.getTextStyle(color: Style.white, fontWeight: FontWeight.w700)),
+      decoration: BoxDecoration(
+        color: Style.white.withValues(alpha: .16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Style.white.withValues(alpha: .22)),
+      ),
+      child: Text(
+        label,
+        style: Style.getTextStyle(
+          color: Style.white,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }

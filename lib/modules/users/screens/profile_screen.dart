@@ -1,12 +1,13 @@
 import 'dart:convert';
 
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart';
 
 import 'package:worklink_local/helpers/helpers.dart';
+import 'package:worklink_local/modules/app/components/general/form/custom_input_field.dart';
 import 'package:worklink_local/modules/users/models/user_model.dart';
-import 'package:worklink_local/modules/users/screens/biometric_security_screen.dart';
 import 'package:worklink_local/modules/users/screens/change_password_screen.dart';
+import 'package:worklink_local/modules/users/services/user_service.dart';
 import 'package:worklink_local/utils/utils.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -18,9 +19,11 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final ScrollController _scrollController = ScrollController();
+  final ImagePicker _imagePicker = ImagePicker();
 
   UserModel? _user;
   bool _isLoading = true;
+  bool _isPhotoUpdating = false;
   static const double _reputationRating = 4.3;
 
   @override
@@ -105,13 +108,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             _sectionTitle(
                               MultiLanguages.of(
                                 context,
-                              )!.translate('quick_actions'),
-                            ),
-                            _quickActionsGrid(context),
-
-                            _sectionTitle(
-                              MultiLanguages.of(
-                                context,
                               )!.translate('personal_information'),
                             ),
                             _sectionCard(
@@ -175,20 +171,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   onTap: _goToEditProfile,
                                 ),
-                                _divider(),
-                                Tiles.settingTile(
-                                  dense: true,
-                                  title: MultiLanguages.of(
-                                    context,
-                                  )!.translate('department'),
-                                  subtitle: _department,
-                                  icon: Icon(
-                                    Icons.apartment_rounded,
-                                    color: Style.getSecondaryColor(),
-                                    size: 18.w,
-                                  ),
-                                  onTap: _goToEditProfile,
-                                ),
                               ],
                             ),
                             SizedBox(height: 18.h),
@@ -218,94 +200,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     );
                                   },
                                 ),
-                                _divider(),
-                                Tiles.settingTile(
-                                  dense: true,
-                                  title: MultiLanguages.of(
-                                    context,
-                                  )!.translate('biometric_authentication'),
-                                  subtitle: MultiLanguages.of(context)!
-                                      .translate(
-                                        'biometric_authentication_description',
-                                      ),
-                                  icon: Icon(
-                                    Icons.fingerprint_rounded,
-                                    color: Style.getSecondaryColor(),
-                                    size: 18.w,
-                                  ),
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      Transitions.slideUpTransition(
-                                        const BiometricSecurityScreen(),
-                                      ),
-                                    );
-                                  },
-                                ),
                               ],
                             ),
                             SizedBox(height: 18.h),
-                            _sectionTitle(
-                              MultiLanguages.of(
-                                context,
-                              )!.translate('account_information'),
-                            ),
-                            _sectionCard(
-                              children: [
-                                Tiles.settingTile(
-                                  dense: true,
-                                  title: MultiLanguages.of(
-                                    context,
-                                  )!.translate('registration_date'),
-                                  subtitle: _registrationDate,
-                                  icon: Icon(
-                                    Icons.event_available_rounded,
-                                    color: Style.getSecondaryColor(),
-                                    size: 18.w,
-                                  ),
-                                  onTap: () => _showNotImplementedInfo(
-                                    title: MultiLanguages.of(
-                                      context,
-                                    )!.translate('registration_date'),
-                                  ),
-                                ),
-                                _divider(),
-                                Tiles.settingTile(
-                                  dense: true,
-                                  title: MultiLanguages.of(
-                                    context,
-                                  )!.translate('last_access'),
-                                  subtitle: _lastAccess,
-                                  icon: Icon(
-                                    Icons.schedule_rounded,
-                                    color: Style.getSecondaryColor(),
-                                    size: 18.w,
-                                  ),
-                                  onTap: () => _showNotImplementedInfo(
-                                    title: MultiLanguages.of(
-                                      context,
-                                    )!.translate('last_access'),
-                                  ),
-                                ),
-                                _divider(),
-                                Tiles.settingTile(
-                                  dense: true,
-                                  title: MultiLanguages.of(
-                                    context,
-                                  )!.translate('account_status'),
-                                  subtitle: _accountStatus,
-                                  icon: Icon(
-                                    Icons.verified_user_rounded,
-                                    color: Style.getSecondaryColor(),
-                                    size: 18.w,
-                                  ),
-                                  onTap: () => _showNotImplementedInfo(
-                                    title: MultiLanguages.of(
-                                      context,
-                                    )!.translate('account_status'),
-                                  ),
-                                ),
-                              ],
-                            ),
+
                             SizedBox(height: 110.h),
                           ],
                         ),
@@ -400,100 +298,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _quickActionsGrid(BuildContext context) {
-    final actions = [
-      _QuickActionData(
-        title: MultiLanguages.of(context)!.translate('personal_information'),
-        icon: Icons.person_outline_rounded,
-        onTap: () => _showNotImplementedInfo(
-          title: MultiLanguages.of(context)!.translate('personal_information'),
-        ),
-      ),
-      _QuickActionData(
-        title: MultiLanguages.of(context)!.translate('security'),
-        icon: Icons.security_rounded,
-        onTap: () => _showNotImplementedInfo(
-          title: MultiLanguages.of(context)!.translate('security'),
-        ),
-      ),
-      _QuickActionData(
-        title: MultiLanguages.of(context)!.translate('change_password'),
-        icon: Icons.lock_reset_rounded,
-        onTap: () {
-          Navigator.of(
-            context,
-          ).push(Transitions.slideUpTransition(const ChangePasswordScreen()));
-        },
-      ),
-      _QuickActionData(
-        title: MultiLanguages.of(
-          context,
-        )!.translate('biometric_authentication'),
-        icon: Icons.fingerprint_rounded,
-        onTap: () {
-          Navigator.of(context).push(
-            Transitions.slideUpTransition(const BiometricSecurityScreen()),
-          );
-        },
-      ),
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: actions.length,
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10.w,
-        mainAxisSpacing: 10.h,
-        childAspectRatio: 2.15,
-      ),
-      itemBuilder: (context, index) {
-        final item = actions[index];
-        return Card(
-          color: Style.getCardColor(),
-          elevation: 4,
-          shadowColor: Style.getShadowColor(),
-          shape: RoundedRectangleBorder(
-            borderRadius: Style.getCircularBorderRadius(18),
-          ),
-          child: InkWell(
-            borderRadius: Style.getCircularBorderRadius(18),
-            onTap: item.onTap,
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
-              child: Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(7.w),
-                    decoration: BoxDecoration(
-                      color: Style.getPrimaryColor().withValues(alpha: .12),
-                      borderRadius: Style.getCircularBorderRadius(100),
-                    ),
-                    child: Icon(
-                      item.icon,
-                      color: Style.getPrimaryColor(),
-                      size: 14.w,
-                    ),
-                  ),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: Text(
-                      item.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Style.getTextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -629,11 +433,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    _showNotImplementedInfo(
-                      title: MultiLanguages.of(
-                        context,
-                      )!.translate('take_photo'),
-                    );
+                    _pickAndUploadAvatar(ImageSource.camera);
                   },
                 ),
                 ListTile(
@@ -649,11 +449,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    _showNotImplementedInfo(
-                      title: MultiLanguages.of(
-                        context,
-                      )!.translate('choose_from_gallery'),
-                    );
+                    _pickAndUploadAvatar(ImageSource.gallery);
                   },
                 ),
                 ListTile(
@@ -670,11 +466,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    _showNotImplementedInfo(
-                      title: MultiLanguages.of(
-                        context,
-                      )!.translate('remove_photo'),
-                    );
+                    _removePhoto();
                   },
                 ),
               ],
@@ -685,42 +477,121 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _goToEditProfile() {
-    _showNotImplementedInfo(
-      title: MultiLanguages.of(context)!.translate('edit_profile'),
-    );
+  Future<void> _pickAndUploadAvatar(ImageSource source) async {
+    if (_user == null || _isPhotoUpdating) return;
+
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 80,
+        maxWidth: 1080,
+      );
+
+      if (picked == null || !mounted) return;
+
+      setState(() {
+        _isPhotoUpdating = true;
+      });
+
+      final updatedUser = await UserService.updateProfilePhoto(
+        profilePhoto: picked,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _user = updatedUser;
+        _isPhotoUpdating = false;
+      });
+
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('edit_profile'),
+        message: 'Foto de perfil actualizada correctamente.',
+        color: Style.getSecondaryColor(),
+        icon: Icons.check_circle_outline_rounded,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isPhotoUpdating = false;
+      });
+
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('error'),
+        message: e.toString().replaceFirst('Exception: ', ''),
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+    }
   }
 
-  Future<void> _onDeleteAccount() async {
-    final shouldDelete = await Dialogs.showConfirmDialog(
+  Future<void> _removePhoto() async {
+    if (_user == null || _isPhotoUpdating) return;
+
+    setState(() {
+      _isPhotoUpdating = true;
+    });
+
+    try {
+      final updatedUser = await UserService.removeProfilePhoto();
+
+      if (!mounted) return;
+
+      setState(() {
+        _user = updatedUser;
+        _isPhotoUpdating = false;
+      });
+
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('remove_photo'),
+        message: 'La foto de perfil se elimino correctamente.',
+        color: Style.getSecondaryColor(),
+        icon: Icons.check_circle_outline_rounded,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isPhotoUpdating = false;
+      });
+
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('error'),
+        message: e.toString().replaceFirst('Exception: ', ''),
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+    }
+  }
+
+  Future<void> _goToEditProfile() async {
+    if (_user == null) return;
+
+    final updatedUser = await showDialog<UserModel>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return _EditProfileDialog(user: _user!);
+      },
+    );
+
+    if (!mounted || updatedUser == null) return;
+
+    setState(() {
+      _user = updatedUser;
+    });
+
+    Dialogs.showSimpleDialog(
       context,
-      title: MultiLanguages.of(context)!.translate('delete_account'),
+      title: MultiLanguages.of(context)!.translate('edit_profile'),
       message: MultiLanguages.of(
         context,
-      )!.translate('delete_account_description'),
-      svg: Assets.svgWarningIcon,
-      confirmText: MultiLanguages.of(context)!.translate('delete'),
-      cancelText: MultiLanguages.of(context)!.translate('cancel'),
-    );
-
-    if (!mounted || !shouldDelete) return;
-
-    Dialogs.showSimpleDialog(
-      context,
-      title: MultiLanguages.of(context)!.translate('delete_account'),
-      message: MultiLanguages.of(context)!.translate('feature_coming_soon'),
-      color: Style.getErrorColor(),
-      icon: Icons.delete_forever_rounded,
-    );
-  }
-
-  void _showNotImplementedInfo({required String title}) {
-    Dialogs.showSimpleDialog(
-      context,
-      title: title,
-      message: MultiLanguages.of(context)!.translate('feature_coming_soon'),
-      color: Style.getPrimaryColor(),
-      icon: Icons.info_outline_rounded,
+      )!.translate('profile_updated_successfully'),
+      color: Style.getSecondaryColor(),
+      icon: Icons.check_circle_outline_rounded,
     );
   }
 
@@ -752,37 +623,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         : value;
   }
 
-  String get _department {
-    final rawDepartment = _user?.departamento.trim() ?? '';
-    if (rawDepartment.isNotEmpty) return rawDepartment;
 
-    return MultiLanguages.of(context)!.translate('not_available');
-  }
 
-  String get _registrationDate {
-    final raw = AppSettings.loginDate;
-    if (raw == null || raw.trim().isEmpty) {
-      return MultiLanguages.of(context)!.translate('not_available');
-    }
-
-    return _formatDate(raw);
-  }
-
-  String get _lastAccess {
-    final raw = AppSettings.lastEnterDate;
-    if (raw == null || raw.trim().isEmpty) {
-      return MultiLanguages.of(context)!.translate('not_available');
-    }
-
-    return _formatDate(raw);
-  }
-
-  String get _accountStatus {
-    return AppSettings.isSignedIn
-        ? MultiLanguages.of(context)!.translate('active')
-        : MultiLanguages.of(context)!.translate('inactive');
-  }
-
+  // ignore: unused_element
   String get _reputationLevel {
     if (_reputationRating >= 4.5) {
       return MultiLanguages.of(context)!.translate('excellent');
@@ -855,6 +698,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _ratingStars(double rating) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -872,24 +716,217 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  String _formatDate(String raw) {
-    try {
-      final locale = Localizations.localeOf(context).toString();
-      return DateFormat('dd/MM/yyyy HH:mm', locale).format(raw.toDateTime());
-    } catch (e) {
-      return raw;
-    }
-  }
 }
 
-class _QuickActionData {
-  final String title;
-  final IconData icon;
-  final VoidCallback onTap;
 
-  const _QuickActionData({
-    required this.title,
-    required this.icon,
-    required this.onTap,
-  });
+
+class _EditProfileDialog extends StatefulWidget {
+  final UserModel user;
+
+  const _EditProfileDialog({required this.user});
+
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _lastNameController;
+  late final TextEditingController _maternalLastNameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
+
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.user.nombre);
+    _lastNameController = TextEditingController(text: widget.user.apellidoP);
+    _maternalLastNameController = TextEditingController(
+      text: widget.user.apellidoM,
+    );
+    _emailController = TextEditingController(text: widget.user.correo);
+    _phoneController = TextEditingController(text: widget.user.telefono);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _lastNameController.dispose();
+    _maternalLastNameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Style.getCardColor(),
+          borderRadius: BorderRadius.circular(28.r),
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.all(24.w),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    MultiLanguages.of(context)!.translate('edit_profile'),
+                    style: Style.getHeaderTwo(
+                      color: Style.getTextColor(),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    'Actualiza tus datos personales y guarda los cambios.',
+                    style: Style.getTextStyle(
+                      color: Style.getObscureTextColor(),
+                    ),
+                  ),
+                  SizedBox(height: 24.h),
+                  CustomInputField(
+                    controller: _nameController,
+                    label: 'Nombre',
+                    requiredField: true,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  SizedBox(height: 14.h),
+                  CustomInputField(
+                    controller: _lastNameController,
+                    label: 'Apellido paterno',
+                    requiredField: true,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  SizedBox(height: 14.h),
+                  CustomInputField(
+                    controller: _maternalLastNameController,
+                    label: 'Apellido materno',
+                    textInputAction: TextInputAction.next,
+                  ),
+                  SizedBox(height: 14.h),
+                  CustomInputField(
+                    controller: _emailController,
+                    label: 'Correo electrónico',
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    requiredField: true,
+                    validator: (value) {
+                      final text = value?.trim() ?? '';
+                      if (!text.isEmail) {
+                        return 'Ingresa un correo válido';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: 14.h),
+                  CustomInputField(
+                    controller: _phoneController,
+                    label: 'Teléfono',
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.done,
+                  ),
+                  SizedBox(height: 24.h),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomWidgets.button(
+                          onTap: _isSaving
+                              ? () {}
+                              : () => Navigator.pop(context),
+                          color: Style.getCardColor(),
+                          height: 48,
+                          shape: 1,
+                          child: Text(
+                            MultiLanguages.of(context)!.translate('cancel'),
+                            style: Style.getHeaderThree(
+                              color: Style.getPrimaryColor(),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: CustomWidgets.button(
+                          onTap: _isSaving ? () {} : () => _saveProfile(),
+                          color: Style.getPrimaryColor(),
+                          height: 48,
+                          shape: 1,
+                          child: _isSaving
+                              ? SizedBox(
+                                  width: 18.w,
+                                  height: 18.w,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Style.white,
+                                  ),
+                                )
+                              : Text(
+                                  MultiLanguages.of(context)!.translate('save'),
+                                  style: Style.getHeaderThree(
+                                    color: Style.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveProfile() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final updatedUser = await UserService.updateUser(
+        userId: widget.user.id,
+        name: _nameController.text,
+        lastName: _lastNameController.text,
+        maternalLastName: _maternalLastNameController.text,
+        email: _emailController.text,
+        phone: _phoneController.text,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context, updatedUser);
+    } catch (e) {
+      if (!mounted) return;
+
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('error'),
+        message: e.toString().replaceFirst('Exception: ', ''),
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
 }

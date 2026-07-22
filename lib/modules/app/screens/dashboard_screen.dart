@@ -1,7 +1,7 @@
 import 'dart:ui';
 
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
-import 'package:worklink_local/utils/logger.dart';
+import 'package:worklink_local/main.dart';
 
 import '../../../utils/widgets/widgets.dart';
 import 'package:worklink_local/helpers/helpers.dart';
@@ -13,20 +13,6 @@ import 'package:worklink_local/modules/settings/screens/settings_screen.dart';
 
 import '../components/drawer_content.dart';
 
-int screenIndex = 1;
-final dashController = PageController(initialPage: 1);
-
-GlobalKey<ScaffoldState> dashboardKey = GlobalKey<ScaffoldState>();
-
-void showDrawer() {
-  logInfo('Opening drawer');
-  try {
-    dashboardKey.currentState?.openDrawer();
-  } catch (e) {
-    logError('Error opening drawer: $e');
-  }
-}
-
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -35,6 +21,10 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class DashboardScreenState extends State<DashboardScreen> {
+  late GlobalKey<ScaffoldState> _scaffoldKey;
+  late PageController _pageController;
+  int _screenIndex = 1;
+
   final List<Widget> _screens = [
     const MessagesScreen(),
     const HomeScreen(),
@@ -45,12 +35,33 @@ class DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void initState() {
-    dashController.addListener(() {
-      setState(() {
-        screenIndex = dashController.page!.round();
-      });
-    });
     super.initState();
+    _scaffoldKey = GlobalKey<ScaffoldState>();
+    _pageController = PageController(initialPage: 1);
+    currentDashboardState = this;
+  }
+
+  @override
+  void dispose() {
+    currentDashboardState = null;
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void openDrawer() {
+    _scaffoldKey.currentState?.openDrawer();
+  }
+
+  int get screenIndex => _screenIndex;
+
+  void goToPage(int index) {
+    if (_screenIndex != index && _pageController.hasClients) {
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   @override
@@ -60,16 +71,9 @@ class DashboardScreenState extends State<DashboardScreen> {
         canPop: false,
         onPopInvokedWithResult: (didPop, result) => Dialogs.exitDialog(context),
         child: Scaffold(
-          key: dashboardKey,
+          key: _scaffoldKey,
           extendBody: true,
           extendBodyBehindAppBar: true,
-          // floatingActionButton: FloatingActionButton(
-          //   heroTag: 'home-button',
-          //   onPressed: () => showQuickActionsBottomSheet(context),
-          //   backgroundColor: Style.getPrimaryColor(),
-          //   shape: const CircleBorder(),
-          //   child: Icon(Icons.add, color: Style.white, size: 20.w),
-          // ),
           floatingActionButtonLocation:
               FloatingActionButtonLocation.centerFloat,
           appBar: AppBar(
@@ -85,13 +89,14 @@ class DashboardScreenState extends State<DashboardScreen> {
           body: SafeArea(
             bottom: false,
             child: PageView.builder(
-              controller: dashController,
+              controller: _pageController,
               itemCount: _screens.length,
               scrollDirection: Axis.horizontal,
               clipBehavior: Clip.none,
+              physics: const BouncingScrollPhysics(),
               onPageChanged: (index) {
                 setState(() {
-                  screenIndex = index;
+                  _screenIndex = index;
                 });
               },
               itemBuilder: (BuildContext context, int index) {
@@ -106,14 +111,13 @@ class DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _buttonPress(int index) {
-    setState(() {
-      screenIndex = index;
-    });
-    dashController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
-    );
+    if (_screenIndex != index) {
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   Widget _floatingNavigationBar() {
@@ -125,7 +129,7 @@ class DashboardScreenState extends State<DashboardScreen> {
           borderRadius: BorderRadius.circular(32.r),
           child: AnimatedBottomNavigationBar.builder(
             itemCount: 3,
-            activeIndex: screenIndex,
+            activeIndex: _screenIndex,
             leftCornerRadius: 32,
             rightCornerRadius: 32,
             height: 78.h,
@@ -172,11 +176,7 @@ class DashboardScreenState extends State<DashboardScreen> {
         key: ValueKey('inactive-$index'),
         height: 86.h,
         child: Center(
-          child: Icon(
-            icon,
-            size: 24.w,
-            color: Style.getTextColor(),
-          ),
+          child: Icon(icon, size: 24.w, color: Style.getTextColor()),
         ),
       );
     }

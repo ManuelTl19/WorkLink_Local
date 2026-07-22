@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:worklink_local/helpers/helpers.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:worklink_local/modules/messages/components/message_bubble.dart';
 import 'package:worklink_local/modules/messages/components/message_composer.dart';
 import 'package:worklink_local/modules/messages/models/chat_model.dart';
@@ -18,6 +21,7 @@ class ConversationScreen extends StatefulWidget {
 class _ConversationScreenState extends State<ConversationScreen> {
   final TextEditingController _composerController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ImagePicker _imagePicker = ImagePicker();
 
   List<MessageModel> _messages = [];
   bool _loading = true;
@@ -63,6 +67,43 @@ class _ConversationScreenState extends State<ConversationScreen> {
     setState(() {
       _messages = [..._messages, newMessage];
       _composerController.clear();
+    });
+
+    _scrollToBottom();
+  }
+
+  Future<void> _sendImage() async {
+    final pickedFile = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 75,
+    );
+
+    if (pickedFile == null) return;
+
+    final filePath = pickedFile.path;
+    if (filePath.isEmpty || !File(filePath).existsSync()) {
+      if (!mounted) return;
+      Dialogs.showSimpleDialog(
+        context,
+        title: 'Error',
+        message: 'No fue posible cargar la imagen seleccionada.',
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+      return;
+    }
+
+    final nextId = _messages.isEmpty ? 1 : _messages.last.id + 1;
+    final newMessage = await MessageService.sendDemoImageMessage(
+      chatId: widget.chat.id,
+      nextId: nextId,
+      imageUrl: filePath,
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _messages = [..._messages, newMessage];
     });
 
     _scrollToBottom();
@@ -153,6 +194,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
           MessageComposer(
             controller: _composerController,
             onSend: _sendMessage,
+            onPickImage: _sendImage,
             enabled: !_loading,
           ),
         ],

@@ -102,7 +102,11 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo guardar la solicitud: $e')),
+        SnackBar(
+          content: Text(
+            '${MultiLanguages.of(context)?.translate('could_not_save') ?? 'No se pudo guardar'}: $e',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -130,7 +134,15 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
               ),
             ),
             title: Text(
-              _isEditing ? 'Editar solicitud' : 'Nueva solicitud',
+              _isEditing
+                  ? (MultiLanguages.of(
+                          context,
+                        )?.translate('requests_edit_title') ??
+                        'Editar solicitud')
+                  : (MultiLanguages.of(
+                          context,
+                        )?.translate('requests_new_title') ??
+                        'Nueva solicitud'),
               style: Style.getHeaderTwo(
                 color: Style.getTextColor(),
                 fontWeight: FontWeight.w800,
@@ -147,7 +159,11 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
                   children: [
                     _field(
                       controller: _titleController,
-                      label: 'Título',
+                      label:
+                          MultiLanguages.of(
+                            context,
+                          )?.translate('services_field_title') ??
+                          'Título',
                       hint: 'Necesitamos un sitio web...',
                     ),
                     SizedBox(height: 14.h),
@@ -156,7 +172,11 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
                         Expanded(
                           child: _field(
                             controller: _categoryController,
-                            label: 'Categoría',
+                            label:
+                                MultiLanguages.of(
+                                  context,
+                                )?.translate('services_category') ??
+                                'Categoría',
                             hint: 'Desarrollo Web',
                           ),
                         ),
@@ -164,7 +184,11 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
                         Expanded(
                           child: _field(
                             controller: _budgetLabelController,
-                            label: 'Presupuesto',
+                            label:
+                                MultiLanguages.of(
+                                  context,
+                                )?.translate('requests_budget') ??
+                                'Presupuesto',
                             hint: r'$1,500',
                           ),
                         ),
@@ -173,15 +197,31 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
                     SizedBox(height: 14.h),
                     _field(
                       controller: _shortDescriptionController,
-                      label: 'Descripción resumida',
-                      hint: 'Resumen breve de la solicitud',
+                      label:
+                          MultiLanguages.of(
+                            context,
+                          )?.translate('requests_short_description') ??
+                          'Descripción resumida',
+                      hint:
+                          MultiLanguages.of(
+                            context,
+                          )?.translate('requests_hint_short_description') ??
+                          'Resumen breve de la solicitud',
                       maxLines: 3,
                     ),
                     SizedBox(height: 14.h),
                     _field(
                       controller: _descriptionController,
-                      label: 'Descripción completa',
-                      hint: 'Explica lo que necesitas',
+                      label:
+                          MultiLanguages.of(
+                            context,
+                          )?.translate('services_full_description') ??
+                          'Descripción completa',
+                      hint:
+                          MultiLanguages.of(
+                            context,
+                          )?.translate('requests_hint_full_description') ??
+                          'Explica lo que necesitas',
                       maxLines: 6,
                     ),
                     SizedBox(height: 14.h),
@@ -190,14 +230,22 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
                         Expanded(
                           child: _field(
                             controller: _locationController,
-                            label: 'Ubicación',
+                            label:
+                                MultiLanguages.of(
+                                  context,
+                                )?.translate('location') ??
+                                'Ubicación',
                             hint: 'Remoto',
                           ),
                         ),
                         SizedBox(width: 12.w),
                         Expanded(
                           child: CustomPickerField<RequestModality>(
-                            label: 'Modalidad',
+                            label:
+                                MultiLanguages.of(
+                                  context,
+                                )?.translate('services_modality') ??
+                                'Modalidad',
                             value: _modality,
                             items: RequestModality.values
                                 .map(
@@ -217,7 +265,9 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
                     ),
                     SizedBox(height: 14.h),
                     CustomPickerField<RequestStatus>(
-                      label: 'Estado',
+                      label:
+                          MultiLanguages.of(context)?.translate('status') ??
+                          'Estado',
                       value: _status,
                       items: RequestStatus.values
                           .map(
@@ -246,8 +296,14 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
                             )
                           : Text(
                               _isEditing
-                                  ? 'Guardar cambios'
-                                  : 'Crear solicitud',
+                                  ? (MultiLanguages.of(
+                                          context,
+                                        )?.translate('save_changes') ??
+                                        'Guardar cambios')
+                                  : (MultiLanguages.of(context)?.translate(
+                                          'requests_create_button',
+                                        ) ??
+                                        'Crear solicitud'),
                               style: Style.getHeaderThree(
                                 color: Style.white,
                                 fontWeight: FontWeight.w700,
@@ -275,8 +331,10 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
       label: label,
       hintText: hint,
       maxLines: maxLines,
-      validator: (value) =>
-          (value == null || value.trim().isEmpty) ? 'Campo requerido' : null,
+      validator: (value) => (value == null || value.trim().isEmpty)
+          ? (MultiLanguages.of(context)?.translate('field_required') ??
+                'Campo requerido')
+          : null,
     );
   }
 }

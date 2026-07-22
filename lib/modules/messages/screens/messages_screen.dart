@@ -14,8 +14,8 @@ class MessagesScreen extends StatefulWidget {
 class _MessagesScreenState extends State<MessagesScreen> {
   List<ChatModel> _chats = [];
   bool _loading = true;
+  String _query = '';
 
-  @override
   @override
   void initState() {
     super.initState();
@@ -48,6 +48,60 @@ class _MessagesScreenState extends State<MessagesScreen> {
     return colors[index % colors.length];
   }
 
+  List<ChatModel> get _filteredChats {
+    final normalized = _query.trim().toLowerCase();
+    if (normalized.isEmpty) return _chats;
+
+    return _chats.where((chat) {
+      return chat.name.toLowerCase().contains(normalized) ||
+          chat.lastMessage.toLowerCase().contains(normalized);
+    }).toList();
+  }
+
+  Future<void> _openSearch() async {
+    final controller = TextEditingController(text: _query);
+    final value = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Style.getCardColor(),
+          title: Text(
+            'Buscar chats',
+            style: Style.getHeaderTwo(color: Style.getTextColor()),
+          ),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            style: Style.getTextStyle(color: Style.getTextColor()),
+            decoration: InputDecoration(
+              hintText: 'Nombre o mensaje',
+              hintStyle: Style.getTextStyle(color: Style.getObscureTextColor()),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, ''),
+              child: Text(
+                'Limpiar',
+                style: Style.getTextStyle(color: Style.getObscureTextColor()),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, controller.text),
+              child: Text(
+                'Aplicar',
+                style: Style.getTextStyle(color: Style.getPrimaryColor()),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || value == null) return;
+    setState(() => _query = value);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,7 +119,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
+            onPressed: _openSearch,
             icon: Icon(Icons.search_rounded, color: Style.getTextColor()),
           ),
         ],
@@ -74,10 +128,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ? Center(child: CustomWidgets.mProgress(Style.getPrimaryColor()))
           : ListView.separated(
               padding: EdgeInsets.all(12.w),
-              itemCount: _chats.length,
+              itemCount: _filteredChats.length,
               separatorBuilder: (_, __) => SizedBox(height: 8.h),
               itemBuilder: (context, index) {
-                final chat = _chats[index];
+                final chat = _filteredChats[index];
                 return InkWell(
                   onTap: () => Navigator.push(
                     context,

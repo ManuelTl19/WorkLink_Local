@@ -4,12 +4,14 @@ import 'package:worklink_local/helpers/helpers.dart';
 class MessageComposer extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
+  final VoidCallback onPickImage;
   final bool enabled;
 
   const MessageComposer({
     super.key,
     required this.controller,
     required this.onSend,
+    required this.onPickImage,
     this.enabled = true,
   });
 
@@ -31,6 +33,26 @@ class MessageComposer extends StatelessWidget {
         top: false,
         child: Row(
           children: [
+            InkWell(
+              onTap: enabled ? onPickImage : null,
+              borderRadius: BorderRadius.circular(100),
+              child: Container(
+                width: 42.w,
+                height: 42.w,
+                decoration: BoxDecoration(
+                  color: Style.getBackgroundColor(),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.image_rounded,
+                  color: enabled
+                      ? Style.getPrimaryColor()
+                      : Style.getObscureTextColor(),
+                  size: 18.w,
+                ),
+              ),
+            ),
+            SizedBox(width: 8.w),
             Expanded(
               child: CustomInputField(
                 controller: controller,

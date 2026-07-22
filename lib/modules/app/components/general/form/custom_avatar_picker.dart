@@ -1,8 +1,9 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:worklink_local/helpers/helpers.dart';
+import 'package:worklink_local/utils/utils.dart';
 
 class CustomAvatarPicker extends StatefulWidget {
   final Uint8List? initialBytes;
@@ -31,6 +32,16 @@ class CustomAvatarPicker extends StatefulWidget {
 }
 
 class _CustomAvatarPickerState extends State<CustomAvatarPicker> {
+  static const int _maxPhotoBytes = 2 * 1024 * 1024;
+  static const List<int> _compressionQualities = <int>[
+    85,
+    75,
+    65,
+    55,
+    45,
+    35,
+    25,
+  ];
   final ImagePicker _picker = ImagePicker();
   Uint8List? _bytes;
   File? _file;
@@ -49,10 +60,10 @@ class _CustomAvatarPickerState extends State<CustomAvatarPicker> {
     final preview = _bytes != null
         ? Image.memory(_bytes!, fit: BoxFit.cover)
         : _xFile != null
-            ? Image.file(File(_xFile!.path), fit: BoxFit.cover)
-            : _file != null
-                ? Image.file(_file!, fit: BoxFit.cover)
-                : null;
+        ? Image.file(File(_xFile!.path), fit: BoxFit.cover)
+        : _file != null
+        ? Image.file(_file!, fit: BoxFit.cover)
+        : null;
 
     return SizedBox(
       width: widget.size.w,
@@ -93,7 +104,11 @@ class _CustomAvatarPickerState extends State<CustomAvatarPicker> {
                 child: SizedBox(
                   width: 34.w,
                   height: 34.w,
-                  child: Icon(Icons.photo_camera_rounded, color: Style.white, size: 16.w),
+                  child: Icon(
+                    Icons.photo_camera_rounded,
+                    color: Style.white,
+                    size: 16.w,
+                  ),
                 ),
               ),
             ),
@@ -106,7 +121,11 @@ class _CustomAvatarPickerState extends State<CustomAvatarPicker> {
   Widget _placeholder() {
     return Container(
       color: Style.getPrimaryColor().withValues(alpha: .10),
-      child: Icon(Icons.person_rounded, color: Style.getPrimaryColor(), size: 48.w),
+      child: Icon(
+        Icons.person_rounded,
+        color: Style.getPrimaryColor(),
+        size: 48.w,
+      ),
     );
   }
 
@@ -184,19 +203,126 @@ class _CustomAvatarPickerState extends State<CustomAvatarPicker> {
       return;
     }
 
+    _PreparedAvatar? prepared;
+    try {
+      prepared = await _prepareImageForUpload(picked);
+    } catch (e) {
+      logWarning('No se pudo procesar la imagen de perfil: $e');
+      prepared = null;
+    }
+
+    if (prepared == null) {
+      if (sheetContext.mounted) {
+        Navigator.pop(sheetContext);
+      }
+      if (!mounted) return;
+
+      Dialogs.showSimpleDialog(
+        context,
+        title: 'Imagen muy pesada',
+        message:
+            'No pudimos ajustar la foto a 2MB. Elige otra imagen más ligera.',
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+      return;
+    }
+
+    final preparedAvatar = prepared;
+
     setState(() {
-      _xFile = picked;
-      _file = File(picked.path);
-      _bytes = null;
+      _xFile = preparedAvatar.xFile;
+      _file = preparedAvatar.file;
+      _bytes = preparedAvatar.bytes;
     });
 
-    final bytes = await picked.readAsBytes();
-    setState(() => _bytes = bytes);
-
-    widget.onXFileChanged?.call(picked);
+    widget.onXFileChanged?.call(preparedAvatar.xFile);
     widget.onFileChanged?.call(_file);
-    widget.onBytesChanged?.call(bytes);
+    widget.onBytesChanged?.call(preparedAvatar.bytes);
 
     if (sheetContext.mounted) Navigator.pop(sheetContext);
   }
+
+  Future<_PreparedAvatar?> _prepareImageForUpload(XFile picked) async {
+    final originalBytes = await picked.readAsBytes();
+    if (originalBytes.length <= _maxPhotoBytes) {
+      return _PreparedAvatar(
+        xFile: picked,
+        file: File(picked.path),
+        bytes: originalBytes,
+      );
+    }
+
+    for (final quality in _compressionQualities) {
+      Uint8List? compressedBytes;
+
+      try {
+        compressedBytes = await FlutterImageCompress.compressWithFile(
+          picked.path,
+          quality: quality,
+          format: CompressFormat.jpeg,
+          keepExif: false,
+        );
+      } catch (_) {
+        compressedBytes = await _compressBytesFallback(
+          originalBytes,
+          quality: quality,
+        );
+      }
+
+      if (compressedBytes == null || compressedBytes.isEmpty) {
+        continue;
+      }
+
+      if (compressedBytes.length > _maxPhotoBytes) {
+        continue;
+      }
+
+      final tempFile = await _writeCompressedTempFile(compressedBytes);
+      return _PreparedAvatar(
+        xFile: XFile(tempFile.path),
+        file: tempFile,
+        bytes: compressedBytes,
+      );
+    }
+
+    return null;
+  }
+
+  Future<Uint8List?> _compressBytesFallback(
+    Uint8List bytes, {
+    required int quality,
+  }) async {
+    try {
+      return await FlutterImageCompress.compressWithList(
+        bytes,
+        quality: quality,
+        format: CompressFormat.jpeg,
+        keepExif: false,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<File> _writeCompressedTempFile(Uint8List bytes) async {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final file = File(
+      '${Directory.systemTemp.path}/worklink_avatar_$timestamp.jpg',
+    );
+    await file.writeAsBytes(bytes, flush: true);
+    return file;
+  }
+}
+
+class _PreparedAvatar {
+  final XFile xFile;
+  final File file;
+  final Uint8List bytes;
+
+  const _PreparedAvatar({
+    required this.xFile,
+    required this.file,
+    required this.bytes,
+  });
 }

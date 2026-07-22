@@ -8,8 +8,6 @@ class VacanciesService {
   static const int currentCompanyId = 1;
   static const int currentFreelancerId = 1;
 
-  static final FreelancersService _freelancersService = FreelancersService();
-
   static final List<CompanyModel> _companies = [
     const CompanyModel(
       id: 1,
@@ -167,14 +165,14 @@ class VacanciesService {
       ApplicantModel(
         id: 1,
         vacancyId: 1,
-        freelancer: _freelancersService.getFreelancerById(2) ?? _fallbackFreelancer(2),
+        freelancer: _fallbackFreelancer(2),
         applicationStatus: ApplicationStatus.enRevision,
         appliedAt: DateTime.now().subtract(const Duration(days: 1, hours: 4)),
       ),
       ApplicantModel(
         id: 2,
         vacancyId: 1,
-        freelancer: _freelancersService.getFreelancerById(3) ?? _fallbackFreelancer(3),
+        freelancer: _fallbackFreelancer(3),
         applicationStatus: ApplicationStatus.pendiente,
         appliedAt: DateTime.now().subtract(const Duration(hours: 9)),
       ),
@@ -183,7 +181,7 @@ class VacanciesService {
       ApplicantModel(
         id: 3,
         vacancyId: 3,
-        freelancer: _freelancersService.getFreelancerById(1) ?? _fallbackFreelancer(1),
+        freelancer: _fallbackFreelancer(1),
         applicationStatus: ApplicationStatus.pendiente,
         appliedAt: DateTime.now().subtract(const Duration(days: 2)),
       ),
@@ -237,6 +235,77 @@ class VacanciesService {
       if (company.id == id) return company;
     }
     return null;
+  }
+
+  Future<List<CompanyModel>> getCompanies({
+    String query = '',
+    String industry = 'Todas',
+    String location = 'Todas',
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 220));
+
+    final normalizedQuery = query.trim().toLowerCase();
+
+    final companies = _companies.where((company) {
+      final matchesQuery = normalizedQuery.isEmpty ||
+          company.name.toLowerCase().contains(normalizedQuery) ||
+          company.description.toLowerCase().contains(normalizedQuery) ||
+          company.industry.toLowerCase().contains(normalizedQuery);
+
+      final matchesIndustry = industry == 'Todas' ||
+          industry.trim().isEmpty ||
+          company.industry == industry;
+
+      final matchesLocation = location == 'Todas' ||
+          location.trim().isEmpty ||
+          company.location == location;
+
+      return matchesQuery && matchesIndustry && matchesLocation;
+    }).toList();
+
+    companies.sort((a, b) => b.averageRating.compareTo(a.averageRating));
+    return companies;
+  }
+
+  Future<List<String>> getCompanyIndustries() async {
+    await Future.delayed(const Duration(milliseconds: 120));
+    final industries = _companies.map((company) => company.industry).toSet().toList();
+    industries.sort();
+    return industries;
+  }
+
+  Future<List<String>> getCompanyLocations() async {
+    await Future.delayed(const Duration(milliseconds: 120));
+    final locations = _companies.map((company) => company.location).toSet().toList();
+    locations.sort();
+    return locations;
+  }
+
+  Future<CompanyModel> updateCompany(CompanyModel company) async {
+    await Future.delayed(const Duration(milliseconds: 260));
+
+    final companyIndex = _companies.indexWhere((item) => item.id == company.id);
+    if (companyIndex == -1) {
+      throw Exception('La empresa no existe.');
+    }
+
+    _companies[companyIndex] = company;
+
+    for (var i = 0; i < _vacancies.length; i++) {
+      final vacancy = _vacancies[i];
+      if (vacancy.companyId == company.id) {
+        _vacancies[i] = vacancy.copyWith(
+          companyName: company.name,
+          companyDescription: company.description,
+          companyIndustry: company.industry,
+          companyRating: company.averageRating,
+          companyLocation: company.location,
+          companyLogoUrl: company.logoUrl,
+        );
+      }
+    }
+
+    return company;
   }
 
   Future<List<String>> getCategories() async {
@@ -294,8 +363,7 @@ class VacanciesService {
     );
     _applications.add(application);
 
-    final freelancer = _freelancersService.getFreelancerById(freelancerId) ??
-        _fallbackFreelancer(freelancerId);
+    final freelancer = _fallbackFreelancer(freelancerId);
 
     final applicant = ApplicantModel(
       id: nextId,
@@ -392,12 +460,15 @@ class VacanciesService {
       id: id,
       fullName: 'Freelancer $id',
       specialty: 'Perfil profesional',
-      rating: 4.5,
-      availability: 'Disponible',
-      shortDescription: 'Perfil listo para integración con API real.',
+      description: 'Perfil listo para integración con API real.',
+      hourlyRate: 50.0,
+      available: true,
       location: 'Por definir',
       avatarUrl:
           'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80',
+      rating: 4.5,
+      availability: 'Disponible',
+      shortDescription: 'Perfil listo para integración con API real.',
     );
   }
 }

@@ -1,6 +1,5 @@
 import 'package:worklink_local/modules/app/components/general/form/form_widgets.dart';
 import 'package:worklink_local/helpers/helpers.dart';
-import 'package:worklink_local/utils/utils.dart';
 
 class RequestFiltersBar extends StatelessWidget {
   final TextEditingController searchController;
@@ -36,8 +35,12 @@ class RequestFiltersBar extends StatelessWidget {
       children: [
         CustomInputField(
           controller: searchController,
-          label: 'Buscar solicitudes o categorías',
-          hintText: 'Buscar solicitudes o categorías',
+          label:
+              MultiLanguages.of(context)?.translate('requests_search_label') ??
+              'Buscar solicitudes o categorias',
+          hintText:
+              MultiLanguages.of(context)?.translate('requests_search_hint') ??
+              'Buscar solicitudes o categorias',
           onChanged: onSearchChanged,
           prefixIcon: Icon(
             Icons.search_rounded,
@@ -49,7 +52,11 @@ class RequestFiltersBar extends StatelessWidget {
           children: [
             Expanded(
               child: CustomPickerField<String>(
-                label: 'Categoría',
+                label:
+                    MultiLanguages.of(
+                      context,
+                    )?.translate('services_category') ??
+                    'Categoría',
                 value: selectedCategory,
                 items: categories
                     .map((item) => CustomPickerOption(value: item, label: item))
@@ -60,7 +67,9 @@ class RequestFiltersBar extends StatelessWidget {
             SizedBox(width: 10.w),
             Expanded(
               child: CustomPickerField<String>(
-                label: 'Ubicación',
+                label:
+                    MultiLanguages.of(context)?.translate('location') ??
+                    'Ubicación',
                 value: selectedLocation,
                 items: locations
                     .map((item) => CustomPickerOption(value: item, label: item))
@@ -72,7 +81,9 @@ class RequestFiltersBar extends StatelessWidget {
         ),
         SizedBox(height: 12.h),
         CustomPickerField<String>(
-          label: 'Presupuesto',
+          label:
+              MultiLanguages.of(context)?.translate('requests_budget') ??
+              'Presupuesto',
           value: selectedBudget,
           items: budgetFilters
               .map((item) => CustomPickerOption(value: item, label: item))

@@ -46,9 +46,9 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
   }
 
   Future<void> _openForm({VacancyModel? vacancy}) async {
-    final saved = await Navigator.of(context).push(
-      Transitions.slideUpTransition(VacancyFormScreen(vacancy: vacancy)),
-    );
+    final saved = await Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(VacancyFormScreen(vacancy: vacancy)));
     if (saved == true && mounted) {
       await _loadVacancies();
     }
@@ -71,9 +71,15 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
                 .map(
                   (status) => ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(status.label, style: Style.getTextStyle(color: Style.getTextColor())),
+                    title: Text(
+                      status.label,
+                      style: Style.getTextStyle(color: Style.getTextColor()),
+                    ),
                     trailing: status == vacancy.status
-                        ? Icon(Icons.check_rounded, color: Style.getPrimaryColor())
+                        ? Icon(
+                            Icons.check_rounded,
+                            color: Style.getPrimaryColor(),
+                          )
                         : null,
                     onTap: () => Navigator.pop(context, status),
                   ),
@@ -92,10 +98,15 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
   Future<void> _deleteVacancy(VacancyModel vacancy) async {
     final confirmed = await Dialogs.showConfirmDialogDelete(
       context,
-      title: 'Eliminar vacante',
-      message: 'Esta acción eliminará la vacante y sus postulaciones asociadas.',
-      confirmText: 'Eliminar',
-      cancelText: 'Cancelar',
+      title:
+          MultiLanguages.of(context)?.translate('vacancies_delete_title') ??
+          'Eliminar vacante',
+      message:
+          MultiLanguages.of(context)?.translate('vacancies_delete_message') ??
+          'Esta acción eliminará la vacante y sus postulaciones asociadas.',
+      confirmText:
+          MultiLanguages.of(context)?.translate('delete') ?? 'Eliminar',
+      cancelText: MultiLanguages.of(context)?.translate('cancel') ?? 'Cancelar',
       confirmColor: Style.getErrorColor(),
       cancelColor: Style.getPrimaryColor(),
     );
@@ -122,35 +133,99 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
               titleSpacing: 0,
               leading: IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: Icon(Icons.arrow_back_ios_new_rounded, color: Style.getTextColor()),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Style.getTextColor(),
+                ),
               ),
               actions: [
-                IconButton(onPressed: _loadVacancies, icon: Icon(Icons.refresh_rounded, color: Style.getTextColor())),
-                IconButton(onPressed: () => _openForm(), icon: Icon(Icons.add_circle_outline_rounded, color: Style.getTextColor())),
+                IconButton(
+                  onPressed: _loadVacancies,
+                  icon: Icon(
+                    Icons.refresh_rounded,
+                    color: Style.getTextColor(),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => _openForm(),
+                  icon: Icon(
+                    Icons.add_circle_outline_rounded,
+                    color: Style.getTextColor(),
+                  ),
+                ),
               ],
-              title: Text('Mis Vacantes', style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+              title: Text(
+                MultiLanguages.of(context)?.translate('my_vacancies_title') ??
+                    'Mis Vacantes',
+                style: Style.getHeaderTwo(
+                  color: Style.getTextColor(),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 8.h, Style.horizontalPadding.w, 14.h),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  8.h,
+                  Style.horizontalPadding.w,
+                  14.h,
+                ),
                 child: Row(
                   children: [
-                    Expanded(child: _summaryCard('Vacantes activas', _vacancies.where((item) => item.status == VacancyStatus.abierta).length.toString(), Icons.rocket_launch_rounded)),
+                    Expanded(
+                      child: _summaryCard(
+                        MultiLanguages.of(
+                              context,
+                            )?.translate('vacancies_active_count') ??
+                            'Vacantes activas',
+                        _vacancies
+                            .where(
+                              (item) => item.status == VacancyStatus.abierta,
+                            )
+                            .length
+                            .toString(),
+                        Icons.rocket_launch_rounded,
+                      ),
+                    ),
                     SizedBox(width: 10.w),
-                    Expanded(child: _summaryCard('Postulaciones', _vacancies.fold<int>(0, (sum, item) => sum + item.applicantsCount).toString(), Icons.people_alt_rounded)),
+                    Expanded(
+                      child: _summaryCard(
+                        MultiLanguages.of(context)?.translate('applications') ??
+                            'Postulaciones',
+                        _vacancies
+                            .fold<int>(
+                              0,
+                              (sum, item) => sum + item.applicantsCount,
+                            )
+                            .toString(),
+                        Icons.people_alt_rounded,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: Style.horizontalPadding.w),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Style.horizontalPadding.w,
+                ),
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: CustomWidgets.button(
                     onTap: () => _openForm(),
                     color: Style.getPrimaryColor(),
-                    child: Text('Crear vacante', style: Style.getHeaderThree(color: Style.white, fontWeight: FontWeight.w700)),
+                    child: Text(
+                      MultiLanguages.of(
+                            context,
+                          )?.translate('vacancies_create_button') ??
+                          'Crear vacante',
+                      style: Style.getHeaderThree(
+                        color: Style.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -159,18 +234,33 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
             if (_loading)
               SliverFillRemaining(
                 hasScrollBody: false,
-                child: Center(child: CustomWidgets.mProgress(Style.getPrimaryColor())),
+                child: Center(
+                  child: CustomWidgets.mProgress(Style.getPrimaryColor()),
+                ),
               )
             else if (_vacancies.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: Center(
-                  child: Text('Aún no has creado vacantes.', style: Style.getTextStyle(color: Style.getObscureTextColor())),
+                  child: Text(
+                    MultiLanguages.of(
+                          context,
+                        )?.translate('vacancies_empty_owner') ??
+                        'Aún no has creado vacantes.',
+                    style: Style.getTextStyle(
+                      color: Style.getObscureTextColor(),
+                    ),
+                  ),
                 ),
               )
             else
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 6.h, Style.horizontalPadding.w, 20.h),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  6.h,
+                  Style.horizontalPadding.w,
+                  20.h,
+                ),
                 sliver: SliverList.separated(
                   itemCount: _vacancies.length,
                   separatorBuilder: (_, __) => SizedBox(height: 12.h),
@@ -180,16 +270,28 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
                       vacancy: vacancy,
                       mode: VacancyCardMode.company,
                       onTap: () {
-                        Navigator.of(context).push(Transitions.slideUpTransition(VacancyDetailScreen(vacancyId: vacancy.id)));
+                        Navigator.of(context).push(
+                          Transitions.slideUpTransition(
+                            VacancyDetailScreen(vacancyId: vacancy.id),
+                          ),
+                        );
                       },
                       onEdit: () => _openForm(vacancy: vacancy),
                       onDelete: () => _deleteVacancy(vacancy),
                       onViewApplicants: () {
-                        Navigator.of(context).push(Transitions.slideUpTransition(ApplicantsScreen(vacancyId: vacancy.id)));
+                        Navigator.of(context).push(
+                          Transitions.slideUpTransition(
+                            ApplicantsScreen(vacancyId: vacancy.id),
+                          ),
+                        );
                       },
                       onStatusPressed: () => _changeStatus(vacancy),
                       onViewCompany: () {
-                        Navigator.of(context).push(Transitions.slideUpTransition(CompanyProfileScreen(companyId: vacancy.companyId)));
+                        Navigator.of(context).push(
+                          Transitions.slideUpTransition(
+                            CompanyProfileScreen(companyId: vacancy.companyId),
+                          ),
+                        );
                       },
                     );
                   },
@@ -204,7 +306,10 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
   Widget _summaryCard(String title, String value, IconData icon) {
     return Container(
       padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(color: Style.getCardColor(), borderRadius: Style.getCircularBorderRadius(22)),
+      decoration: BoxDecoration(
+        color: Style.getCardColor(),
+        borderRadius: Style.getCircularBorderRadius(22),
+      ),
       child: Row(
         children: [
           Icon(icon, color: Style.getPrimaryColor(), size: 20.w),
@@ -213,8 +318,18 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value, style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800, fontSize: 20)),
-                Text(title, style: Style.getTextStyle(color: Style.getObscureTextColor())),
+                Text(
+                  value,
+                  style: Style.getHeaderTwo(
+                    color: Style.getTextColor(),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                  ),
+                ),
+                Text(
+                  title,
+                  style: Style.getTextStyle(color: Style.getObscureTextColor()),
+                ),
               ],
             ),
           ),

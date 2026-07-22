@@ -88,11 +88,14 @@ class _LogOutDialogState extends State<LogOutDialog> {
             Expanded(
               child: ElevatedButton(
                 onPressed: () async {
+                  if (!mounted) return;
                   setState(() {
                     isLoading = true;
                   });
 
                   await Future.delayed(const Duration(seconds: 1));
+
+                  if (!mounted) return;
                   setState(() {
                     isLoading = false;
                   });

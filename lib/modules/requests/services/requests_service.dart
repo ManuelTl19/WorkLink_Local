@@ -9,6 +9,7 @@ class RequestsService {
   static const String currentRequesterAvatarUrl =
       'https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=600&q=80';
 
+  // ignore: unused_field
   static final FreelancersService _freelancersService = FreelancersService();
 
   static final List<RequesterProfileModel> _requesters = [
@@ -22,7 +23,8 @@ class RequestsService {
       rating: 4.8,
       avatarUrl:
           'https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=600&q=80',
-      relevantInfo: 'Equipo ágil, proyectos móviles y necesidades de soporte continuo.',
+      relevantInfo:
+          'Equipo ágil, proyectos móviles y necesidades de soporte continuo.',
       website: 'worklinkstudio.com',
     ),
     const RequesterProfileModel(
@@ -35,7 +37,8 @@ class RequestsService {
       rating: 4.6,
       avatarUrl:
           'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=600&q=80',
-      relevantInfo: 'Proyecto comercial en fase de expansión y validación de producto.',
+      relevantInfo:
+          'Proyecto comercial en fase de expansión y validación de producto.',
       website: 'lauragomez.co',
     ),
     const RequesterProfileModel(
@@ -48,7 +51,8 @@ class RequestsService {
       rating: 4.7,
       avatarUrl:
           'https://images.unsplash.com/photo-1521790361543-f645cf042ec4?auto=format&fit=crop&w=600&q=80',
-      relevantInfo: 'Buscan talento freelance para sprints de producto y mejoras incrementales.',
+      relevantInfo:
+          'Buscan talento freelance para sprints de producto y mejoras incrementales.',
       website: 'northpeaklabs.io',
     ),
   ];
@@ -59,7 +63,8 @@ class RequestsService {
       requesterId: 1,
       title: 'Rediseño de app móvil para clientes',
       category: 'Diseño UX/UI',
-      shortDescription: 'Necesitamos modernizar la experiencia visual de una app ya publicada.',
+      shortDescription:
+          'Necesitamos modernizar la experiencia visual de una app ya publicada.',
       description:
           'Buscamos apoyo para rediseñar pantallas clave, mejorar la jerarquía visual y preparar un sistema de diseño que podamos mantener a futuro.',
       budgetValue: 1800,
@@ -76,7 +81,8 @@ class RequestsService {
       requesterDescription:
           'Equipo de producto y tecnología enfocado en lanzar soluciones digitales con rapidez y calidad visual.',
       requesterLocation: 'Monterrey, México',
-      requesterRelevantInfo: 'Equipo ágil, proyectos móviles y necesidades de soporte continuo.',
+      requesterRelevantInfo:
+          'Equipo ágil, proyectos móviles y necesidades de soporte continuo.',
       requesterWebsite: 'worklinkstudio.com',
       interestedCount: 6,
       featured: true,
@@ -86,7 +92,8 @@ class RequestsService {
       requesterId: 2,
       title: 'Desarrollo de landing page para campaña',
       category: 'Desarrollo Web',
-      shortDescription: 'Buscamos una landing optimizada para conversión y rápida carga.',
+      shortDescription:
+          'Buscamos una landing optimizada para conversión y rápida carga.',
       description:
           'Necesitamos una landing page moderna con formulario, secciones informativas y enfoque total en conversión y rendimiento.',
       budgetValue: 950,
@@ -103,7 +110,8 @@ class RequestsService {
       requesterDescription:
           'Cliente independiente con un negocio en crecimiento que necesita apoyo técnico puntual.',
       requesterLocation: 'Bogotá, Colombia',
-      requesterRelevantInfo: 'Proyecto comercial en fase de expansión y validación de producto.',
+      requesterRelevantInfo:
+          'Proyecto comercial en fase de expansión y validación de producto.',
       requesterWebsite: 'lauragomez.co',
       interestedCount: 3,
     ),
@@ -112,7 +120,8 @@ class RequestsService {
       requesterId: 3,
       title: 'Automatización de procesos internos',
       category: 'Backend',
-      shortDescription: 'Se requiere un flujo estable para automatizar tareas operativas.',
+      shortDescription:
+          'Se requiere un flujo estable para automatizar tareas operativas.',
       description:
           'Buscamos un freelancer que nos ayude a conectar servicios internos, automatizar reportes y mejorar tiempos de respuesta.',
       budgetValue: 2500,
@@ -129,7 +138,8 @@ class RequestsService {
       requesterDescription:
           'Laboratorio de innovación con necesidades de desarrollo backend, automatización y datos.',
       requesterLocation: 'Madrid, España',
-      requesterRelevantInfo: 'Buscan talento freelance para sprints de producto y mejoras incrementales.',
+      requesterRelevantInfo:
+          'Buscan talento freelance para sprints de producto y mejoras incrementales.',
       requesterWebsite: 'northpeaklabs.io',
       interestedCount: 4,
     ),
@@ -138,7 +148,8 @@ class RequestsService {
       requesterId: 1,
       title: 'Soporte mensual para app en producción',
       category: 'Soporte',
-      shortDescription: 'Requerimos mejoras pequeñas, correcciones y seguimiento mensual.',
+      shortDescription:
+          'Requerimos mejoras pequeñas, correcciones y seguimiento mensual.',
       description:
           'Necesitamos un freelancer para soporte continuo, mantenimiento correctivo y pequeñas mejoras de la app principal.',
       budgetValue: 1200,
@@ -155,7 +166,8 @@ class RequestsService {
       requesterDescription:
           'Equipo de producto y tecnología enfocado en lanzar soluciones digitales con rapidez y calidad visual.',
       requesterLocation: 'Monterrey, México',
-      requesterRelevantInfo: 'Equipo ágil, proyectos móviles y necesidades de soporte continuo.',
+      requesterRelevantInfo:
+          'Equipo ágil, proyectos móviles y necesidades de soporte continuo.',
       requesterWebsite: 'worklinkstudio.com',
       interestedCount: 2,
     ),
@@ -172,35 +184,49 @@ class RequestsService {
     final normalizedQuery = query.trim().toLowerCase();
 
     return _requests.where((request) {
-      final matchesQuery = normalizedQuery.isEmpty ||
+      final matchesQuery =
+          normalizedQuery.isEmpty ||
           request.title.toLowerCase().contains(normalizedQuery) ||
           request.description.toLowerCase().contains(normalizedQuery) ||
           request.shortDescription.toLowerCase().contains(normalizedQuery) ||
           request.requesterName.toLowerCase().contains(normalizedQuery) ||
           request.category.toLowerCase().contains(normalizedQuery);
 
-      final matchesCategory = category == null || category.isEmpty || category == 'Todas'
+      final matchesCategory =
+          category == null || category.isEmpty || category == 'Todas'
           ? true
           : request.category == category;
 
-      final matchesLocation = location == null || location.isEmpty || location == 'Todas'
+      final matchesLocation =
+          location == null || location.isEmpty || location == 'Todas'
           ? true
           : request.location == location;
 
-      final matchesMinBudget = minBudget == null ? true : request.budgetValue >= minBudget;
-      final matchesMaxBudget = maxBudget == null ? true : request.budgetValue <= maxBudget;
+      final matchesMinBudget = minBudget == null
+          ? true
+          : request.budgetValue >= minBudget;
+      final matchesMaxBudget = maxBudget == null
+          ? true
+          : request.budgetValue <= maxBudget;
 
-      return matchesQuery && matchesCategory && matchesLocation && matchesMinBudget && matchesMaxBudget;
-    }).toList()
-      ..sort((a, b) {
-        if (a.featured != b.featured) return b.featured ? 1 : -1;
-        return b.postedAt.compareTo(a.postedAt);
-      });
+      return matchesQuery &&
+          matchesCategory &&
+          matchesLocation &&
+          matchesMinBudget &&
+          matchesMaxBudget;
+    }).toList()..sort((a, b) {
+      if (a.featured != b.featured) return b.featured ? 1 : -1;
+      return b.postedAt.compareTo(a.postedAt);
+    });
   }
 
-  Future<List<WorkRequestModel>> getMyRequests({int requesterId = currentRequesterId}) async {
+  Future<List<WorkRequestModel>> getMyRequests({
+    int requesterId = currentRequesterId,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 280));
-    return _requests.where((request) => request.requesterId == requesterId).toList()
+    return _requests
+        .where((request) => request.requesterId == requesterId)
+        .toList()
       ..sort((a, b) => b.postedAt.compareTo(a.postedAt));
   }
 
@@ -222,14 +248,20 @@ class RequestsService {
 
   Future<List<String>> getCategories() async {
     await Future.delayed(const Duration(milliseconds: 120));
-    final categories = _requests.map((request) => request.category).toSet().toList();
+    final categories = _requests
+        .map((request) => request.category)
+        .toSet()
+        .toList();
     categories.sort();
     return categories;
   }
 
   Future<List<String>> getLocations() async {
     await Future.delayed(const Duration(milliseconds: 120));
-    final locations = _requests.map((request) => request.location).toSet().toList();
+    final locations = _requests
+        .map((request) => request.location)
+        .toSet()
+        .toList();
     locations.sort();
     return locations;
   }
@@ -311,14 +343,18 @@ class RequestsService {
   }
 
   static FreelancerModel get fallbackFreelancer => const FreelancerModel(
-        id: 1,
-        fullName: 'Juan Pérez',
-        specialty: 'Flutter Developer',
-        rating: 4.8,
-        availability: 'Disponible',
-        shortDescription: 'Desarrollador móvil especializado en Flutter y Firebase.',
-        location: 'Monterrey, México',
-        avatarUrl:
-            'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80',
-      );
+    id: 1,
+    fullName: 'Juan Pérez',
+    specialty: 'Flutter Developer',
+    description: 'Desarrollador móvil especializado en Flutter y Firebase.',
+    hourlyRate: 50.0,
+    available: true,
+    location: 'Monterrey, México',
+    avatarUrl:
+        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80',
+    rating: 4.8,
+    availability: 'Disponible',
+    shortDescription:
+        'Desarrollador móvil especializado en Flutter y Firebase.',
+  );
 }

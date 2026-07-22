@@ -36,8 +36,16 @@ class VacancyFiltersBar extends StatelessWidget {
           children: [
             CustomInputField(
               controller: searchController,
-              label: 'Buscar vacantes, empresas o habilidades',
-              hintText: 'Buscar vacantes, empresas o habilidades',
+              label:
+                  MultiLanguages.of(
+                    context,
+                  )?.translate('vacancies_search_label') ??
+                  'Buscar vacantes, empresas o habilidades',
+              hintText:
+                  MultiLanguages.of(
+                    context,
+                  )?.translate('vacancies_search_hint') ??
+                  'Buscar vacantes, empresas o habilidades',
               textInputAction: TextInputAction.search,
               onChanged: onSearchChanged,
               prefixIcon: Icon(
@@ -50,7 +58,11 @@ class VacancyFiltersBar extends StatelessWidget {
               children: [
                 Expanded(
                   child: CustomPickerField<String>(
-                    label: 'Categoría',
+                    label:
+                        MultiLanguages.of(
+                          context,
+                        )?.translate('services_category') ??
+                        'Categoría',
                     value: selectedCategory,
                     items: categories
                         .map(
@@ -66,7 +78,9 @@ class VacancyFiltersBar extends StatelessWidget {
                 SizedBox(width: 10.w),
                 Expanded(
                   child: CustomPickerField<String>(
-                    label: 'Ubicación',
+                    label:
+                        MultiLanguages.of(context)?.translate('location') ??
+                        'Ubicación',
                     value: selectedLocation,
                     items: locations
                         .map(

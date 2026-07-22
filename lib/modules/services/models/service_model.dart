@@ -1,14 +1,12 @@
-enum ServiceStatus { activo, pausado, archivado }
+enum ServiceStatus { activo, inactivo }
 
 extension ServiceStatusX on ServiceStatus {
   String get label {
     switch (this) {
       case ServiceStatus.activo:
         return 'Activo';
-      case ServiceStatus.pausado:
-        return 'Pausado';
-      case ServiceStatus.archivado:
-        return 'Archivado';
+      case ServiceStatus.inactivo:
+        return 'Inactivo';
     }
   }
 }
@@ -16,8 +14,11 @@ extension ServiceStatusX on ServiceStatus {
 ServiceStatus serviceStatusFromString(Object? value) {
   final text = value?.toString().trim().toLowerCase() ?? '';
 
-  if (text.contains('paus')) return ServiceStatus.pausado;
-  if (text.contains('arch')) return ServiceStatus.archivado;
+  if (text.contains('inact') ||
+      text.contains('paus') ||
+      text.contains('arch')) {
+    return ServiceStatus.inactivo;
+  }
   return ServiceStatus.activo;
 }
 
@@ -52,6 +53,7 @@ class ServiceModel {
   final int freelancerId;
   final String title;
   final String category;
+  final String location;
   final String shortDescription;
   final String description;
   final double priceValue;
@@ -72,6 +74,7 @@ class ServiceModel {
   final String freelancerShortDescription;
   final String freelancerAvatarUrl;
   final DateTime createdAt;
+  final DateTime updatedAt;
   final bool featured;
 
   const ServiceModel({
@@ -79,6 +82,7 @@ class ServiceModel {
     required this.freelancerId,
     required this.title,
     required this.category,
+    this.location = '',
     required this.shortDescription,
     required this.description,
     required this.priceValue,
@@ -99,6 +103,7 @@ class ServiceModel {
     required this.freelancerShortDescription,
     required this.freelancerAvatarUrl,
     required this.createdAt,
+    required this.updatedAt,
     this.featured = false,
   });
 
@@ -109,6 +114,7 @@ class ServiceModel {
     int? freelancerId,
     String? title,
     String? category,
+    String? location,
     String? shortDescription,
     String? description,
     double? priceValue,
@@ -129,6 +135,7 @@ class ServiceModel {
     String? freelancerShortDescription,
     String? freelancerAvatarUrl,
     DateTime? createdAt,
+    DateTime? updatedAt,
     bool? featured,
   }) {
     return ServiceModel(
@@ -136,6 +143,7 @@ class ServiceModel {
       freelancerId: freelancerId ?? this.freelancerId,
       title: title ?? this.title,
       category: category ?? this.category,
+      location: location ?? this.location,
       shortDescription: shortDescription ?? this.shortDescription,
       description: description ?? this.description,
       priceValue: priceValue ?? this.priceValue,
@@ -152,10 +160,13 @@ class ServiceModel {
       freelancerName: freelancerName ?? this.freelancerName,
       freelancerSpecialty: freelancerSpecialty ?? this.freelancerSpecialty,
       freelancerRating: freelancerRating ?? this.freelancerRating,
-      freelancerAvailability: freelancerAvailability ?? this.freelancerAvailability,
-      freelancerShortDescription: freelancerShortDescription ?? this.freelancerShortDescription,
+      freelancerAvailability:
+          freelancerAvailability ?? this.freelancerAvailability,
+      freelancerShortDescription:
+          freelancerShortDescription ?? this.freelancerShortDescription,
       freelancerAvatarUrl: freelancerAvatarUrl ?? this.freelancerAvatarUrl,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       featured: featured ?? this.featured,
     );
   }
@@ -168,29 +179,74 @@ class ServiceModel {
       id: json['id'] ?? 0,
       freelancerId: json['freelancer_id'] ?? 0,
       title: json['title']?.toString() ?? json['titulo']?.toString() ?? '',
-      category: json['category']?.toString() ?? json['categoria']?.toString() ?? '',
-      shortDescription: json['short_description']?.toString() ?? json['descripcion_corta']?.toString() ?? '',
-      description: json['description']?.toString() ?? json['descripcion']?.toString() ?? '',
-      priceValue: (json['price_value'] as num?)?.toDouble() ??
-          double.tryParse(json['price_value']?.toString() ?? json['price']?.toString() ?? '') ??
+      category:
+          json['category']?.toString() ?? json['categoria']?.toString() ?? '',
+      location:
+          json['location']?.toString() ?? json['ubicacion']?.toString() ?? '',
+      shortDescription:
+          json['short_description']?.toString() ??
+          json['descripcion_corta']?.toString() ??
+          (json['description']?.toString() ??
+              json['descripcion']?.toString() ??
+              ''),
+      description:
+          json['description']?.toString() ??
+          json['descripcion']?.toString() ??
+          '',
+      priceValue:
+          (json['price_value'] as num?)?.toDouble() ??
+          double.tryParse(
+            json['price_value']?.toString() ?? json['price']?.toString() ?? '',
+          ) ??
           0,
-      priceLabel: json['price_label']?.toString() ?? json['precio']?.toString() ?? '',
-      modality: serviceModalityFromString(json['modality'] ?? json['modalidad']),
-      estimatedTime: json['estimated_time']?.toString() ?? json['tiempo_estimado']?.toString() ?? '',
-      status: serviceStatusFromString(json['status'] ?? json['estado']),
-      mainImageUrl: json['main_image_url']?.toString() ?? json['imagen_principal']?.toString() ?? '',
+      priceLabel:
+          json['price_label']?.toString() ??
+          json['precio']?.toString() ??
+          _priceLabelFromJson(json),
+      modality: serviceModalityFromString(
+        json['modality'] ?? json['modalidad'],
+      ),
+      estimatedTime:
+          json['estimated_time']?.toString() ??
+          json['tiempo_estimado']?.toString() ??
+          '',
+      status: serviceStatusFromString(
+        json['status'] ??
+            json['estado'] ??
+            (json['is_active'] == false || json['is_active'] == 0
+                ? 'inactivo'
+                : 'activo'),
+      ),
+      mainImageUrl:
+          json['main_image_url']?.toString() ??
+          json['imagen_principal']?.toString() ??
+          json['image_url']?.toString() ??
+          '',
       galleryImages: rawGallery.map((item) => item.toString()).toList(),
       tags: rawTags.map((item) => item.toString()).toList(),
       averageRating: (json['average_rating'] as num?)?.toDouble() ?? 0,
       reviewCount: json['review_count'] ?? 0,
       interestedCount: json['interested_count'] ?? 0,
-      freelancerName: json['freelancer_name']?.toString() ?? '',
+      freelancerName:
+          json['freelancer_name']?.toString() ??
+          json['freelancer']?['name']?.toString() ??
+          'Freelancer',
       freelancerSpecialty: json['freelancer_specialty']?.toString() ?? '',
       freelancerRating: (json['freelancer_rating'] as num?)?.toDouble() ?? 0,
       freelancerAvailability: json['freelancer_availability']?.toString() ?? '',
-      freelancerShortDescription: json['freelancer_short_description']?.toString() ?? '',
-      freelancerAvatarUrl: json['freelancer_avatar_url']?.toString() ?? '',
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
+      freelancerShortDescription:
+          json['freelancer_short_description']?.toString() ?? '',
+      freelancerAvatarUrl:
+          json['freelancer_avatar_url']?.toString() ??
+          json['freelancer']?['profile_photo_url']?.toString() ??
+          '',
+      createdAt:
+          DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+      updatedAt:
+          DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
+          DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
       featured: json['featured'] ?? false,
     );
   }
@@ -201,6 +257,7 @@ class ServiceModel {
       'freelancer_id': freelancerId,
       'title': title,
       'category': category,
+      'location': location,
       'short_description': shortDescription,
       'description': description,
       'price_value': priceValue,
@@ -221,7 +278,22 @@ class ServiceModel {
       'freelancer_short_description': freelancerShortDescription,
       'freelancer_avatar_url': freelancerAvatarUrl,
       'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
       'featured': featured,
     };
+  }
+
+  static String _priceLabelFromJson(Map<String, dynamic> json) {
+    final raw = json['price'] ?? json['price_value'] ?? 0;
+    final value = (raw is num)
+        ? raw.toDouble()
+        : double.tryParse(raw.toString()) ?? 0;
+
+    if (value <= 0) return '';
+
+    if (value == value.roundToDouble()) {
+      return '\$${value.toInt()}';
+    }
+    return '\$${value.toStringAsFixed(2)}';
   }
 }

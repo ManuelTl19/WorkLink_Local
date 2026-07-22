@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/utils/logger.dart';
@@ -8,14 +7,10 @@ class MultiLanguages {
   final Locale locale;
   MultiLanguages({this.locale = const Locale.fromSubtags(languageCode: 'es')});
 
-  /// Helper method to keep the code in the widgets concise
-  /// Localizations are accessed using an InheritedWidget "of" syntax
-
   static MultiLanguages? of(BuildContext context) {
     return Localizations.of<MultiLanguages>(context, MultiLanguages);
   }
 
-  /// Store the locale in the SharedPreferences (safe)
   void keepLocaleKey(String key) {
     try {
       prefs.setString('locale', key);
@@ -24,7 +19,6 @@ class MultiLanguages {
     }
   }
 
-  /// Get the locale from the SharedPreferences (safe)
   Future<String> getLocaleKey() async {
     try {
       final current = prefs.getString('locale');
@@ -36,11 +30,9 @@ class MultiLanguages {
     }
   }
 
-  /// Set the locale in the MaterialApp (decoupled)
   void setLocaleKey(BuildContext context, Locale locale) {
     keepLocaleKey(locale.languageCode);
     logSuccess('Setting Locale Key: ${locale.languageCode}');
-    // Notify registered listener to update the app locale (avoids tight coupling)
     try {
       LocaleManager.notifyLocaleChanged(locale);
     } catch (e) {
@@ -51,10 +43,8 @@ class MultiLanguages {
   static const LocalizationsDelegate<MultiLanguages> delegate =
       _MultiLanguagesDelegate();
 
-  /// Map to store localized strings
   Map<String, String> localizedStrings = {};
 
-  /// Load the language JSON file from the "language" folder
   Future<bool> load() async {
     try {
       String jsonString = await rootBundle.loadString(
@@ -72,12 +62,13 @@ class MultiLanguages {
     }
   }
 
-  /// This method will be called from every widget which needs a localized text
   String translate(String key) {
     return localizedStrings[key] ?? key;
   }
 
   selectLanguageBottomSheet(BuildContext context) {
+    final currentLocale = Localizations.localeOf(context).languageCode;
+
     showModalBottomSheet<dynamic>(
       context: context,
       shape: RoundedRectangleBorder(
@@ -89,70 +80,131 @@ class MultiLanguages {
       useSafeArea: true,
       backgroundColor: Style.getBackgroundColor(),
       builder: (context) {
-        return Wrap(
-          children: [
-            SizedBox(
-              height: 200.h,
-              child: Column(
-                children: [
-                  ListTile(
-                    title: Text(
-                      MultiLanguages.of(
-                            context,
-                          )?.translate('select_language') ??
-                          'Seleccionar idioma',
-                      style: Style.getHeaderTwo(
-                        color: Style.getPrimaryColor(),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-
-                  SizedBox(height: 10.h),
-
-                  ListTile(
-                    title: Text('Español', style: Style.getTextStyle()),
-                    trailing: FaIcon(
-                      FontAwesomeIcons.chevronRight,
-                      color: Style.getTextColor(),
-                      size: Style.bigIconSize,
-                    ),
-                    onTap: () {
-                      setLocaleKey(
-                        context,
-                        const Locale.fromSubtags(languageCode: 'es'),
-                      );
-                      Navigator.pop(context);
-                    },
-                  ),
-                  ListTile(
-                    title: Text('English', style: Style.getTextStyle()),
-                    trailing: FaIcon(
-                      FontAwesomeIcons.chevronRight,
-                      color: Style.getTextColor(),
-                      size: Style.bigIconSize,
-                    ),
-                    onTap: () {
-                      setLocaleKey(
-                        context,
-                        const Locale.fromSubtags(languageCode: 'en'),
-                      );
-                      Navigator.pop(context);
-                    },
-                  ),
-                ],
+        return Padding(
+          padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 20.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                MultiLanguages.of(context)?.translate('select_language') ??
+                    'Seleccionar idioma',
+                style: Style.getHeaderTwo(
+                  color: Style.getPrimaryColor(),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
-            ),
-          ],
+              SizedBox(height: 20.h),
+              _languageOption(
+                context: context,
+                flag: '🇪🇸',
+                name: 'Español',
+                code: 'es',
+                isSelected: currentLocale == 'es',
+                onTap: () {
+                  setLocaleKey(
+                    context,
+                    const Locale.fromSubtags(languageCode: 'es'),
+                  );
+                  Navigator.pop(context);
+                },
+              ),
+              SizedBox(height: 12.h),
+              _languageOption(
+                context: context,
+                flag: '🇬🇧',
+                name: 'English',
+                code: 'en',
+                isSelected: currentLocale == 'en',
+                onTap: () {
+                  setLocaleKey(
+                    context,
+                    const Locale.fromSubtags(languageCode: 'en'),
+                  );
+                  Navigator.pop(context);
+                },
+              ),
+              SizedBox(height: 10.h),
+            ],
+          ),
         );
       },
+    );
+  }
+
+  Widget _languageOption({
+    required BuildContext context,
+    required String flag,
+    required String name,
+    required String code,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12.w),
+        border: Border.all(
+          color: isSelected ? Style.getPrimaryColor() : Style.getBorderColor(),
+          width: isSelected ? 2 : 1,
+        ),
+        color: isSelected
+            ? Style.getPrimaryColor().withValues(alpha: 0.08)
+            : Style.getCardColor(),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12.w),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+            child: Row(
+              children: [
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: Style.getHeaderThree(
+                          color: Style.getTextColor(),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        code.toUpperCase(),
+                        style: Style.getTextStyle(
+                          color: Style.getObscureTextColor(),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isSelected)
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: Style.getPrimaryColor(),
+                    size: 24.w,
+                  )
+                else
+                  Icon(
+                    Icons.circle_outlined,
+                    color: Style.getObscureTextColor(),
+                    size: 24.w,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
 class _MultiLanguagesDelegate extends LocalizationsDelegate<MultiLanguages> {
-  // This delegate instance will never change
-  // It can provide a constant constructor.
   const _MultiLanguagesDelegate();
 
   @override

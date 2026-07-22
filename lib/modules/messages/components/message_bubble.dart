@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/messages/models/message_model.dart';
 
@@ -10,6 +12,19 @@ class MessageBubble extends StatelessWidget {
     final hour = sentAt.hour.toString().padLeft(2, '0');
     final minute = sentAt.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
+  }
+
+  IconData _statusIcon() {
+    switch (message.status) {
+      case MessageDeliveryStatus.sending:
+        return Icons.schedule_rounded;
+      case MessageDeliveryStatus.sent:
+        return Icons.check_rounded;
+      case MessageDeliveryStatus.delivered:
+        return Icons.done_all_rounded;
+      case MessageDeliveryStatus.read:
+        return Icons.done_all_rounded;
+    }
   }
 
   @override
@@ -67,15 +82,74 @@ class MessageBubble extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            SizedBox(height: 6.h),
-            Text(
-              _timeLabel(message.sentAt),
-              style: Style.getHeaderThree(
-                color: textColor.withValues(alpha: 0.7),
-                fontSize: 10.w,
-                fontWeight: FontWeight.normal,
+            if (message.isImage) ...[
+              SizedBox(height: 8.h),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14.r),
+                child: message.imageUrl.startsWith('http')
+                    ? CachedNetworkImage(
+                        imageUrl: message.imageUrl,
+                        width: 180.w,
+                        height: 160.h,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => Container(
+                          width: 180.w,
+                          height: 160.h,
+                          color: Style.getBackgroundColor(),
+                          child: Icon(
+                            Icons.broken_image_rounded,
+                            color: Style.getObscureTextColor(),
+                          ),
+                        ),
+                      )
+                    : message.imageUrl.startsWith('assets/')
+                    ? Image.asset(
+                        message.imageUrl,
+                        width: 180.w,
+                        height: 160.h,
+                        fit: BoxFit.cover,
+                      )
+                    : Image.file(
+                        File(message.imageUrl),
+                        width: 180.w,
+                        height: 160.h,
+                        fit: BoxFit.cover,
+                      ),
               ),
+            ],
+            SizedBox(height: 6.h),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _timeLabel(message.sentAt),
+                  style: Style.getHeaderThree(
+                    color: textColor.withValues(alpha: 0.7),
+                    fontSize: 10.w,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+                if (message.isMine) ...[
+                  SizedBox(width: 4.w),
+                  Icon(
+                    _statusIcon(),
+                    size: 14.w,
+                    color: message.status == MessageDeliveryStatus.read
+                        ? Style.getSecondaryColor()
+                        : textColor.withValues(alpha: 0.7),
+                  ),
+                ],
+              ],
             ),
+            if (message.isMine && message.status == MessageDeliveryStatus.sending)
+              Text(
+                'Enviando...',
+                style: Style.getHeaderThree(
+                  color: textColor.withValues(alpha: 0.7),
+                  fontSize: 9.w,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
           ],
         ),
       ),

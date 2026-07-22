@@ -27,28 +27,50 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     try {
-      final rawRoles = (json['roles'] as List?) ?? [];
+      // Procesar rol(es)
+      final rawRoles =
+          (json['roles'] as List?) ??
+          (json['role'] != null ? [json['role']] : <dynamic>[]);
+
+      final roleNames = rawRoles
+          .map((role) {
+            if (role is Map<String, dynamic>) {
+              return role['name']?.toString() ??
+                  role['nombre']?.toString() ??
+                  '';
+            }
+            return role.toString();
+          })
+          .where((role) => role.trim().isNotEmpty)
+          .toList();
+
+      // Priorizar profile_photo_url (URL completa del backend)
+      final profilePhotoUrl = (json['profile_photo_url'] ?? '').toString().trim().isNotEmpty
+          ? json['profile_photo_url'].toString()
+          : (json['profile_photo'] ?? '').toString().trim().isNotEmpty
+          ? json['profile_photo'].toString()
+          : (json['foto_perfil'] ?? '').toString();
+
+      final roleName = roleNames.isNotEmpty
+          ? roleNames.first
+          : json['role'] is Map<String, dynamic>
+          ? (json['role']['name']?.toString() ??
+                json['role']['nombre']?.toString() ??
+                '')
+          : '';
 
       return UserModel(
         id: json['id'] ?? 0,
-        nombre: json['nombre'] ?? '',
-        apellidoP: json['apellidoP'] ?? '',
-        apellidoM: json['apellidoM'] ?? '',
-        correo: json['correo'] ?? '',
-        tipoCuenta: json['tipo_cuenta'] ?? '',
+        nombre: json['name'] ?? json['nombre'] ?? '',
+        apellidoP: json['last_name'] ?? json['apellidoP'] ?? '',
+        apellidoM: json['maternal_last_name'] ?? json['apellidoM'] ?? '',
+        correo: json['email'] ?? json['correo'] ?? '',
+        tipoCuenta: json['tipo_cuenta'] ?? roleName,
         cargo: json['cargo'] ?? json['puesto'] ?? '',
         departamento: json['departamento'] ?? json['department'] ?? '',
-        roles: rawRoles
-            .map((role) {
-              if (role is Map<String, dynamic>) {
-                return role['nombre']?.toString() ?? '';
-              }
-              return role.toString();
-            })
-            .where((role) => role.trim().isNotEmpty)
-            .toList(),
-        fotoPerfil: json['foto_perfil'] ?? '',
-        telefono: json['telefono'] ?? '',
+        roles: roleNames,
+        fotoPerfil: profilePhotoUrl,
+        telefono: json['phone']?.toString() ?? json['telefono'] ?? '',
       );
     } catch (e) {
       throw Exception('Error parsing UserModel: $e');

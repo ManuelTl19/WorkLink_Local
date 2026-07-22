@@ -83,13 +83,21 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Tu postulación fue enviada a ${vacancy.companyName}.')),
+        SnackBar(
+          content: Text(
+            '${MultiLanguages.of(context)?.translate('application_sent') ?? 'Tu postulación fue enviada a'} ${vacancy.companyName}.',
+          ),
+        ),
       );
       await _refreshList();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo aplicar: $e')),
+        SnackBar(
+          content: Text(
+            '${MultiLanguages.of(context)?.translate('application_failed') ?? 'No se pudo aplicar'}: $e',
+          ),
+        ),
       );
     }
   }
@@ -111,12 +119,18 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
               titleSpacing: 0,
               leading: IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: Icon(Icons.arrow_back_ios_new_rounded, color: Style.getTextColor()),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Style.getTextColor(),
+                ),
               ),
               actions: [
                 IconButton(
                   onPressed: _loadData,
-                  icon: Icon(Icons.refresh_rounded, color: Style.getTextColor()),
+                  icon: Icon(
+                    Icons.refresh_rounded,
+                    color: Style.getTextColor(),
+                  ),
                 ),
               ],
               title: Text(
@@ -147,7 +161,9 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: Style.getCircularBorderRadius(24),
-                    border: Border.all(color: Style.getPrimaryColor().withValues(alpha: .10)),
+                    border: Border.all(
+                      color: Style.getPrimaryColor().withValues(alpha: .10),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -157,7 +173,11 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
                           color: Style.getPrimaryColor().withValues(alpha: .12),
                           borderRadius: Style.getCircularBorderRadius(16),
                         ),
-                        child: Icon(Icons.work_outline_rounded, color: Style.getPrimaryColor(), size: 22.w),
+                        child: Icon(
+                          Icons.work_outline_rounded,
+                          color: Style.getPrimaryColor(),
+                          size: 22.w,
+                        ),
                       ),
                       SizedBox(width: 12.w),
                       Expanded(
@@ -175,7 +195,9 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
                             SizedBox(height: 4.h),
                             Text(
                               'Explora vacantes, revisa detalles y aplica con un flujo preparado para API real.',
-                              style: Style.getTextStyle(color: Style.getObscureTextColor()).copyWith(height: 1.35),
+                              style: Style.getTextStyle(
+                                color: Style.getObscureTextColor(),
+                              ).copyWith(height: 1.35),
                             ),
                           ],
                         ),
@@ -187,7 +209,9 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: Style.horizontalPadding.w),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Style.horizontalPadding.w,
+                ),
                 child: VacancyFiltersBar(
                   searchController: _searchController,
                   selectedCategory: _selectedCategory,
@@ -213,7 +237,9 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
             if (_loading)
               SliverFillRemaining(
                 hasScrollBody: false,
-                child: Center(child: CustomWidgets.mProgress(Style.getPrimaryColor())),
+                child: Center(
+                  child: CustomWidgets.mProgress(Style.getPrimaryColor()),
+                ),
               )
             else if (_vacancies.isEmpty)
               SliverFillRemaining(
@@ -234,7 +260,12 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
               )
             else
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 4.h, Style.horizontalPadding.w, 20.h),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  4.h,
+                  Style.horizontalPadding.w,
+                  20.h,
+                ),
                 sliver: SliverList.separated(
                   itemCount: _vacancies.length,
                   separatorBuilder: (_, __) => SizedBox(height: 12.h),
@@ -245,13 +276,19 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
                       mode: VacancyCardMode.freelancer,
                       onTap: () {
                         Navigator.of(context).push(
-                          Transitions.slideUpTransition(VacancyDetailScreen(vacancyId: vacancy.id)),
+                          Transitions.slideUpTransition(
+                            VacancyDetailScreen(vacancyId: vacancy.id),
+                          ),
                         );
                       },
-                      onApply: vacancy.isOpen ? () => _applyToVacancy(vacancy) : null,
+                      onApply: vacancy.isOpen
+                          ? () => _applyToVacancy(vacancy)
+                          : null,
                       onViewCompany: () {
                         Navigator.of(context).push(
-                          Transitions.slideUpTransition(CompanyProfileScreen(companyId: vacancy.companyId)),
+                          Transitions.slideUpTransition(
+                            CompanyProfileScreen(companyId: vacancy.companyId),
+                          ),
                         );
                       },
                     );

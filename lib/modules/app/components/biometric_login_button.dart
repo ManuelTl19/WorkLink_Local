@@ -1,5 +1,4 @@
 import 'package:worklink_local/helpers/helpers.dart';
-import 'package:worklink_local/utils/utils.dart';
 
 class BiometricLoginButton extends StatelessWidget {
   final VoidCallback onPressed;
@@ -85,7 +84,9 @@ class BiometricLoginButton extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              'Ingresar con biometría',
+                              MultiLanguages.of(
+                                context,
+                              )!.translate('biometric_login_button_title'),
                               style: Style.getHeaderThree(
                                 color: Style.getPrimaryColor(),
                                 fontWeight: FontWeight.w800,
@@ -93,7 +94,9 @@ class BiometricLoginButton extends StatelessWidget {
                             ),
                             SizedBox(height: 3.h),
                             Text(
-                              'Usa tu huella para volver a entrar',
+                              MultiLanguages.of(
+                                context,
+                              )!.translate('biometric_login_button_subtitle'),
                               style: Style.getTextStyle(
                                 color: Style.getObscureTextColor(),
                                 fontSize: 10,

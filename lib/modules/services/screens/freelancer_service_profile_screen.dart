@@ -1,264 +1,340 @@
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:worklink_local/helpers/helpers.dart';
+import 'package:worklink_local/modules/freelancers/components/freelancer_profile_form_dialog.dart';
 import 'package:worklink_local/modules/freelancers/models/freelancer_model.dart';
 import 'package:worklink_local/modules/freelancers/services/freelancers_service.dart';
-import 'package:worklink_local/modules/messages/messages.dart';
-import 'package:worklink_local/modules/messages/services/message_service.dart';
-import 'package:worklink_local/modules/portfolio/portfolio.dart';
-import 'package:worklink_local/modules/services/models/service_model.dart';
-import 'package:worklink_local/modules/services/services_service.dart';
-import 'package:worklink_local/utils/widgets/custom_widgets.dart';
+import 'package:worklink_local/modules/portfolio/screens/portfolio_screen.dart';
+import 'package:worklink_local/modules/users/models/user_model.dart';
 import 'package:worklink_local/utils/utils.dart';
 
 class FreelancerServiceProfileScreen extends StatefulWidget {
-  const FreelancerServiceProfileScreen({super.key, required this.freelancerId});
+  const FreelancerServiceProfileScreen({
+    super.key,
+    required this.freelancerId,
+    this.ownerPreview = false,
+  });
 
-  final int freelancerId;
+  final int? freelancerId;
+  final bool ownerPreview;
 
   @override
-  State<FreelancerServiceProfileScreen> createState() => _FreelancerServiceProfileScreenState();
+  State<FreelancerServiceProfileScreen> createState() =>
+      _FreelancerServiceProfileScreenState();
 }
 
-class _FreelancerServiceProfileScreenState extends State<FreelancerServiceProfileScreen> {
-  final ServicesService _service = ServicesService();
-  final ScrollController _scrollController = ScrollController();
-
+class _FreelancerServiceProfileScreenState
+    extends State<FreelancerServiceProfileScreen> {
   bool _loading = true;
-  FreelancerModel? _freelancer;
-  List<ServiceModel> _services = const [];
+  bool _actionLoading = false;
+  FreelancerModel? _profile;
+  UserModel? _currentUser;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _loadProfile();
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
+  Future<void> _loadCurrentUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userRaw =
+        prefs.getString(Constants.userEmailKey) ?? prefs.getString('user');
+    if (userRaw == null || userRaw.isEmpty) return;
+    _currentUser = UserModel.fromJson(jsonDecode(userRaw));
   }
 
-  Future<void> _loadData() async {
-    final freelancer = FreelancersService().getFreelancerById(widget.freelancerId);
-    final services = await _service.getFreelancerServices(freelancerId: widget.freelancerId);
+  Future<void> _loadProfile() async {
+    setState(() => _loading = true);
+    try {
+      await _loadCurrentUser();
+
+      FreelancerModel? profile;
+      if (widget.ownerPreview) {
+        final userId = _currentUser?.id;
+        if (userId != null) {
+          profile = await FreelancersService.getProfileByUserId(userId);
+        }
+      } else if (widget.freelancerId != null) {
+        profile = await FreelancersService.getFreelancerById(
+          widget.freelancerId!,
+        );
+      }
+
+      if (profile != null && _currentUser != null) {
+        final userName = [
+          _currentUser!.nombre,
+          _currentUser!.apellidoP,
+          _currentUser!.apellidoM,
+        ].where((part) => part.trim().isNotEmpty).join(' ');
+
+        profile = profile.copyWith(
+          fullName: profile.fullName.trim().isNotEmpty
+              ? profile.fullName
+              : userName,
+          avatarUrl: profile.avatarUrl.trim().isNotEmpty
+              ? profile.avatarUrl
+              : _currentUser!.fotoPerfil,
+        );
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _profile = profile;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _openProfileForm() async {
+    if (_currentUser == null) {
+      await _loadCurrentUser();
+    }
     if (!mounted) return;
-    setState(() {
-      _freelancer = freelancer;
-      _services = services;
-      _loading = false;
-    });
-  }
 
-  Future<void> _contactFreelancer() async {
-    final freelancer = _freelancer;
-    if (freelancer == null) return;
-
-    final chat = await MessageService.getOrCreateChat(
-      name: freelancer.fullName,
-      avatarSeed: freelancer.fullName,
-      subtitle: freelancer.specialty,
-      avatarUrl: freelancer.avatarUrl,
-      relatedEntityId: freelancer.id,
-      relatedEntityType: 'freelancer',
+    final result = await showDialog<FreelancerModel>(
+      context: context,
+      builder: (context) => FreelancerProfileFormDialog(
+        initialProfile: _profile,
+        isEditing: _profile != null,
+      ),
     );
 
-    if (!mounted) return;
-    Navigator.of(context).push(Transitions.slideUpTransition(ConversationScreen(chat: chat)));
+    if (result == null) return;
+
+    setState(() => _actionLoading = true);
+    try {
+      if (_profile?.id != null) {
+        await FreelancersService.updateProfile(_profile!.id!, result);
+        if (mounted) {
+          Dialogs.showSimpleDialog(
+            context,
+            title: MultiLanguages.of(context)?.translate('success') ?? 'Éxito',
+            message: MultiLanguages.of(
+              context,
+            )!.translate('profile_updated_successfully'),
+            color: Style.getPrimaryColor(),
+            icon: Icons.check_circle_rounded,
+          );
+        }
+      } else {
+        if (_currentUser?.id == null) {
+          throw Exception(
+            MultiLanguages.of(context)?.translate('session_not_found') ??
+                'No se encontro sesion activa. Vuelve a iniciar sesion.',
+          );
+        }
+        final userId = _currentUser!.id;
+        final payload = result.copyWith(userId: userId);
+        final existingProfile = await FreelancersService.getProfileByUserId(
+          userId,
+        );
+
+        if (existingProfile?.id != null) {
+          await FreelancersService.updateProfile(existingProfile!.id!, payload);
+        } else {
+          await FreelancersService.createProfile(payload);
+        }
+        if (mounted) {
+          Dialogs.showSimpleDialog(
+            context,
+            title: MultiLanguages.of(context)?.translate('success') ?? 'Éxito',
+            message: MultiLanguages.of(
+              context,
+            )!.translate('profile_created_successfully'),
+            color: Style.getPrimaryColor(),
+            icon: Icons.check_circle_rounded,
+          );
+        }
+      }
+      await _loadProfile();
+    } catch (e) {
+      if (!mounted) return;
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('error'),
+        message: e.toString().replaceFirst('Exception: ', ''),
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _actionLoading = false);
+      }
+    }
+  }
+
+  Future<void> _deleteProfile() async {
+    if (_currentUser == null) {
+      await _loadCurrentUser();
+    }
+
+    int? profileId = _profile?.id;
+    if (profileId == null && _currentUser?.id != null) {
+      final existing = await FreelancersService.getProfileByUserId(
+        _currentUser!.id,
+      );
+      if (existing != null) {
+        profileId = existing.id;
+        _profile = existing;
+      }
+    }
+
+    if (profileId == null) {
+      if (!mounted) return;
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('error'),
+        message:
+            MultiLanguages.of(context)?.translate('profile_id_not_found') ??
+            'No se encontro el id del perfil para eliminar.',
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+      return;
+    }
+
+    final confirmed = await Dialogs.showConfirmDialog(
+      context,
+      title: MultiLanguages.of(context)!.translate('delete_profile'),
+      message: MultiLanguages.of(context)!.translate('confirm_delete_profile'),
+      svg: Assets.svgTrashIcon,
+      confirmText: MultiLanguages.of(context)!.translate('delete'),
+      cancelText: MultiLanguages.of(context)!.translate('cancel'),
+    );
+    if (!confirmed) return;
+
+    setState(() => _actionLoading = true);
+    try {
+      await FreelancersService.deleteProfile(profileId);
+      if (!mounted) return;
+      setState(() {
+        _profile = null;
+      });
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)?.translate('success') ?? 'Éxito',
+        message: MultiLanguages.of(
+          context,
+        )!.translate('profile_deleted_successfully'),
+        color: Style.getPrimaryColor(),
+        icon: Icons.check_circle_rounded,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _actionLoading = false);
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('error_deleting_profile'),
+        message: e.toString().replaceFirst('Exception: ', ''),
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _actionLoading = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: Style.getBackgroundColor(),
+        body: Center(child: CustomWidgets.mProgress(Style.getPrimaryColor())),
+      );
+    }
+
+    if (_profile != null) {
+      return Stack(
+        children: [
+          PortfolioScreen(
+            freelancer: _profile!,
+            forceOwner: widget.ownerPreview,
+            onEditProfile: widget.ownerPreview ? _openProfileForm : null,
+            onDeleteProfile: widget.ownerPreview ? _deleteProfile : null,
+          ),
+          if (_actionLoading)
+            Positioned.fill(
+              child: Container(
+                color: Style.black.withValues(alpha: .14),
+                child: Center(
+                  child: CustomWidgets.mProgress(Style.getPrimaryColor()),
+                ),
+              ),
+            ),
+        ],
+      );
+    }
+
     return Scaffold(
       backgroundColor: Style.getBackgroundColor(),
-      body: CustomScrollView(
-        controller: _scrollController,
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            pinned: true,
-            expandedHeight: 290.h,
-            backgroundColor: Style.getBackgroundColor(),
-            surfaceTintColor: Style.transparent,
-            elevation: 0,
-            titleSpacing: 0,
-            leading: IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: Icon(Icons.arrow_back_ios_new_rounded, color: Style.white),
-            ),
-            actions: [IconButton(onPressed: _loadData, icon: Icon(Icons.refresh_rounded, color: Style.white))],
-            title: Text('Perfil del freelancer', style: Style.getHeaderTwo(color: Style.white, fontWeight: FontWeight.w700)),
-            flexibleSpace: FlexibleSpaceBar(background: _loading ? Center(child: CustomWidgets.mProgress(Style.getPrimaryColor())) : _hero()),
+      appBar: AppBar(
+        backgroundColor: Style.getBackgroundColor(),
+        surfaceTintColor: Style.transparent,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Style.getTextColor(),
           ),
-          if (_loading)
-            SliverToBoxAdapter(child: SizedBox(height: 24.h))
-          else if (_freelancer == null)
-            SliverFillRemaining(hasScrollBody: false, child: Center(child: Text('El freelancer no existe.', style: Style.getTextStyle(color: Style.getObscureTextColor()))))
-          else ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 16.h, Style.horizontalPadding.w, 12.h),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: CustomWidgets.button(
-                        onTap: _contactFreelancer,
-                        color: Style.getPrimaryColor(),
-                        child: Text('Contactar', style: Style.getHeaderThree(color: Style.white, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                    SizedBox(width: 10.w),
-                    Expanded(
-                      child: CustomWidgets.button(
-                        onTap: () {
-                          Navigator.of(context).push(Transitions.slideUpTransition(PortfolioScreen(freelancer: _freelancer!)));
-                        },
-                        color: Style.getCardColor(),
-                        isFilled: false,
-                        withBorder: true,
-                        child: Text('Ver portafolio', style: Style.getHeaderThree(color: Style.getTextColor(), fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                  ],
+        ),
+        title: Text(
+          MultiLanguages.of(context)?.translate('professional_profile') ??
+              'Perfil profesional',
+          style: Style.getHeaderTwo(
+            color: Style.getTextColor(),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      body: Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.ownerPreview
+                    ? (MultiLanguages.of(
+                            context,
+                          )?.translate('no_profile_yet') ??
+                          'Aun no tienes perfil profesional.')
+                    : (MultiLanguages.of(
+                            context,
+                          )?.translate('freelancer_profile_not_found') ??
+                          'No se encontro el perfil del freelancer.'),
+                textAlign: TextAlign.center,
+                style: Style.getTextStyle(
+                  color: Style.getObscureTextColor(),
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: Style.horizontalPadding.w),
-                child: _infoCard(
-                  title: 'Información profesional',
-                  child: Column(
-                    children: [
-                      _detailRow('Especialidad', _freelancer!.specialty),
-                      _detailRow('Estado', _freelancer!.availability),
-                      _detailRow('Calificación', _freelancer!.rating.toStringAsFixed(1)),
-                      _detailRow('Ubicación', _freelancer!.location),
-                    ],
+              if (widget.ownerPreview) ...[
+                SizedBox(height: 14.h),
+                CustomWidgets.button(
+                  onTap: _openProfileForm,
+                  color: Style.getPrimaryColor(),
+                  child: Text(
+                    MultiLanguages.of(context)?.translate('create_now') ??
+                        'Crear perfil',
+                    style: Style.getHeaderThree(
+                      color: Style.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 12.h, Style.horizontalPadding.w, 0),
-                child: _infoCard(
-                  title: 'Descripción profesional',
-                  child: Text(_freelancer!.shortDescription, style: Style.getTextStyle(color: Style.getTextColor()).copyWith(height: 1.5)),
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 12.h, Style.horizontalPadding.w, 0),
-                child: _infoCard(
-                  title: 'Servicios publicados',
-                  child: _services.isEmpty
-                      ? Text('Este freelancer aún no ha publicado servicios.', style: Style.getTextStyle(color: Style.getObscureTextColor()))
-                      : Column(
-                          children: _services.map((service) {
-                            return Padding(
-                              padding: EdgeInsets.only(bottom: 10.h),
-                              child: ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: CircleAvatar(
-                                  backgroundImage: NetworkImage(service.mainImageUrl),
-                                ),
-                                title: Text(service.title, style: Style.getTextStyle(color: Style.getTextColor(), fontWeight: FontWeight.w700)),
-                                subtitle: Text(service.priceLabel, style: Style.getTextStyle(color: Style.getObscureTextColor())),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(child: SizedBox(height: 20.h)),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _hero() {
-    final freelancer = _freelancer!;
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        CachedNetworkImage(imageUrl: freelancer.avatarUrl, fit: BoxFit.cover),
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.transparent, Colors.black.withValues(alpha: .38), Style.getBackgroundColor().withValues(alpha: .95)],
-            ),
-          ),
-        ),
-        SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 18.h),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(freelancer.fullName, style: Style.getHeaderTwo(color: Style.white, fontWeight: FontWeight.w800, fontSize: 22)),
-                SizedBox(height: 8.h),
-                Wrap(
-                  spacing: 8.w,
-                  runSpacing: 8.h,
-                  children: [
-                    _pill(freelancer.specialty),
-                    _pill(freelancer.availability),
-                    _pill(freelancer.rating.toStringAsFixed(1)),
-                  ],
-                ),
               ],
-            ),
+            ],
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _infoCard({required String title, required Widget child}) {
-    return Card(
-      color: Style.getCardColor(),
-      elevation: 4,
-      shadowColor: Style.getShadowColor(),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
-      child: Padding(
-        padding: EdgeInsets.all(18.w),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: Style.getHeaderThree(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
-            SizedBox(height: 12.h),
-            child,
-          ],
-        ),
       ),
-    );
-  }
-
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 10.h),
-      child: Row(
-        children: [
-          Expanded(flex: 4, child: Text(label, style: Style.getTextStyle(color: Style.getObscureTextColor(), fontWeight: FontWeight.w600))),
-          SizedBox(width: 12.w),
-          Expanded(flex: 6, child: Text(value, textAlign: TextAlign.right, style: Style.getTextStyle(color: Style.getTextColor(), fontWeight: FontWeight.w700))),
-        ],
-      ),
-    );
-  }
-
-  Widget _pill(String label) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-      decoration: BoxDecoration(color: Style.white.withValues(alpha: .16), borderRadius: BorderRadius.circular(999), border: Border.all(color: Style.white.withValues(alpha: .22))),
-      child: Text(label, style: Style.getTextStyle(color: Style.white, fontWeight: FontWeight.w700)),
     );
   }
 }

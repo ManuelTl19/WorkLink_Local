@@ -6,8 +6,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:worklink_local/modules/app/screens/starter/splash_screen.dart';
 
-
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final RouteObserver<PageRoute<dynamic>> routeObserver =
+  RouteObserver<PageRoute<dynamic>>();
+
+// Referencia al estado actual del DashboardScreen para acceder al drawer
+dynamic currentDashboardState;
+
+void showDrawer() {
+  // Llama openDrawer() dinámicamente para evitar importación circular
+  currentDashboardState?.openDrawer();
+}
 
 // Primera version de worklink
 // 1.0.0 - 2024-06-01
@@ -15,8 +24,8 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   prefs = await SharedPreferences.getInstance();
-  
-  runApp( const MyApp() );
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
@@ -33,7 +42,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-
   Locale _locale = const Locale.fromSubtags(languageCode: 'es');
 
   void changeLocale(Locale locale) {
@@ -60,7 +68,6 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     getLocale();
-    // Register the locale change callback so MultiLanguages can notify us
     LocaleManager.setLocaleCallback((locale) {
       changeLocale(locale);
     });
@@ -81,7 +88,7 @@ class _MyAppState extends State<MyApp> {
             ChangeNotifierProvider<AppSettings>(create: (_) => AppSettings()),
           ],
           child: MaterialApp(
-            supportedLocales: const [  
+            supportedLocales: const [
               Locale.fromSubtags(languageCode: 'es'),
               Locale.fromSubtags(languageCode: 'en'),
             ],
@@ -93,8 +100,10 @@ class _MyAppState extends State<MyApp> {
             ],
             localeResolutionCallback: (locale, supportedLocales) {
               for (var supportedLocaleLanguage in supportedLocales) {
-                if( supportedLocaleLanguage.languageCode == locale?.languageCode && 
-                supportedLocaleLanguage.countryCode == locale?.countryCode ) {
+                if (supportedLocaleLanguage.languageCode ==
+                        locale?.languageCode &&
+                    supportedLocaleLanguage.countryCode ==
+                        locale?.countryCode) {
                   return supportedLocaleLanguage;
                 }
               }
@@ -103,19 +112,23 @@ class _MyAppState extends State<MyApp> {
             locale: _locale,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
-            themeMode: AppSettings.isDarkModeOn 
-              ? ThemeMode.dark : ThemeMode.light,
+            themeMode: AppSettings.isDarkModeOn
+                ? ThemeMode.dark
+                : ThemeMode.light,
             debugShowCheckedModeBanner: false,
             title: 'WorkLink Local',
             navigatorKey: navigatorKey,
+            navigatorObservers: [routeObserver],
             builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(1.1)),
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(1.1)),
               child: child!,
             ),
             home: const SplashScreen(),
           ),
         );
-      }
+      },
     );
   }
 }

@@ -25,6 +25,8 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
   CompanyModel? _company;
   List<VacancyModel> _vacancies = const [];
 
+  bool get _isOwner => widget.companyId == VacanciesService.currentCompanyId;
+
   @override
   void initState() {
     super.initState();
@@ -34,7 +36,9 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
   Future<void> _loadData() async {
     setState(() => _loading = true);
     final company = await _service.getCompanyById(widget.companyId);
-    final vacancies = await _service.getCompanyVacancies(companyId: widget.companyId);
+    final vacancies = await _service.getCompanyVacancies(
+      companyId: widget.companyId,
+    );
     if (!mounted) return;
     setState(() {
       _company = company;
@@ -59,15 +63,15 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
     if (!mounted) return;
     Navigator.push(
       context,
-      Transitions.slideUpTransition(
-        ConversationScreen(chat: chat),
-      ),
+      Transitions.slideUpTransition(ConversationScreen(chat: chat)),
     );
   }
 
   Future<void> _openCreateVacancy() async {
     final saved = await Navigator.of(context).push(
-      Transitions.slideUpTransition(VacancyFormScreen(companyId: widget.companyId)),
+      Transitions.slideUpTransition(
+        VacancyFormScreen(companyId: widget.companyId),
+      ),
     );
     if (saved == true && mounted) {
       await _loadData();
@@ -89,29 +93,53 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
             titleSpacing: 0,
             leading: IconButton(
               onPressed: () => Navigator.pop(context),
-              icon: Icon(Icons.arrow_back_ios_new_rounded, color: Style.getTextColor()),
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Style.getTextColor(),
+              ),
             ),
             actions: [
-              IconButton(onPressed: _loadData, icon: Icon(Icons.refresh_rounded, color: Style.getTextColor())),
+              IconButton(
+                onPressed: _loadData,
+                icon: Icon(Icons.refresh_rounded, color: Style.getTextColor()),
+              ),
             ],
-            title: Text('Perfil de empresa', style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+            title: Text(
+              MultiLanguages.of(context)?.translate('company_profile_title') ??
+                  'Perfil de empresa',
+              style: Style.getHeaderTwo(
+                color: Style.getTextColor(),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
           if (_loading)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: Center(child: CustomWidgets.mProgress(Style.getPrimaryColor())),
+              child: Center(
+                child: CustomWidgets.mProgress(Style.getPrimaryColor()),
+              ),
             )
           else if (_company == null)
             SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
-                child: Text('No se encontró la empresa solicitada.', style: Style.getTextStyle(color: Style.getObscureTextColor())),
+                child: Text(
+                  MultiLanguages.of(context)?.translate('company_not_found') ??
+                      'No se encontró la empresa solicitada.',
+                  style: Style.getTextStyle(color: Style.getObscureTextColor()),
+                ),
               ),
             )
           else ...[
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 8.h, Style.horizontalPadding.w, 18.h),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  8.h,
+                  Style.horizontalPadding.w,
+                  18.h,
+                ),
                 child: Container(
                   padding: EdgeInsets.all(18.w),
                   decoration: BoxDecoration(
@@ -123,20 +151,46 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
                     children: [
                       CircleAvatar(
                         radius: 30.w,
-                        backgroundColor: Style.getPrimaryColor().withValues(alpha: .14),
-                        backgroundImage: _company!.logoUrl.isNotEmpty ? NetworkImage(_company!.logoUrl) : null,
-                        child: _company!.logoUrl.isEmpty ? Icon(Icons.apartment_rounded, color: Style.getPrimaryColor()) : null,
+                        backgroundColor: Style.getPrimaryColor().withValues(
+                          alpha: .14,
+                        ),
+                        backgroundImage: _company!.logoUrl.isNotEmpty
+                            ? NetworkImage(_company!.logoUrl)
+                            : null,
+                        child: _company!.logoUrl.isEmpty
+                            ? Icon(
+                                Icons.apartment_rounded,
+                                color: Style.getPrimaryColor(),
+                              )
+                            : null,
                       ),
                       SizedBox(width: 14.w),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(_company!.name, style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+                            Text(
+                              _company!.name,
+                              style: Style.getHeaderTwo(
+                                color: Style.getTextColor(),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                             SizedBox(height: 4.h),
-                            Text(_company!.industry, style: Style.getTextStyle(color: Style.getObscureTextColor(), fontWeight: FontWeight.w600)),
+                            Text(
+                              _company!.industry,
+                              style: Style.getTextStyle(
+                                color: Style.getObscureTextColor(),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             SizedBox(height: 8.h),
-                            Text(_company!.description, style: Style.getTextStyle(color: Style.getTextColor()).copyWith(height: 1.45)),
+                            Text(
+                              _company!.description,
+                              style: Style.getTextStyle(
+                                color: Style.getTextColor(),
+                              ).copyWith(height: 1.45),
+                            ),
                           ],
                         ),
                       ),
@@ -147,44 +201,96 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: Style.horizontalPadding.w),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Style.horizontalPadding.w,
+                ),
                 child: Row(
                   children: [
                     Expanded(
                       child: CustomWidgets.button(
                         onTap: _contactCompany,
                         color: Style.getPrimaryColor(),
-                        child: Text('Contactar empresa', style: Style.getHeaderThree(color: Style.white, fontWeight: FontWeight.w700)),
+                        child: Text(
+                          MultiLanguages.of(
+                                context,
+                              )?.translate('contact_company') ??
+                              'Contactar empresa',
+                          style: Style.getHeaderThree(
+                            color: Style.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ),
-                    SizedBox(width: 10.w),
-                    Expanded(
-                      child: CustomWidgets.button(
-                        onTap: _openCreateVacancy,
-                        color: Style.getCardColor(),
-                        child: Text('Nueva vacante', style: Style.getHeaderThree(color: Style.getTextColor(), fontWeight: FontWeight.w700)),
+                    if (_isOwner) ...[
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: CustomWidgets.button(
+                          onTap: _openCreateVacancy,
+                          color: Style.getCardColor(),
+                          child: Text(
+                            MultiLanguages.of(
+                                  context,
+                                )?.translate('new_vacancy') ??
+                                'Nueva vacante',
+                            style: Style.getHeaderThree(
+                              color: Style.getTextColor(),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 20.h, Style.horizontalPadding.w, 8.h),
-                child: Text('Vacantes activas', style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  20.h,
+                  Style.horizontalPadding.w,
+                  8.h,
+                ),
+                child: Text(
+                  MultiLanguages.of(
+                        context,
+                      )?.translate('vacancies_active_count') ??
+                      'Vacantes activas',
+                  style: Style.getHeaderTwo(
+                    color: Style.getTextColor(),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ),
             if (_vacancies.isEmpty)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: Style.horizontalPadding.w, vertical: 16.h),
-                  child: Text('La empresa todavía no ha publicado vacantes.', style: Style.getTextStyle(color: Style.getObscureTextColor())),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Style.horizontalPadding.w,
+                    vertical: 16.h,
+                  ),
+                  child: Text(
+                    MultiLanguages.of(
+                          context,
+                        )?.translate('company_no_vacancies') ??
+                        'La empresa todavía no ha publicado vacantes.',
+                    style: Style.getTextStyle(
+                      color: Style.getObscureTextColor(),
+                    ),
+                  ),
                 ),
               )
             else
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 0, Style.horizontalPadding.w, 20.h),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  0,
+                  Style.horizontalPadding.w,
+                  20.h,
+                ),
                 sliver: SliverList.separated(
                   itemCount: _vacancies.length,
                   separatorBuilder: (_, __) => SizedBox(height: 12.h),
@@ -192,11 +298,23 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
                     final vacancy = _vacancies[index];
                     return VacancyCard(
                       vacancy: vacancy,
-                      mode: VacancyCardMode.company,
+                      mode: _isOwner
+                          ? VacancyCardMode.company
+                          : VacancyCardMode.freelancer,
                       onTap: () {
-                        Navigator.of(context).push(Transitions.slideUpTransition(VacancyDetailScreen(vacancyId: vacancy.id)));
+                        Navigator.of(context).push(
+                          Transitions.slideUpTransition(
+                            VacancyDetailScreen(vacancyId: vacancy.id),
+                          ),
+                        );
                       },
-                      onEdit: () => Navigator.of(context).push(Transitions.slideUpTransition(VacancyFormScreen(vacancy: vacancy))),
+                      onEdit: _isOwner
+                          ? () => Navigator.of(context).push(
+                              Transitions.slideUpTransition(
+                                VacancyFormScreen(vacancy: vacancy),
+                              ),
+                            )
+                          : null,
                     );
                   },
                 ),

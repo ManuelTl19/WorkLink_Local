@@ -2,7 +2,6 @@ import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/freelancers/models/freelancer_model.dart';
 import 'package:worklink_local/modules/portfolio/models/portfolio_model.dart';
 import 'package:worklink_local/modules/portfolio/models/project_model.dart';
-import 'package:worklink_local/utils/utils.dart';
 
 class PortfolioProjectDetailScreen extends StatelessWidget {
   final FreelancerModel freelancer;

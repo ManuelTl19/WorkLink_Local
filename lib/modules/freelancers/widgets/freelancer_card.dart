@@ -1,6 +1,5 @@
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/freelancers/models/freelancer_model.dart';
-import 'package:worklink_local/utils/utils.dart';
 
 class FreelancerCard extends StatelessWidget {
   final FreelancerModel freelancer;
@@ -14,6 +13,11 @@ class FreelancerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ratingValue = freelancer.rating ?? freelancer.averageRate ?? 0;
+    final availabilityValue =
+        freelancer.availability ??
+        (freelancer.available ? 'Disponible' : 'No disponible');
+
     return Card(
       color: Style.getCardColor(),
       elevation: 4,
@@ -72,19 +76,19 @@ class FreelancerCard extends StatelessWidget {
                         ),
                         SizedBox(width: 4.w),
                         Text(
-                          freelancer.rating.toStringAsFixed(1),
+                          ratingValue.toStringAsFixed(1),
                           style: Style.getTextStyle(
                             color: Style.getTextColor(),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         SizedBox(width: 12.w),
-                        _availabilityChip(freelancer.availability),
+                        _availabilityChip(availabilityValue),
                       ],
                     ),
                     SizedBox(height: 8.h),
                     Text(
-                      freelancer.shortDescription,
+                      freelancer.shortDescription ?? freelancer.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Style.getTextStyle(
@@ -142,9 +146,8 @@ class FreelancerCard extends StatelessWidget {
         child: CachedNetworkImage(
           imageUrl: freelancer.avatarUrl,
           fit: BoxFit.cover,
-          placeholder: (context, url) => Container(
-            color: Style.getPrimaryColor().withValues(alpha: .08),
-          ),
+          placeholder: (context, url) =>
+              Container(color: Style.getPrimaryColor().withValues(alpha: .08)),
           errorWidget: (context, url, error) => Center(
             child: Text(
               freelancer.fullName
@@ -167,7 +170,9 @@ class FreelancerCard extends StatelessWidget {
 
   Widget _availabilityChip(String value) {
     final isAvailable = value.toLowerCase().contains('disponible');
-    final color = isAvailable ? const Color(0xFF28C76F) : Style.getSecondaryColor();
+    final color = isAvailable
+        ? const Color(0xFF28C76F)
+        : Style.getSecondaryColor();
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),

@@ -76,24 +76,34 @@ class ApplicantCard extends StatelessWidget {
                   SizedBox(height: 8.h),
                   Row(
                     children: [
-                      Icon(Icons.star_rounded, color: const Color(0xFFFFC107), size: 16.w),
+                      Icon(
+                        Icons.star_rounded,
+                        color: const Color(0xFFFFC107),
+                        size: 16.w,
+                      ),
                       SizedBox(width: 4.w),
                       Text(
-                        freelancer.rating.toStringAsFixed(1),
+                        (freelancer.rating ?? 0).toStringAsFixed(1),
                         style: Style.getTextStyle(
                           color: Style.getTextColor(),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       SizedBox(width: 12.w),
-                      Icon(Icons.place_rounded, color: Style.getSecondaryColor(), size: 15.w),
+                      Icon(
+                        Icons.place_rounded,
+                        color: Style.getSecondaryColor(),
+                        size: 15.w,
+                      ),
                       SizedBox(width: 4.w),
                       Expanded(
                         child: Text(
                           freelancer.location,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Style.getTextStyle(color: Style.getObscureTextColor()),
+                          style: Style.getTextStyle(
+                            color: Style.getObscureTextColor(),
+                          ),
                         ),
                       ),
                     ],
@@ -101,7 +111,10 @@ class ApplicantCard extends StatelessWidget {
                   SizedBox(height: 8.h),
                   Text(
                     'Postuló el ${DateFormat('dd/MM/yyyy').format(applicant.appliedAt)}',
-                    style: Style.getTextStyle(color: Style.getObscureTextColor(), fontSize: 7),
+                    style: Style.getTextStyle(
+                      color: Style.getObscureTextColor(),
+                      fontSize: 7,
+                    ),
                   ),
                   SizedBox(height: 10.h),
                   Row(
@@ -110,15 +123,23 @@ class ApplicantCard extends StatelessWidget {
                         child: OutlinedButton.icon(
                           onPressed: onViewProfile,
                           icon: Icon(Icons.badge_rounded, size: 16.w),
-                          label: const Text('Ver perfil'),
+                          label: Text(
+                            MultiLanguages.of(
+                                  context,
+                                )?.translate('view_profile') ??
+                                'Ver perfil',
+                          ),
                         ),
                       ),
                       SizedBox(width: 10.w),
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: onContact,
-                          icon: Icon(Icons.chat_bubble_rounded, size: 16.w),
-                          label: const Text('Contactar'),
+                          icon: Icon(Icons.chat_rounded, size: 16.w),
+                          label: Text(
+                            MultiLanguages.of(context)?.translate('contact') ??
+                                'Contactar',
+                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Style.getPrimaryColor(),
                             foregroundColor: Style.white,

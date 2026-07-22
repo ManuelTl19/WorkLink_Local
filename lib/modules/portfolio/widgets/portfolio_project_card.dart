@@ -1,15 +1,18 @@
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/portfolio/models/project_model.dart';
-import 'package:worklink_local/utils/utils.dart';
 
 class PortfolioProjectCard extends StatelessWidget {
   final ProjectModel project;
   final VoidCallback onTap;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   const PortfolioProjectCard({
     super.key,
     required this.project,
     required this.onTap,
+    this.onEdit,
+    this.onDelete,
   });
 
   @override
@@ -20,7 +23,9 @@ class PortfolioProjectCard extends StatelessWidget {
         color: Style.getCardColor(),
         elevation: 4,
         shadowColor: Style.getShadowColor(),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22.r)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22.r),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
@@ -64,6 +69,38 @@ class PortfolioProjectCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (onEdit != null || onDelete != null)
+                      Positioned(
+                        right: 8.w,
+                        top: 8.h,
+                        child: PopupMenuButton<String>(
+                          color: Style.getCardColor(),
+                          icon: Icon(
+                            Icons.more_vert_rounded,
+                            color: Style.white,
+                            size: 18.w,
+                          ),
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              onEdit?.call();
+                            } else if (value == 'delete') {
+                              onDelete?.call();
+                            }
+                          },
+                          itemBuilder: (_) => [
+                            if (onEdit != null)
+                              const PopupMenuItem<String>(
+                                value: 'edit',
+                                child: Text('Editar'),
+                              ),
+                            if (onDelete != null)
+                              const PopupMenuItem<String>(
+                                value: 'delete',
+                                child: Text('Eliminar'),
+                              ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),

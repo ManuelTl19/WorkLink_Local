@@ -32,7 +32,9 @@ class _ServiceRequestsScreenState extends State<ServiceRequestsScreen> {
 
   Future<void> _loadRequests() async {
     final serviceModel = await _service.getServiceById(widget.serviceId);
-    final requests = await _service.getServiceRequestsByServiceId(widget.serviceId);
+    final requests = await _service.getServiceRequestsByServiceId(
+      widget.serviceId,
+    );
     if (!mounted) return;
     setState(() {
       _serviceModel = serviceModel;
@@ -52,7 +54,9 @@ class _ServiceRequestsScreenState extends State<ServiceRequestsScreen> {
     );
 
     if (!mounted) return;
-    Navigator.of(context).push(Transitions.slideUpTransition(ConversationScreen(chat: chat)));
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(ConversationScreen(chat: chat)));
   }
 
   void _showRequesterProfile(ServiceRequestModel request) {
@@ -84,26 +88,59 @@ class _ServiceRequestsScreenState extends State<ServiceRequestsScreen> {
                 children: [
                   CircleAvatar(
                     radius: 28.w,
-                    backgroundImage: request.avatarUrl.isNotEmpty ? NetworkImage(request.avatarUrl) : null,
-                    backgroundColor: Style.getPrimaryColor().withValues(alpha: .12),
-                    child: request.avatarUrl.isEmpty ? Icon(Icons.groups_rounded, color: Style.getPrimaryColor()) : null,
+                    backgroundImage: request.avatarUrl.isNotEmpty
+                        ? NetworkImage(request.avatarUrl)
+                        : null,
+                    backgroundColor: Style.getPrimaryColor().withValues(
+                      alpha: .12,
+                    ),
+                    child: request.avatarUrl.isEmpty
+                        ? Icon(
+                            Icons.groups_rounded,
+                            color: Style.getPrimaryColor(),
+                          )
+                        : null,
                   ),
                   SizedBox(width: 12.w),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(request.requesterName, style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+                        Text(
+                          request.requesterName,
+                          style: Style.getHeaderTwo(
+                            color: Style.getTextColor(),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                         SizedBox(height: 4.h),
-                        Text(request.accountType, style: Style.getTextStyle(color: Style.getPrimaryColor(), fontWeight: FontWeight.w700)),
+                        Text(
+                          request.accountType,
+                          style: Style.getTextStyle(
+                            color: Style.getPrimaryColor(),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
               SizedBox(height: 14.h),
-              _infoRow('Fecha de solicitud', DateFormat('dd MMM yyyy, HH:mm').format(request.requestedAt)),
-              _infoRow('Tipo de cuenta', request.accountType),
+              _infoRow(
+                MultiLanguages.of(
+                      context,
+                    )?.translate('services_request_date') ??
+                    'Fecha de solicitud',
+                DateFormat('dd MMM yyyy, HH:mm').format(request.requestedAt),
+              ),
+              _infoRow(
+                MultiLanguages.of(
+                      context,
+                    )?.translate('services_account_type') ??
+                    'Tipo de cuenta',
+                request.accountType,
+              ),
               _infoRow('ID', request.requesterId.toString()),
               SizedBox(height: 18.h),
               SizedBox(
@@ -114,7 +151,14 @@ class _ServiceRequestsScreenState extends State<ServiceRequestsScreen> {
                     _contactRequester(request);
                   },
                   color: Style.getPrimaryColor(),
-                  child: Text('Contactar', style: Style.getHeaderThree(color: Style.white, fontWeight: FontWeight.w700)),
+                  child: Text(
+                    MultiLanguages.of(context)?.translate('contact') ??
+                        'Contactar',
+                    style: Style.getHeaderThree(
+                      color: Style.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -131,12 +175,25 @@ class _ServiceRequestsScreenState extends State<ServiceRequestsScreen> {
         children: [
           Expanded(
             flex: 4,
-            child: Text(label, style: Style.getTextStyle(color: Style.getObscureTextColor(), fontWeight: FontWeight.w600)),
+            child: Text(
+              label,
+              style: Style.getTextStyle(
+                color: Style.getObscureTextColor(),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           SizedBox(width: 12.w),
           Expanded(
             flex: 6,
-            child: Text(value, textAlign: TextAlign.right, style: Style.getTextStyle(color: Style.getTextColor(), fontWeight: FontWeight.w700)),
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: Style.getTextStyle(
+                color: Style.getTextColor(),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -150,54 +207,94 @@ class _ServiceRequestsScreenState extends State<ServiceRequestsScreen> {
       appBar: AppBar(
         backgroundColor: Style.getBackgroundColor(),
         surfaceTintColor: Style.transparent,
-        title: Text('Solicitudes', style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+        title: Text(
+          MultiLanguages.of(context)?.translate('requests') ?? 'Solicitudes',
+          style: Style.getHeaderTwo(
+            color: Style.getTextColor(),
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: _loading
           ? Center(child: CustomWidgets.mProgress(Style.getPrimaryColor()))
           : _serviceModel == null
-              ? Center(child: Text('El servicio no existe.', style: Style.getTextStyle(color: Style.getObscureTextColor())))
-              : ListView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.all(Style.horizontalPadding.w),
-                  children: [
-                    Card(
-                      color: Style.getCardColor(),
-                      elevation: 4,
-                      shadowColor: Style.getShadowColor(),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
-                      child: Padding(
-                        padding: EdgeInsets.all(16.w),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(_serviceModel!.title, style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
-                            SizedBox(height: 6.h),
-                            Text('${_requests.length} interesados', style: Style.getTextStyle(color: Style.getObscureTextColor())),
-                            SizedBox(height: 6.h),
-                            Text('Última actualización ${DateFormat('dd/MM/yyyy').format(DateTime.now())}', style: Style.getTextStyle(color: Style.getObscureTextColor(), fontSize: 7)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 14.h),
-                    if (_requests.isEmpty)
-                      Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24.h),
-                        child: Text('Todavía no hay solicitudes para este servicio.', textAlign: TextAlign.center, style: Style.getTextStyle(color: Style.getObscureTextColor())),
-                      )
-                    else
-                      ..._requests.map(
-                        (request) => Padding(
-                          padding: EdgeInsets.only(bottom: 12.h),
-                          child: ServiceRequestCard(
-                            request: request,
-                            onViewProfile: () => _showRequesterProfile(request),
-                            onContact: () => _contactRequester(request),
+          ? Center(
+              child: Text(
+                MultiLanguages.of(context)?.translate('services_not_found') ??
+                    'El servicio no existe.',
+                style: Style.getTextStyle(color: Style.getObscureTextColor()),
+              ),
+            )
+          : ListView(
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.all(Style.horizontalPadding.w),
+              children: [
+                Card(
+                  color: Style.getCardColor(),
+                  elevation: 4,
+                  shadowColor: Style.getShadowColor(),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24.r),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(16.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _serviceModel!.title,
+                          style: Style.getHeaderTwo(
+                            color: Style.getTextColor(),
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                      ),
-                  ],
+                        SizedBox(height: 6.h),
+                        Text(
+                          '${_requests.length} ${MultiLanguages.of(context)?.translate('interested') ?? 'interesados'}',
+                          style: Style.getTextStyle(
+                            color: Style.getObscureTextColor(),
+                          ),
+                        ),
+                        SizedBox(height: 6.h),
+                        Text(
+                          '${MultiLanguages.of(context)?.translate('last_update') ?? 'Última actualización'} ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
+                          style: Style.getTextStyle(
+                            color: Style.getObscureTextColor(),
+                            fontSize: 7,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
+                SizedBox(height: 14.h),
+                if (_requests.isEmpty)
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24.h),
+                    child: Text(
+                      MultiLanguages.of(
+                            context,
+                          )?.translate('services_requests_empty') ??
+                          'Todavía no hay solicitudes para este servicio.',
+                      textAlign: TextAlign.center,
+                      style: Style.getTextStyle(
+                        color: Style.getObscureTextColor(),
+                      ),
+                    ),
+                  )
+                else
+                  ..._requests.map(
+                    (request) => Padding(
+                      padding: EdgeInsets.only(bottom: 12.h),
+                      child: ServiceRequestCard(
+                        request: request,
+                        onViewProfile: () => _showRequesterProfile(request),
+                        onContact: () => _contactRequester(request),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 }

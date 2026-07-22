@@ -5,8 +5,6 @@ import 'package:worklink_local/modules/services/services_service.dart';
 import 'package:worklink_local/modules/services/screens/freelancer_service_profile_screen.dart';
 import 'package:worklink_local/modules/services/screens/service_detail_screen.dart';
 import 'package:worklink_local/modules/services/screens/service_form_screen.dart';
-import 'package:worklink_local/modules/services/screens/service_requests_screen.dart';
-import 'package:worklink_local/utils/widgets/custom_widgets.dart';
 import 'package:worklink_local/utils/utils.dart';
 
 class MyServicesScreen extends StatefulWidget {
@@ -21,6 +19,7 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
   final ScrollController _scrollController = ScrollController();
 
   bool _loading = true;
+  int? _currentFreelancerId;
   List<ServiceModel> _services = const [];
 
   @override
@@ -37,18 +36,22 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
 
   Future<void> _loadServices() async {
     setState(() => _loading = true);
-    final services = await _service.getFreelancerServices();
+    final freelancerId = await _service.getCurrentFreelancerId();
+    final services = await _service.getFreelancerServices(
+      freelancerId: freelancerId,
+    );
     if (!mounted) return;
     setState(() {
+      _currentFreelancerId = freelancerId;
       _services = services;
       _loading = false;
     });
   }
 
   Future<void> _openForm({ServiceModel? service}) async {
-    final saved = await Navigator.of(context).push(
-      Transitions.slideUpTransition(ServiceFormScreen(service: service)),
-    );
+    final saved = await Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(ServiceFormScreen(service: service)));
     if (saved == true && mounted) {
       await _loadServices();
     }
@@ -57,10 +60,15 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
   Future<void> _deleteService(ServiceModel service) async {
     final confirmed = await Dialogs.showConfirmDialogDelete(
       context,
-      title: 'Eliminar servicio',
-      message: 'Esta acción eliminará el servicio y las solicitudes asociadas.',
-      confirmText: 'Eliminar',
-      cancelText: 'Cancelar',
+      title:
+          MultiLanguages.of(context)?.translate('services_delete_title') ??
+          'Eliminar servicio',
+      message:
+          MultiLanguages.of(context)?.translate('services_delete_message') ??
+          'Esta acción eliminará el servicio y las solicitudes asociadas.',
+      confirmText:
+          MultiLanguages.of(context)?.translate('delete') ?? 'Eliminar',
+      cancelText: MultiLanguages.of(context)?.translate('cancel') ?? 'Cancelar',
       confirmColor: Style.getErrorColor(),
       cancelColor: Style.getPrimaryColor(),
     );
@@ -71,33 +79,13 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
   }
 
   Future<void> _changeStatus(ServiceModel service) async {
-    final selected = await showModalBottomSheet<ServiceStatus>(
-      context: context,
-      backgroundColor: Style.getCardColor(),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(18.w, 16.h, 18.w, 24.h),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: ServiceStatus.values.map((status) {
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(status.label, style: Style.getTextStyle(color: Style.getTextColor())),
-                trailing: status == service.status ? Icon(Icons.check_rounded, color: Style.getPrimaryColor()) : null,
-                onTap: () => Navigator.pop(context, status),
-              );
-            }).toList(),
-          ),
-        );
-      },
+    final nextStatus = service.status == ServiceStatus.activo
+        ? ServiceStatus.inactivo
+        : ServiceStatus.activo;
+    await _service.changeServiceStatus(
+      serviceId: service.id,
+      status: nextStatus,
     );
-
-    if (selected == null || selected == service.status) return;
-    await _service.changeServiceStatus(serviceId: service.id, status: selected);
     if (mounted) await _loadServices();
   }
 
@@ -106,104 +94,230 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
     return Consumer<AppSettings>(
       builder: (context, app, child) => Scaffold(
         backgroundColor: Style.getBackgroundColor(),
-        body: CustomScrollView(
-          controller: _scrollController,
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverAppBar(
-              pinned: true,
-              backgroundColor: Style.getBackgroundColor(),
-              surfaceTintColor: Style.transparent,
-              elevation: 0,
-              titleSpacing: 0,
-              leading: IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: Icon(Icons.arrow_back_ios_new_rounded, color: Style.getTextColor()),
-              ),
-              actions: [
-                IconButton(onPressed: _loadServices, icon: Icon(Icons.refresh_rounded, color: Style.getTextColor())),
-                IconButton(onPressed: () => _openForm(), icon: Icon(Icons.add_circle_outline_rounded, color: Style.getTextColor())),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        floatingActionButton: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Style.getPrimaryColor(),
+                Style.getPrimaryColor().lighten(.12),
               ],
-              title: Text('Mis Servicios', style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+              begin: Alignment.bottomLeft,
+              end: Alignment.topRight,
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 8.h, Style.horizontalPadding.w, 14.h),
-                child: Row(
-                  children: [
-                    Expanded(child: _summaryCard('Servicios activos', _services.where((item) => item.status == ServiceStatus.activo).length.toString(), Icons.storefront_rounded)),
-                    SizedBox(width: 10.w),
-                    Expanded(child: _summaryCard('Solicitudes', _services.fold<int>(0, (sum, item) => sum + item.interestedCount).toString(), Icons.inbox_rounded)),
-                  ],
-                ),
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: [
+              BoxShadow(
+                color: Style.getPrimaryColor().withValues(alpha: .28),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: FloatingActionButton.extended(
+            onPressed: () => _openForm(),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            icon: const Icon(Icons.add_rounded, color: Style.white),
+            label: Text(
+              MultiLanguages.of(context)?.translate('services_create_button') ??
+                  'Crear servicio',
+              style: Style.getHeaderThree(
+                color: Style.white,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: Style.horizontalPadding.w),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: CustomWidgets.button(
-                        onTap: () => _openForm(),
-                        color: Style.getPrimaryColor(),
-                        child: Text('Crear servicio', style: Style.getHeaderThree(color: Style.white, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                    SizedBox(width: 10.w),
-                    Expanded(
-                      child: CustomWidgets.button(
-                        onTap: () {
-                          Navigator.of(context).push(Transitions.slideUpTransition(const FreelancerServiceProfileScreen(freelancerId: ServicesService.currentFreelancerId)));
-                        },
-                        color: Style.getCardColor(),
-                        isFilled: false,
-                        withBorder: true,
-                        child: Text('Mi perfil', style: Style.getHeaderThree(color: Style.getTextColor(), fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          ),
+        ),
+        body: RefreshIndicator(
+          onRefresh: _loadServices,
+          color: Style.getPrimaryColor(),
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
             ),
-            SliverToBoxAdapter(child: SizedBox(height: 12.h)),
-            if (_loading)
-              SliverFillRemaining(hasScrollBody: false, child: Center(child: CustomWidgets.mProgress(Style.getPrimaryColor())))
-            else if (_services.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24.w),
-                    child: Text('Aún no has creado servicios.', textAlign: TextAlign.center, style: Style.getTextStyle(color: Style.getObscureTextColor(), fontWeight: FontWeight.w600)),
+            slivers: [
+              SliverAppBar(
+                pinned: true,
+                backgroundColor: Style.getBackgroundColor(),
+                surfaceTintColor: Style.transparent,
+                elevation: 0,
+                titleSpacing: 0,
+                leading: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Style.getTextColor(),
                   ),
                 ),
-              )
-            else
-              SliverPadding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 4.h, Style.horizontalPadding.w, 20.h),
-                sliver: SliverList.separated(
-                  itemCount: _services.length,
-                  separatorBuilder: (_, __) => SizedBox(height: 12.h),
-                  itemBuilder: (context, index) {
-                    final service = _services[index];
-                    return ServiceCard(
-                      service: service,
-                      mode: ServiceCardMode.owner,
-                      onTap: () {
-                        Navigator.of(context).push(Transitions.slideUpTransition(ServiceDetailScreen(serviceId: service.id)));
-                      },
-                      onEdit: () => _openForm(service: service),
-                      onDelete: () => _deleteService(service),
-                      onViewRequests: () {
-                        Navigator.of(context).push(Transitions.slideUpTransition(ServiceRequestsScreen(serviceId: service.id)));
-                      },
-                      onStatusPressed: () => _changeStatus(service),
-                    );
-                  },
+                title: Text(
+                  MultiLanguages.of(context)?.translate('my_services_title') ??
+                      'Mis Servicios',
+                  style: Style.getHeaderTwo(
+                    color: Style.getTextColor(),
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-          ],
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    Style.horizontalPadding.w,
+                    8.h,
+                    Style.horizontalPadding.w,
+                    14.h,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _summaryCard(
+                          MultiLanguages.of(
+                                context,
+                              )?.translate('services_active_count') ??
+                              'Servicios activos',
+                          _services
+                              .where(
+                                (item) => item.status == ServiceStatus.activo,
+                              )
+                              .length
+                              .toString(),
+                          Icons.storefront_rounded,
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: _summaryCard(
+                          MultiLanguages.of(context)?.translate('requests') ??
+                              'Solicitudes',
+                          _services
+                              .fold<int>(
+                                0,
+                                (sum, item) => sum + item.interestedCount,
+                              )
+                              .toString(),
+                          Icons.inbox_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Style.horizontalPadding.w,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: CustomWidgets.button(
+                          onTap: () => _openForm(),
+                          color: Style.getPrimaryColor(),
+                          child: Text(
+                            MultiLanguages.of(
+                                  context,
+                                )?.translate('services_create_button') ??
+                                'Crear servicio',
+                            style: Style.getHeaderThree(
+                              color: Style.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: CustomWidgets.button(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              Transitions.slideUpTransition(
+                                FreelancerServiceProfileScreen(
+                                  freelancerId: _currentFreelancerId,
+                                  ownerPreview: true,
+                                ),
+                              ),
+                            );
+                          },
+                          color: Style.getCardColor(),
+                          isFilled: false,
+                          withBorder: true,
+                          child: Text(
+                            MultiLanguages.of(
+                                  context,
+                                )?.translate('my_profile') ??
+                                'Mi perfil',
+                            style: Style.getHeaderThree(
+                              color: Style.getTextColor(),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(child: SizedBox(height: 12.h)),
+              if (_loading)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: CustomWidgets.mProgress(Style.getPrimaryColor()),
+                  ),
+                )
+              else if (_services.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 24.w),
+                      child: Text(
+                        MultiLanguages.of(
+                              context,
+                            )?.translate('services_empty_owner') ??
+                            'Aún no has creado servicios.',
+                        textAlign: TextAlign.center,
+                        style: Style.getTextStyle(
+                          color: Style.getObscureTextColor(),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                    Style.horizontalPadding.w,
+                    4.h,
+                    Style.horizontalPadding.w,
+                    20.h,
+                  ),
+                  sliver: SliverList.separated(
+                    itemCount: _services.length,
+                    separatorBuilder: (_, __) => SizedBox(height: 12.h),
+                    itemBuilder: (context, index) {
+                      final service = _services[index];
+                      return ServiceCard(
+                        service: service,
+                        mode: ServiceCardMode.owner,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            Transitions.slideUpTransition(
+                              ServiceDetailScreen(serviceId: service.id),
+                            ),
+                          );
+                        },
+                        onEdit: () => _openForm(service: service),
+                        onDelete: () => _deleteService(service),
+                        onStatusPressed: () => _changeStatus(service),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -224,8 +338,18 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value, style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800, fontSize: 20)),
-                Text(title, style: Style.getTextStyle(color: Style.getObscureTextColor())),
+                Text(
+                  value,
+                  style: Style.getHeaderTwo(
+                    color: Style.getTextColor(),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                  ),
+                ),
+                Text(
+                  title,
+                  style: Style.getTextStyle(color: Style.getObscureTextColor()),
+                ),
               ],
             ),
           ),

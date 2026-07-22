@@ -4,8 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../main.dart';
-
 bool get isWeb => kIsWeb;
 
 bool get isMobile => !isWeb && (Platform.isIOS || Platform.isAndroid);

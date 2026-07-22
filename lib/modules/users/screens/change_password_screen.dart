@@ -1,5 +1,6 @@
 import 'package:worklink_local/modules/app/components/general/form/form_widgets.dart';
 import 'package:worklink_local/helpers/helpers.dart';
+import 'package:worklink_local/modules/users/services/user_service.dart';
 import 'package:worklink_local/utils/utils.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -16,9 +17,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
-  bool _currentVisible = false;
-  bool _newVisible = false;
-  bool _confirmVisible = false;
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -77,12 +76,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                               context,
                             )!.translate('current_password'),
                             hint: '********',
-                            obscure: !_currentVisible,
-                            onToggle: () {
-                              setState(() {
-                                _currentVisible = !_currentVisible;
-                              });
-                            },
                           ),
                           _divider(),
                           _passwordField(
@@ -91,12 +84,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                               context,
                             )!.translate('new_password'),
                             hint: '********',
-                            obscure: !_newVisible,
-                            onToggle: () {
-                              setState(() {
-                                _newVisible = !_newVisible;
-                              });
-                            },
                           ),
                           _divider(),
                           _passwordField(
@@ -105,12 +92,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                               context,
                             )!.translate('confirm_password'),
                             hint: '********',
-                            obscure: !_confirmVisible,
-                            onToggle: () {
-                              setState(() {
-                                _confirmVisible = !_confirmVisible;
-                              });
-                            },
                             validator: (value) {
                               if ((value ?? '').isEmpty) {
                                 return MultiLanguages.of(
@@ -133,16 +114,25 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: CustomWidgets.button(
-                          onTap: _onSave,
+                          onTap: _isSaving ? () {} : _onSave,
                           color: Style.getPrimaryColor(),
                           shape: 1,
-                          child: Text(
-                            MultiLanguages.of(context)!.translate('save'),
-                            style: Style.getHeaderTwo(
-                              color: Style.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          child: _isSaving
+                              ? SizedBox(
+                                  width: 18.w,
+                                  height: 18.w,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Style.white,
+                                  ),
+                                )
+                              : Text(
+                                  MultiLanguages.of(context)!.translate('save'),
+                                  style: Style.getHeaderTwo(
+                                    color: Style.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                         ),
                       ),
                       SizedBox(height: 100.h),
@@ -161,8 +151,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     required TextEditingController controller,
     required String title,
     required String hint,
-    required bool obscure,
-    required VoidCallback onToggle,
     String? Function(String?)? validator,
   }) {
     return Padding(
@@ -204,15 +192,69 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
-  void _onSave() {
+  Future<void> _onSave() async {
     if (!_formKey.currentState!.validate()) return;
 
-    Dialogs.showSimpleDialog(
-      context,
-      title: MultiLanguages.of(context)!.translate('change_password'),
-      message: MultiLanguages.of(context)!.translate('feature_coming_soon'),
-      color: Style.getPrimaryColor(),
-      icon: Icons.lock_outline_rounded,
-    );
+    final current = _currentPasswordController.text.trim();
+    final next = _newPasswordController.text.trim();
+
+    if (next.length < 6) {
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('change_password'),
+        message: 'La nueva contrasena debe tener al menos 6 caracteres.',
+        color: Style.getErrorColor(),
+        icon: Icons.warning_amber_rounded,
+      );
+      return;
+    }
+
+    if (current == next) {
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('change_password'),
+        message: 'La nueva contrasena debe ser distinta a la actual.',
+        color: Style.getErrorColor(),
+        icon: Icons.warning_amber_rounded,
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      await UserService.changePassword(
+        currentPassword: current,
+        newPassword: next,
+        confirmPassword: _confirmPasswordController.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('change_password'),
+        message: 'Contrasena actualizada correctamente.',
+        color: Style.getPrimaryColor(),
+        icon: Icons.lock_open_rounded,
+      );
+
+      _currentPasswordController.clear();
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+    } catch (e) {
+      if (!mounted) return;
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('error'),
+        message: e.toString().replaceFirst('Exception: ', ''),
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 }

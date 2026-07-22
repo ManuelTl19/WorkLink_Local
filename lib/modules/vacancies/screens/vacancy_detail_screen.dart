@@ -50,7 +50,11 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Tu postulación se envió a ${vacancy.companyName}.')),
+      SnackBar(
+        content: Text(
+          '${MultiLanguages.of(context)?.translate('application_sent') ?? 'Tu postulación fue enviada a'} ${vacancy.companyName}.',
+        ),
+      ),
     );
     await _loadVacancy();
   }
@@ -69,9 +73,9 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
     );
 
     if (!mounted) return;
-    Navigator.of(context).push(
-      Transitions.slideUpTransition(ConversationScreen(chat: chat)),
-    );
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(ConversationScreen(chat: chat)));
   }
 
   @override
@@ -90,14 +94,22 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
             titleSpacing: 0,
             leading: IconButton(
               onPressed: () => Navigator.pop(context),
-              icon: Icon(Icons.arrow_back_ios_new_rounded, color: Style.getTextColor()),
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Style.getTextColor(),
+              ),
             ),
             actions: [
-              IconButton(onPressed: _loadVacancy, icon: Icon(Icons.refresh_rounded, color: Style.getTextColor())),
+              IconButton(
+                onPressed: _loadVacancy,
+                icon: Icon(Icons.refresh_rounded, color: Style.getTextColor()),
+              ),
             ],
             flexibleSpace: FlexibleSpaceBar(
               background: _loading
-                  ? Center(child: CustomWidgets.mProgress(Style.getPrimaryColor()))
+                  ? Center(
+                      child: CustomWidgets.mProgress(Style.getPrimaryColor()),
+                    )
                   : _hero(),
             ),
           ),
@@ -107,40 +119,86 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
             SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
-                child: Text('La vacante no existe.', style: Style.getTextStyle(color: Style.getObscureTextColor())),
+                child: Text(
+                  MultiLanguages.of(context)?.translate('vacancy_not_found') ??
+                      'La vacante no existe.',
+                  style: Style.getTextStyle(color: Style.getObscureTextColor()),
+                ),
               ),
             )
           else ...[
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 16.h, Style.horizontalPadding.w, 12.h),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  16.h,
+                  Style.horizontalPadding.w,
+                  12.h,
+                ),
                 child: _buildActions(),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: Style.horizontalPadding.w),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Style.horizontalPadding.w,
+                ),
                 child: _infoCard(
-                  title: 'Descripción',
+                  title:
+                      MultiLanguages.of(context)?.translate('description') ??
+                      'Descripción',
                   child: Text(
                     _vacancy!.description,
-                    style: Style.getTextStyle(color: Style.getTextColor()).copyWith(height: 1.55),
+                    style: Style.getTextStyle(
+                      color: Style.getTextColor(),
+                    ).copyWith(height: 1.55),
                   ),
                 ),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 12.h, Style.horizontalPadding.w, 0),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  12.h,
+                  Style.horizontalPadding.w,
+                  0,
+                ),
                 child: _infoCard(
-                  title: 'Detalles de la vacante',
+                  title:
+                      MultiLanguages.of(
+                        context,
+                      )?.translate('vacancy_details_title') ??
+                      'Detalles de la vacante',
                   child: Column(
                     children: [
-                      _detailRow('Categoría', _vacancy!.category),
-                      _detailRow('Ubicación', _vacancy!.location),
-                      _detailRow('Salario', _vacancy!.salary),
-                      _detailRow('Publicada', DateFormat('dd MMM yyyy').format(_vacancy!.postedAt)),
-                      _detailRow('Postulantes', '${_vacancy!.applicantsCount} candidatos'),
+                      _detailRow(
+                        MultiLanguages.of(
+                              context,
+                            )?.translate('services_category') ??
+                            'Categoría',
+                        _vacancy!.category,
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(context)?.translate('location') ??
+                            'Ubicación',
+                        _vacancy!.location,
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(context)?.translate('salary') ??
+                            'Salario',
+                        _vacancy!.salary,
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(context)?.translate('published') ??
+                            'Publicada',
+                        DateFormat('dd MMM yyyy').format(_vacancy!.postedAt),
+                      ),
+                      _detailRow(
+                        MultiLanguages.of(context)?.translate('applicants') ??
+                            'Postulantes',
+                        '${_vacancy!.applicantsCount} ${MultiLanguages.of(context)?.translate('candidates') ?? 'candidatos'}',
+                      ),
                     ],
                   ),
                 ),
@@ -148,7 +206,12 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 12.h, Style.horizontalPadding.w, 0),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  12.h,
+                  Style.horizontalPadding.w,
+                  0,
+                ),
                 child: _companyCard(),
               ),
             ),
@@ -177,14 +240,23 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 18.h, Style.horizontalPadding.w, 20.h),
+          padding: EdgeInsets.fromLTRB(
+            Style.horizontalPadding.w,
+            18.h,
+            Style.horizontalPadding.w,
+            20.h,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text(
                 vacancy.title,
-                style: Style.getHeaderTwo(color: Style.white, fontWeight: FontWeight.w800, fontSize: 22),
+                style: Style.getHeaderTwo(
+                  color: Style.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 22,
+                ),
               ),
               SizedBox(height: 10.h),
               Wrap(
@@ -214,13 +286,20 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
           child: CustomWidgets.button(
             onTap: isOwner
                 ? () {
-                    Navigator.of(context).push(Transitions.slideUpTransition(VacancyFormScreen(vacancy: vacancy)));
+                    Navigator.of(context).push(
+                      Transitions.slideUpTransition(
+                        VacancyFormScreen(vacancy: vacancy),
+                      ),
+                    );
                   }
                 : _contactCompany,
             color: Style.getPrimaryColor(),
             child: Text(
               isOwner ? 'Editar vacante' : 'Contactar empresa',
-              style: Style.getHeaderThree(color: Style.white, fontWeight: FontWeight.w700),
+              style: Style.getHeaderThree(
+                color: Style.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),
@@ -229,7 +308,11 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
           child: CustomWidgets.button(
             onTap: () {
               if (isOwner) {
-                Navigator.of(context).push(Transitions.slideUpTransition(ApplicantsScreen(vacancyId: vacancy.id)));
+                Navigator.of(context).push(
+                  Transitions.slideUpTransition(
+                    ApplicantsScreen(vacancyId: vacancy.id),
+                  ),
+                );
                 return;
               }
 
@@ -241,8 +324,15 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
             isFilled: false,
             withBorder: true,
             child: Text(
-              isOwner ? 'Ver postulantes' : vacancy.isOpen ? 'Aplicar ahora' : 'Vacante cerrada',
-              style: Style.getHeaderThree(color: Style.getTextColor(), fontWeight: FontWeight.w700),
+              isOwner
+                  ? 'Ver postulantes'
+                  : vacancy.isOpen
+                  ? 'Aplicar ahora'
+                  : 'Vacante cerrada',
+              style: Style.getHeaderThree(
+                color: Style.getTextColor(),
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),
@@ -261,7 +351,9 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
         borderRadius: BorderRadius.circular(24.r),
         onTap: () {
           Navigator.of(context).push(
-            Transitions.slideUpTransition(CompanyProfileScreen(companyId: vacancy.companyId)),
+            Transitions.slideUpTransition(
+              CompanyProfileScreen(companyId: vacancy.companyId),
+            ),
           );
         },
         child: Padding(
@@ -270,24 +362,51 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
             children: [
               CircleAvatar(
                 radius: 28.w,
-                backgroundImage: vacancy.companyLogoUrl.isNotEmpty ? NetworkImage(vacancy.companyLogoUrl) : null,
+                backgroundImage: vacancy.companyLogoUrl.isNotEmpty
+                    ? NetworkImage(vacancy.companyLogoUrl)
+                    : null,
                 backgroundColor: Style.getPrimaryColor().withValues(alpha: .10),
-                child: vacancy.companyLogoUrl.isEmpty ? Icon(Icons.apartment_rounded, color: Style.getPrimaryColor()) : null,
+                child: vacancy.companyLogoUrl.isEmpty
+                    ? Icon(
+                        Icons.apartment_rounded,
+                        color: Style.getPrimaryColor(),
+                      )
+                    : null,
               ),
               SizedBox(width: 14.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(vacancy.companyName, style: Style.getHeaderThree(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+                    Text(
+                      vacancy.companyName,
+                      style: Style.getHeaderThree(
+                        color: Style.getTextColor(),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     SizedBox(height: 4.h),
-                    Text(vacancy.companyIndustry, style: Style.getTextStyle(color: Style.getObscureTextColor())),
+                    Text(
+                      vacancy.companyIndustry,
+                      style: Style.getTextStyle(
+                        color: Style.getObscureTextColor(),
+                      ),
+                    ),
                     SizedBox(height: 6.h),
-                    Text(vacancy.companyLocation, style: Style.getTextStyle(color: Style.getTextColor(), fontWeight: FontWeight.w600)),
+                    Text(
+                      vacancy.companyLocation,
+                      style: Style.getTextStyle(
+                        color: Style.getTextColor(),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: Style.getObscureTextColor()),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: Style.getObscureTextColor(),
+              ),
             ],
           ),
         ),
@@ -306,7 +425,13 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Style.getHeaderThree(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+            Text(
+              title,
+              style: Style.getHeaderThree(
+                color: Style.getTextColor(),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             SizedBox(height: 12.h),
             child,
           ],
@@ -323,12 +448,25 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
         children: [
           Expanded(
             flex: 4,
-            child: Text(label, style: Style.getTextStyle(color: Style.getObscureTextColor(), fontWeight: FontWeight.w600)),
+            child: Text(
+              label,
+              style: Style.getTextStyle(
+                color: Style.getObscureTextColor(),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           SizedBox(width: 12.w),
           Expanded(
             flex: 6,
-            child: Text(value, style: Style.getTextStyle(color: Style.getTextColor(), fontWeight: FontWeight.w700), textAlign: TextAlign.right),
+            child: Text(
+              value,
+              style: Style.getTextStyle(
+                color: Style.getTextColor(),
+                fontWeight: FontWeight.w700,
+              ),
+              textAlign: TextAlign.right,
+            ),
           ),
         ],
       ),
@@ -343,7 +481,13 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Style.white.withValues(alpha: .22)),
       ),
-      child: Text(label, style: Style.getTextStyle(color: Style.white, fontWeight: FontWeight.w700)),
+      child: Text(
+        label,
+        style: Style.getTextStyle(
+          color: Style.white,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }

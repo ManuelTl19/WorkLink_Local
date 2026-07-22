@@ -89,7 +89,11 @@ class _VacancyFormScreenState extends State<VacancyFormScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo guardar la vacante: $e')),
+        SnackBar(
+          content: Text(
+            '${MultiLanguages.of(context)?.translate('could_not_save') ?? 'No se pudo guardar'}: $e',
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -119,7 +123,15 @@ class _VacancyFormScreenState extends State<VacancyFormScreen> {
               ),
             ),
             title: Text(
-              _isEditing ? 'Editar vacante' : 'Nueva vacante',
+              _isEditing
+                  ? (MultiLanguages.of(
+                          context,
+                        )?.translate('vacancies_edit_title') ??
+                        'Editar vacante')
+                  : (MultiLanguages.of(
+                          context,
+                        )?.translate('vacancies_new_title') ??
+                        'Nueva vacante'),
               style: Style.getHeaderTwo(
                 color: Style.getTextColor(),
                 fontWeight: FontWeight.w800,
@@ -136,13 +148,21 @@ class _VacancyFormScreenState extends State<VacancyFormScreen> {
                   children: [
                     _field(
                       controller: _titleController,
-                      label: 'Título',
+                      label:
+                          MultiLanguages.of(
+                            context,
+                          )?.translate('services_field_title') ??
+                          'Título',
                       hint: 'Senior Flutter Developer',
                     ),
                     SizedBox(height: 14.h),
                     _field(
                       controller: _descriptionController,
-                      label: 'Descripción',
+                      label:
+                          MultiLanguages.of(
+                            context,
+                          )?.translate('description') ??
+                          'Descripción',
                       hint: 'Describe el rol, responsabilidades y requisitos',
                       maxLines: 5,
                     ),
@@ -152,7 +172,11 @@ class _VacancyFormScreenState extends State<VacancyFormScreen> {
                         Expanded(
                           child: _field(
                             controller: _categoryController,
-                            label: 'Categoría',
+                            label:
+                                MultiLanguages.of(
+                                  context,
+                                )?.translate('services_category') ??
+                                'Categoría',
                             hint: 'Desarrollo Móvil',
                           ),
                         ),
@@ -160,7 +184,11 @@ class _VacancyFormScreenState extends State<VacancyFormScreen> {
                         Expanded(
                           child: _field(
                             controller: _locationController,
-                            label: 'Ubicación',
+                            label:
+                                MultiLanguages.of(
+                                  context,
+                                )?.translate('location') ??
+                                'Ubicación',
                             hint: 'Remoto',
                           ),
                         ),
@@ -172,14 +200,22 @@ class _VacancyFormScreenState extends State<VacancyFormScreen> {
                         Expanded(
                           child: _field(
                             controller: _salaryController,
-                            label: 'Salario',
+                            label:
+                                MultiLanguages.of(
+                                  context,
+                                )?.translate('salary') ??
+                                'Salario',
                             hint: 'MXN \$40,000 - \$60,000',
                           ),
                         ),
                         SizedBox(width: 12.w),
                         Expanded(
                           child: CustomPickerField<VacancyStatus>(
-                            label: 'Estado',
+                            label:
+                                MultiLanguages.of(
+                                  context,
+                                )?.translate('status') ??
+                                'Estado',
                             value: _status,
                             items: VacancyStatus.values
                                 .map(
@@ -211,7 +247,15 @@ class _VacancyFormScreenState extends State<VacancyFormScreen> {
                               ),
                             )
                           : Text(
-                              _isEditing ? 'Guardar cambios' : 'Crear vacante',
+                              _isEditing
+                                  ? (MultiLanguages.of(
+                                          context,
+                                        )?.translate('save_changes') ??
+                                        'Guardar cambios')
+                                  : (MultiLanguages.of(context)?.translate(
+                                          'vacancies_create_button',
+                                        ) ??
+                                        'Crear vacante'),
                               style: Style.getHeaderThree(
                                 color: Style.white,
                                 fontWeight: FontWeight.w700,
@@ -239,8 +283,10 @@ class _VacancyFormScreenState extends State<VacancyFormScreen> {
       label: label,
       hintText: hint,
       maxLines: maxLines,
-      validator: (value) =>
-          (value == null || value.trim().isEmpty) ? 'Campo requerido' : null,
+      validator: (value) => (value == null || value.trim().isEmpty)
+          ? (MultiLanguages.of(context)?.translate('field_required') ??
+                'Campo requerido')
+          : null,
     );
   }
 }

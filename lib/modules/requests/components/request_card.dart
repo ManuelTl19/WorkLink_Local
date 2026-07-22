@@ -1,6 +1,5 @@
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/requests/models/work_request_model.dart';
-import 'package:worklink_local/utils/utils.dart';
 
 enum RequestCardMode { browse, owner }
 
@@ -54,12 +53,19 @@ class RequestCard extends StatelessWidget {
                           request.title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800, fontSize: 15),
+                          style: Style.getHeaderTwo(
+                            color: Style.getTextColor(),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                          ),
                         ),
                         SizedBox(height: 4.h),
                         Text(
                           request.category,
-                          style: Style.getTextStyle(color: Style.getPrimaryColor(), fontWeight: FontWeight.w700),
+                          style: Style.getTextStyle(
+                            color: Style.getPrimaryColor(),
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         SizedBox(height: 8.h),
                         Wrap(
@@ -81,20 +87,36 @@ class RequestCard extends StatelessWidget {
                 request.shortDescription,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: Style.getTextStyle(color: Style.getObscureTextColor()).copyWith(height: 1.4),
+                style: Style.getTextStyle(
+                  color: Style.getObscureTextColor(),
+                ).copyWith(height: 1.4),
               ),
               SizedBox(height: 12.h),
               Row(
                 children: [
                   _budgetTag(),
                   const Spacer(),
-                  Icon(Icons.people_alt_rounded, color: Style.getSecondaryColor(), size: 16.w),
+                  Icon(
+                    Icons.people_alt_rounded,
+                    color: Style.getSecondaryColor(),
+                    size: 16.w,
+                  ),
                   SizedBox(width: 4.w),
-                  Text('${request.interestedCount} interesados', style: Style.getTextStyle(color: Style.getTextColor(), fontWeight: FontWeight.w700, fontSize: 8)),
+                  Text(
+                    '${request.interestedCount} ${MultiLanguages.of(context)?.translate('interested') ?? 'interesados'}',
+                    style: Style.getTextStyle(
+                      color: Style.getTextColor(),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 8,
+                    ),
+                  ),
                 ],
               ),
               SizedBox(height: 12.h),
-              if (mode == RequestCardMode.browse) _browseActions() else _ownerActions(),
+              if (mode == RequestCardMode.browse)
+                _browseActions(context)
+              else
+                _ownerActions(context),
             ],
           ),
         ),
@@ -112,8 +134,13 @@ class RequestCard extends StatelessWidget {
         child: CachedNetworkImage(
           imageUrl: request.requesterAvatarUrl,
           fit: BoxFit.cover,
-          placeholder: (_, __) => Container(color: Style.getPrimaryColor().withValues(alpha: .08)),
-          errorWidget: (_, __, ___) => Icon(Icons.assignment_rounded, color: Style.getPrimaryColor(), size: 24.w),
+          placeholder: (_, __) =>
+              Container(color: Style.getPrimaryColor().withValues(alpha: .08)),
+          errorWidget: (_, __, ___) => Icon(
+            Icons.assignment_rounded,
+            color: Style.getPrimaryColor(),
+            size: 24.w,
+          ),
         ),
       ),
     );
@@ -125,14 +152,26 @@ class RequestCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Style.getBackgroundColor(),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Style.getBorderColor().withValues(alpha: .25)),
+        border: Border.all(
+          color: Style.getBorderColor().withValues(alpha: .25),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14.w, color: Style.getSecondaryColor()),
           SizedBox(width: 4.w),
-          Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: Style.getTextStyle(color: Style.getTextColor(), fontWeight: FontWeight.w600, fontSize: 8))),
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: Style.getTextStyle(
+                color: Style.getTextColor(),
+                fontWeight: FontWeight.w600,
+                fontSize: 8,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -142,8 +181,18 @@ class RequestCard extends StatelessWidget {
     final color = _statusColor(status);
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-      decoration: BoxDecoration(color: color.withValues(alpha: .12), borderRadius: BorderRadius.circular(999)),
-      child: Text(status.label, style: Style.getTextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 8)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        status.label,
+        style: Style.getTextStyle(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: 8,
+        ),
+      ),
     );
   }
 
@@ -154,18 +203,28 @@ class RequestCard extends StatelessWidget {
         color: Style.getPrimaryColor().withValues(alpha: .10),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(request.budgetLabel, style: Style.getTextStyle(color: Style.getPrimaryColor(), fontWeight: FontWeight.w700, fontSize: 8)),
+      child: Text(
+        request.budgetLabel,
+        style: Style.getTextStyle(
+          color: Style.getPrimaryColor(),
+          fontWeight: FontWeight.w700,
+          fontSize: 8,
+        ),
+      ),
     );
   }
 
-  Widget _browseActions() {
+  Widget _browseActions(BuildContext context) {
     return Row(
       children: [
         Expanded(
           child: OutlinedButton.icon(
             onPressed: onTap,
             icon: Icon(Icons.visibility_rounded, size: 16.w),
-            label: const Text('Ver detalle'),
+            label: Text(
+              MultiLanguages.of(context)?.translate('view_detail') ??
+                  'Ver detalle',
+            ),
           ),
         ),
         SizedBox(width: 10.w),
@@ -173,23 +232,50 @@ class RequestCard extends StatelessWidget {
           child: ElevatedButton.icon(
             onPressed: onInterested,
             icon: Icon(Icons.chat_rounded, size: 16.w),
-            label: const Text('Me interesa'),
-            style: ElevatedButton.styleFrom(backgroundColor: Style.getPrimaryColor(), foregroundColor: Style.white),
+            label: Text(
+              MultiLanguages.of(context)?.translate('interested') ??
+                  'Me interesa',
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Style.getPrimaryColor(),
+              foregroundColor: Style.white,
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _ownerActions() {
+  Widget _ownerActions(BuildContext context) {
     return Wrap(
       spacing: 8.w,
       runSpacing: 8.h,
       children: [
-        _actionButton(label: 'Ver', icon: Icons.visibility_rounded, onPressed: onTap, filled: false),
-        _actionButton(label: 'Editar', icon: Icons.edit_rounded, onPressed: onEdit),
-        _actionButton(label: 'Eliminar', icon: Icons.delete_rounded, onPressed: onDelete, destructive: true, filled: false),
-        _actionButton(label: 'Estado', icon: Icons.sync_alt_rounded, onPressed: onStatusPressed, filled: false),
+        _actionButton(
+          label: MultiLanguages.of(context)?.translate('view_detail') ?? 'Ver',
+          icon: Icons.visibility_rounded,
+          onPressed: onTap,
+          filled: false,
+        ),
+        _actionButton(
+          label:
+              MultiLanguages.of(context)?.translate('edit_profile') ?? 'Editar',
+          icon: Icons.edit_rounded,
+          onPressed: onEdit,
+        ),
+        _actionButton(
+          label: MultiLanguages.of(context)?.translate('delete') ?? 'Eliminar',
+          icon: Icons.delete_rounded,
+          onPressed: onDelete,
+          destructive: true,
+          filled: false,
+        ),
+        _actionButton(
+          label: MultiLanguages.of(context)?.translate('status') ?? 'Estado',
+          icon: Icons.sync_alt_rounded,
+          onPressed: onStatusPressed,
+          filled: false,
+        ),
       ],
     );
   }
@@ -202,27 +288,39 @@ class RequestCard extends StatelessWidget {
     bool destructive = false,
   }) {
     final foreground = destructive ? Style.getErrorColor() : Style.white;
-    final background = destructive ? Style.getErrorColor() : Style.getPrimaryColor();
+    final background = destructive
+        ? Style.getErrorColor()
+        : Style.getPrimaryColor();
 
     return filled
         ? ElevatedButton.icon(
             onPressed: onPressed,
             icon: Icon(icon, size: 16.w),
             label: Text(label),
-            style: ElevatedButton.styleFrom(backgroundColor: background, foregroundColor: foreground),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: background,
+              foregroundColor: foreground,
+            ),
           )
         : OutlinedButton.icon(
             onPressed: onPressed,
             icon: Icon(icon, size: 16.w),
             label: Text(label),
             style: OutlinedButton.styleFrom(
-              foregroundColor: destructive ? Style.getErrorColor() : Style.getTextColor(),
-              side: BorderSide(color: destructive ? Style.getErrorColor() : Style.getBorderColor()),
+              foregroundColor: destructive
+                  ? Style.getErrorColor()
+                  : Style.getTextColor(),
+              side: BorderSide(
+                color: destructive
+                    ? Style.getErrorColor()
+                    : Style.getBorderColor(),
+              ),
             ),
           );
   }
 
-  String get _dateLabel => '${request.postedAt.day.toString().padLeft(2, '0')}/${request.postedAt.month.toString().padLeft(2, '0')}/${request.postedAt.year}';
+  String get _dateLabel =>
+      '${request.postedAt.day.toString().padLeft(2, '0')}/${request.postedAt.month.toString().padLeft(2, '0')}/${request.postedAt.year}';
 
   Color _statusColor(RequestStatus status) {
     switch (status) {

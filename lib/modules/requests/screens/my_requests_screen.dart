@@ -45,7 +45,9 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   }
 
   Future<void> _openForm({WorkRequestModel? request}) async {
-    final saved = await Navigator.of(context).push(Transitions.slideUpTransition(RequestFormScreen(request: request)));
+    final saved = await Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(RequestFormScreen(request: request)));
     if (saved == true && mounted) {
       await _loadRequests();
     }
@@ -54,10 +56,15 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   Future<void> _deleteRequest(WorkRequestModel request) async {
     final confirmed = await Dialogs.showConfirmDialogDelete(
       context,
-      title: 'Eliminar solicitud',
-      message: 'Esta acción eliminará la solicitud y sus interesados asociados.',
-      confirmText: 'Eliminar',
-      cancelText: 'Cancelar',
+      title:
+          MultiLanguages.of(context)?.translate('requests_delete_title') ??
+          'Eliminar solicitud',
+      message:
+          MultiLanguages.of(context)?.translate('requests_delete_message') ??
+          'Esta acción eliminará la solicitud y sus interesados asociados.',
+      confirmText:
+          MultiLanguages.of(context)?.translate('delete') ?? 'Eliminar',
+      cancelText: MultiLanguages.of(context)?.translate('cancel') ?? 'Cancelar',
       confirmColor: Style.getErrorColor(),
       cancelColor: Style.getPrimaryColor(),
     );
@@ -71,7 +78,9 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
     final selected = await showModalBottomSheet<RequestStatus>(
       context: context,
       backgroundColor: Style.getCardColor(),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24.r))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+      ),
       builder: (context) {
         return Padding(
           padding: EdgeInsets.fromLTRB(18.w, 16.h, 18.w, 24.h),
@@ -81,8 +90,13 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
             children: RequestStatus.values.map((status) {
               return ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(status.label, style: Style.getTextStyle(color: Style.getTextColor())),
-                trailing: status == request.status ? Icon(Icons.check_rounded, color: Style.getPrimaryColor()) : null,
+                title: Text(
+                  status.label,
+                  style: Style.getTextStyle(color: Style.getTextColor()),
+                ),
+                trailing: status == request.status
+                    ? Icon(Icons.check_rounded, color: Style.getPrimaryColor())
+                    : null,
                 onTap: () => Navigator.pop(context, status),
               );
             }).toList(),
@@ -113,44 +127,131 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
               titleSpacing: 0,
               leading: IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: Icon(Icons.arrow_back_ios_new_rounded, color: Style.getTextColor()),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Style.getTextColor(),
+                ),
               ),
-              actions: [IconButton(onPressed: _loadRequests, icon: Icon(Icons.refresh_rounded, color: Style.getTextColor())), IconButton(onPressed: () => _openForm(), icon: Icon(Icons.add_circle_outline_rounded, color: Style.getTextColor()))],
-              title: Text('Mis Solicitudes', style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+              actions: [
+                IconButton(
+                  onPressed: _loadRequests,
+                  icon: Icon(
+                    Icons.refresh_rounded,
+                    color: Style.getTextColor(),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => _openForm(),
+                  icon: Icon(
+                    Icons.add_circle_outline_rounded,
+                    color: Style.getTextColor(),
+                  ),
+                ),
+              ],
+              title: Text(
+                MultiLanguages.of(context)?.translate('my_requests_title') ??
+                    'Mis Solicitudes',
+                style: Style.getHeaderTwo(
+                  color: Style.getTextColor(),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 8.h, Style.horizontalPadding.w, 14.h),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  8.h,
+                  Style.horizontalPadding.w,
+                  14.h,
+                ),
                 child: Row(
                   children: [
-                    Expanded(child: _summaryCard('Solicitudes abiertas', _requests.where((item) => item.status == RequestStatus.abierta).length.toString(), Icons.task_alt_rounded)),
+                    Expanded(
+                      child: _summaryCard(
+                        MultiLanguages.of(
+                              context,
+                            )?.translate('requests_open_count') ??
+                            'Solicitudes abiertas',
+                        _requests
+                            .where(
+                              (item) => item.status == RequestStatus.abierta,
+                            )
+                            .length
+                            .toString(),
+                        Icons.task_alt_rounded,
+                      ),
+                    ),
                     SizedBox(width: 10.w),
-                    Expanded(child: _summaryCard('Interesados', _requests.fold<int>(0, (sum, item) => sum + item.interestedCount).toString(), Icons.people_alt_rounded)),
+                    Expanded(
+                      child: _summaryCard(
+                        MultiLanguages.of(context)?.translate('interested') ??
+                            'Interesados',
+                        _requests
+                            .fold<int>(
+                              0,
+                              (sum, item) => sum + item.interestedCount,
+                            )
+                            .toString(),
+                        Icons.people_alt_rounded,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: Style.horizontalPadding.w),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Style.horizontalPadding.w,
+                ),
                 child: CustomWidgets.button(
                   onTap: () => _openForm(),
                   color: Style.getPrimaryColor(),
-                  child: Text('Crear solicitud', style: Style.getHeaderThree(color: Style.white, fontWeight: FontWeight.w700)),
+                  child: Text(
+                    MultiLanguages.of(
+                          context,
+                        )?.translate('requests_create_button') ??
+                        'Crear solicitud',
+                    style: Style.getHeaderThree(
+                      color: Style.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
             ),
             SliverToBoxAdapter(child: SizedBox(height: 12.h)),
             if (_loading)
-              SliverFillRemaining(hasScrollBody: false, child: Center(child: CustomWidgets.mProgress(Style.getPrimaryColor())))
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: CustomWidgets.mProgress(Style.getPrimaryColor()),
+                ),
+              )
             else if (_requests.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
-                child: Center(child: Text('Aún no has creado solicitudes.', style: Style.getTextStyle(color: Style.getObscureTextColor()))),
+                child: Center(
+                  child: Text(
+                    MultiLanguages.of(
+                          context,
+                        )?.translate('requests_empty_owner') ??
+                        'Aún no has creado solicitudes.',
+                    style: Style.getTextStyle(
+                      color: Style.getObscureTextColor(),
+                    ),
+                  ),
+                ),
               )
             else
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 4.h, Style.horizontalPadding.w, 20.h),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  4.h,
+                  Style.horizontalPadding.w,
+                  20.h,
+                ),
                 sliver: SliverList.separated(
                   itemCount: _requests.length,
                   separatorBuilder: (_, __) => SizedBox(height: 12.h),
@@ -160,13 +261,23 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                       request: request,
                       mode: RequestCardMode.owner,
                       onTap: () {
-                        Navigator.of(context).push(Transitions.slideUpTransition(RequestDetailScreen(requestId: request.id)));
+                        Navigator.of(context).push(
+                          Transitions.slideUpTransition(
+                            RequestDetailScreen(requestId: request.id),
+                          ),
+                        );
                       },
                       onEdit: () => _openForm(request: request),
                       onDelete: () => _deleteRequest(request),
                       onStatusPressed: () => _changeStatus(request),
                       onViewProfile: () {
-                        Navigator.of(context).push(Transitions.slideUpTransition(RequesterProfileScreen(requesterId: request.requesterId)));
+                        Navigator.of(context).push(
+                          Transitions.slideUpTransition(
+                            RequesterProfileScreen(
+                              requesterId: request.requesterId,
+                            ),
+                          ),
+                        );
                       },
                     );
                   },
@@ -181,7 +292,10 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   Widget _summaryCard(String title, String value, IconData icon) {
     return Container(
       padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(color: Style.getCardColor(), borderRadius: Style.getCircularBorderRadius(22)),
+      decoration: BoxDecoration(
+        color: Style.getCardColor(),
+        borderRadius: Style.getCircularBorderRadius(22),
+      ),
       child: Row(
         children: [
           Icon(icon, color: Style.getPrimaryColor(), size: 20.w),
@@ -190,8 +304,18 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value, style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800, fontSize: 20)),
-                Text(title, style: Style.getTextStyle(color: Style.getObscureTextColor())),
+                Text(
+                  value,
+                  style: Style.getHeaderTwo(
+                    color: Style.getTextColor(),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                  ),
+                ),
+                Text(
+                  title,
+                  style: Style.getTextStyle(color: Style.getObscureTextColor()),
+                ),
               ],
             ),
           ),

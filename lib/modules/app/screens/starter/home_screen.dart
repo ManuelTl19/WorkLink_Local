@@ -1,9 +1,27 @@
 import 'package:worklink_local/modules/app/components/general/form/form_widgets.dart';
 import 'package:worklink_local/utils/utils.dart';
 import 'package:worklink_local/helpers/helpers.dart';
-
-import 'package:worklink_local/modules/app/screens/dashboard_screen.dart';
+import 'package:worklink_local/main.dart';
+import 'package:worklink_local/modules/companies/screens/companies_screen.dart';
+import 'package:worklink_local/modules/companies/screens/company_profile_screen.dart';
+import 'package:worklink_local/modules/freelancers/freelancers.dart';
+import 'package:worklink_local/modules/freelancers/screens/freelancers_screen.dart';
+import 'package:worklink_local/modules/notifications/screens/notifications_screen.dart';
+import 'package:worklink_local/modules/notifications/services/notification_service.dart';
+import 'package:worklink_local/modules/portfolio/screens/portfolio_screen.dart';
+import 'package:worklink_local/modules/requests/requests.dart';
+import 'package:worklink_local/modules/services/models/service_model.dart';
+import 'package:worklink_local/modules/services/screens/service_detail_screen.dart';
+import 'package:worklink_local/modules/services/screens/my_services_screen.dart';
+import 'package:worklink_local/modules/services/screens/services_screen.dart';
+import 'package:worklink_local/modules/services/services.dart';
 import 'package:worklink_local/modules/users/models/user_model.dart';
+import 'package:worklink_local/modules/vacancies/components/vacancy_card.dart';
+import 'package:worklink_local/modules/vacancies/models/vacancy_model.dart';
+import 'package:worklink_local/modules/vacancies/screens/my_vacancies_screen.dart';
+import 'package:worklink_local/modules/vacancies/screens/vacancies_screen.dart';
+import 'package:worklink_local/modules/vacancies/screens/vacancy_detail_screen.dart';
+import 'package:worklink_local/modules/vacancies/services/vacancies_service.dart';
 
 import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,14 +35,69 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen>
-    with AutomaticKeepAliveClientMixin<HomeScreen> {
+    with AutomaticKeepAliveClientMixin<HomeScreen>, RouteAware {
+  // ignore: unused_field
   final _controller = PageController();
 
   int mode = 0;
   bool isLoading = true;
   UserModel? _user;
   int _notificationCount = 0;
+  final ServicesService _servicesService = ServicesService();
+  final RequestsService _requestsService = RequestsService();
+  final VacanciesService _vacanciesService = VacanciesService();
+  List<FreelancerModel> _freelancers = const [];
+  List<ServiceModel> _services = const [];
+  List<WorkRequestModel> _requests = const [];
+  List<VacancyModel> _vacancies = const [];
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    _loadHeaderData();
+  }
+
+  String get _roleName {
+    final roles = _user?.roles ?? [];
+    if (roles.isNotEmpty) return roles.first.toLowerCase().trim();
+    return (_user?.tipoCuenta ?? '').toLowerCase().trim();
+  }
+
+  bool _hasRole(String role) {
+    final roleName = role.toLowerCase().trim();
+    final roles =
+        _user?.roles
+            .map((value) => value.toLowerCase().trim())
+            .where((value) => value.isNotEmpty)
+            .toList() ??
+        [];
+
+    if (roles.contains(roleName) || _roleName == roleName) {
+      return true;
+    }
+
+    if (roleName == 'admin') {
+      return roles.contains('administrador') || _roleName == 'administrador';
+    }
+
+    return false;
+  }
+
+  // ignore: unused_element
   void _onPageChanged(int index) {
     setState(() {
       mode = index;
@@ -49,6 +122,8 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     _loadHeaderData();
+    _loadNotificationCount();
+    _loadHomeCards();
     getData().then((value) {
       setState(() {
         isLoading = false;
@@ -57,14 +132,30 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
   }
 
+  Future<void> _loadNotificationCount() async {
+    try {
+      final count = await NotificationService.getUnreadCount();
+      if (mounted) {
+        setState(() {
+          _notificationCount = count;
+        });
+      }
+    } catch (e) {
+      logWarning('No se pudo cargar el contador de notificaciones: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
     return Consumer<AppSettings>(
       builder: (context, app, child) => Scaffold(
         backgroundColor: Style.getBackgroundColor(),
         body: RefreshIndicator(
           onRefresh: () async {
+            await _loadHeaderData();
+            await _loadHomeCards();
             await getData();
             app.notify();
           },
@@ -72,27 +163,15 @@ class _HomeScreenState extends State<HomeScreen>
             physics: const BouncingScrollPhysics(),
             child: Column(
               children: [
-                SizedBox(height: 20.h),
+                SizedBox(height: 14.h),
 
                 header(),
 
-                SizedBox(height: 15.h),
+                SizedBox(height: 14.h),
 
                 searcher(),
 
-                boxes(app),
-
-                // chipOptions(),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.easeInOut,
-                  height: isLoading ? 0 : 90.h,
-                  // child: ClockInClockOutCard(
-                  //   collaboratorId: AppSettings.currentUser!.id,
-                  // ),
-                ),
-
-                SizedBox(height: 10.h),
+                SizedBox(height: 18.h),
 
                 overview(app),
               ],
@@ -117,6 +196,29 @@ class _HomeScreenState extends State<HomeScreen>
     } finally {
       if (mounted) setState(() {});
     }
+  }
+
+  Future<void> _loadHomeCards() async {
+    List<FreelancerModel> freelancers = const [];
+
+    try {
+      freelancers = await FreelancersService.getFreelancers();
+    } catch (_) {
+      freelancers = const [];
+    }
+
+    final services = await _servicesService.getServices();
+    final requests = await _requestsService.getRequests();
+    final vacancies = await _vacanciesService.getFreelancerVacancies();
+
+    if (!mounted) return;
+
+    setState(() {
+      _freelancers = freelancers.take(6).toList();
+      _services = services.take(6).toList();
+      _requests = requests.take(6).toList();
+      _vacancies = vacancies.take(6).toList();
+    });
   }
 
   Widget header() {
@@ -261,7 +363,12 @@ class _HomeScreenState extends State<HomeScreen>
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
-            onTap: () {},
+            onTap: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              );
+              _loadNotificationCount();
+            },
             child: Container(
               width: 42.w,
               height: 42.w,
@@ -317,6 +424,7 @@ class _HomeScreenState extends State<HomeScreen>
     return name.isEmpty ? 'Jose Manuel' : name;
   }
 
+  // ignore: unused_element
   String get _role {
     final roles = _user?.roles ?? [];
     if (roles.isNotEmpty) return roles.first;
@@ -367,7 +475,6 @@ class _HomeScreenState extends State<HomeScreen>
           padding: const EdgeInsets.all(10.0),
           child: CustomInputField(
             controller: TextEditingController(),
-            label: MultiLanguages.of(context)!.translate('search_home'),
             hintText: MultiLanguages.of(context)!.translate('search_home'),
             prefixIcon: Icon(Icons.search, color: Style.grey, size: 20.w),
             suffixIcon: InkWell(
@@ -385,66 +492,90 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget boxes(AppSettings app) {
-    return SizedBox(
-      height: 100.w,
-      child: GridView(
-        padding: Style.getPadding(),
-        shrinkWrap: true,
-        scrollDirection: Axis.horizontal,
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 1,
-          mainAxisExtent: 160.w,
-          crossAxisSpacing: 10.w,
-          mainAxisSpacing: 10.w,
-        ),
-        physics: const BouncingScrollPhysics(),
+  // ignore: unused_element
+  Widget _statsSection() {
+    return Padding(
+      padding: Style.getPaddingHorizontal(),
+      child: Wrap(
+        spacing: 14.w,
+        runSpacing: 14.h,
         children: [
-          box(
-            icon: Assets.iconUsers,
-            quantity: 0,
-            reverse: false,
+          _statCard(
+            icon: Icons.design_services_rounded,
+            title: MultiLanguages.of(context)!.translate('services'),
+            value: '12',
             color: Style.getPrimaryColor(),
-            title: 'Servicios',
-            onTap: () {},
           ),
-
-          box(
-            icon: Assets.iconDocuments,
-            quantity: 0,
-            reverse: true,
-            color: Style.getPrimaryColor(),
-            title: 'Vacantes',
-            onTap: () {},
+          _statCard(
+            icon: Icons.work_outline_rounded,
+            title: MultiLanguages.of(context)!.translate('vacancies'),
+            value: '6',
+            color: Style.getSecondaryColor(),
           ),
-
-          box(
-            icon: Assets.iconDocuments,
-            quantity: 0,
-            reverse: true,
-            color: Style.getPrimaryColor(),
-            title: 'Solicitudes',
-            onTap: () {},
+          _statCard(
+            icon: Icons.assignment_turned_in_rounded,
+            title: MultiLanguages.of(context)!.translate('requests'),
+            value: '3',
+            color: Style.getAccentColor(),
           ),
-
-          box(
-            icon: Assets.iconLeads,
-            quantity: 0,
-            reverse: true,
-            color: Style.getPrimaryColor(),
-            title: 'Mensajes',
-            onTap: () {},
-          ),
-
-          box(
-            icon: Assets.iconCalendar,
-            quantity: 0,
-            reverse: true,
-            color: Style.getPrimaryColor(),
-            title: 'Reputación',
-            onTap: () {},
+          _statCard(
+            icon: Icons.thumb_up_alt_outlined,
+            title: MultiLanguages.of(context)!.translate('reputation'),
+            value: '4.8',
+            color: Style.getTextColor(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _statCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+  }) {
+    return SizedBox(
+      width: (MediaQuery.of(context).size.width - 68.w) / 2,
+      child: Card(
+        color: Style.getCardColor(),
+        shape: RoundedRectangleBorder(borderRadius: Style.getBorderRadius()),
+        elevation: 6,
+        shadowColor: Style.getShadowColor().withOpacity(0.12),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 16.h),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42.w,
+                height: 42.w,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 22.w),
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                title,
+                style: Style.getTextStyle(
+                  color: Style.getTextColor(),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                value,
+                style: Style.getHeaderOne(
+                  color: Style.getTextColor(),
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -461,7 +592,7 @@ class _HomeScreenState extends State<HomeScreen>
       color: Style.getCardColor(),
       shape: RoundedRectangleBorder(borderRadius: Style.getBorderRadius()),
       elevation: 4,
-      shadowColor: Style.getShadowColor(),
+      shadowColor: Style.getShadowColor().withOpacity(0.12),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: Style.getBorderRadius(),
@@ -472,7 +603,7 @@ class _HomeScreenState extends State<HomeScreen>
         child: isLoading
             ? Shimmer.fromColors(
                 baseColor: Style.getCardColor(),
-                highlightColor: Style.getPrimaryColor().withValues(alpha: 0.2),
+                highlightColor: Style.getPrimaryColor().withOpacity(0.14),
                 child: Container(
                   width: double.infinity,
                   height: double.infinity,
@@ -486,47 +617,44 @@ class _HomeScreenState extends State<HomeScreen>
                 onTap: onTap,
                 borderRadius: Style.getBorderRadius(),
                 child: Padding(
-                  padding: EdgeInsets.all(8.w),
+                  padding: EdgeInsets.all(12.w),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Image.asset(
-                        icon,
-                        width: 40.w,
-                        height: 40.w,
-                        color: color,
+                      Container(
+                        width: 46.w,
+                        height: 46.w,
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.14),
+                          borderRadius: BorderRadius.circular(14.r),
+                        ),
+                        child: Center(
+                          child: Image.asset(
+                            icon,
+                            width: 28.w,
+                            height: 28.w,
+                            color: color,
+                          ),
+                        ),
                       ),
-                      SizedBox(width: 10.w),
-                      Flexible(
-                        flex: 1,
-                        fit: FlexFit.tight,
+                      SizedBox(width: 12.w),
+                      Expanded(
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                               style: Style.getTextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: Style.getTextColor(),
                               ),
                             ),
-                            Container(
-                              padding: EdgeInsets.all(5.w),
-                              decoration: BoxDecoration(
-                                color: Style.getTextColor().withValues(
-                                  alpha: 0.2,
-                                ),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Text(
-                                quantity.toString(),
-                                style: TextStyle(
-                                  color: Style.getTextColor(),
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            SizedBox(height: 4.h),
+                            Text(
+                              quantity.toString(),
+                              style: Style.getHeaderOne(
+                                color: Style.getTextColor(),
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
                           ],
@@ -624,9 +752,7 @@ class _HomeScreenState extends State<HomeScreen>
                   if (icon != null) ...[
                     Shimmer.fromColors(
                       baseColor: Style.getCardColor(),
-                      highlightColor: Style.getPrimaryColor().withValues(
-                        alpha: 0.2,
-                      ),
+                      highlightColor: Style.getPrimaryColor().withOpacity(0.2),
                       child: Icon(
                         Icons.circle_rounded,
                         color: Style.getAccentColor(),
@@ -638,9 +764,7 @@ class _HomeScreenState extends State<HomeScreen>
                   Flexible(
                     child: Shimmer.fromColors(
                       baseColor: Style.getCardColor(),
-                      highlightColor: Style.getPrimaryColor().withValues(
-                        alpha: 0.2,
-                      ),
+                      highlightColor: Style.getPrimaryColor().withOpacity(0.2),
                       child: Container(
                         height: 30.h,
                         decoration: BoxDecoration(
@@ -676,16 +800,17 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   const Spacer(),
-                  action != null
-                      ? IconButton(
-                          onPressed: () => action(),
-                          icon: Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            color: Style.getPrimaryColor(),
-                            size: 15.w,
-                          ),
-                        )
-                      : const SizedBox(),
+                  if (action != null)
+                    IconButton(
+                      onPressed: action,
+                      icon: Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: Style.getPrimaryColor(),
+                        size: 15.w,
+                      ),
+                    )
+                  else
+                    const SizedBox(),
                 ],
         ),
       ),
@@ -696,142 +821,518 @@ class _HomeScreenState extends State<HomeScreen>
     return Column(
       key: const Key('overview'),
       children: [
-        title("Categorías", icon: Icons.category_rounded, action: () {}),
-
-        if (isLoading) ...[
-          Container(
-            padding: Style.getPadding(),
-            height: 100.h,
-            child: Shimmer.fromColors(
-              baseColor: Style.getCardColor(),
-              highlightColor: Style.getPrimaryColor().withValues(alpha: 0.2),
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: Style.getBorderRadius(),
-                  color: Style.getCardColor(),
-                ),
-              ),
-            ),
+        if (_showFreelancersSection) ...[
+          title(
+            MultiLanguages.of(context)!.translate('freelancers'),
+            icon: Icons.badge_rounded,
+            action: _openFreelancers,
           ),
-        ] else ...[
-          Padding(
-            padding: Style.getPadding(),
-            child: Card(
-              color: Style.getCardColor(),
-              shape: RoundedRectangleBorder(
-                borderRadius: Style.getBorderRadius(),
-              ),
-              child: Container(
-                padding: Style.getPadding(),
-                height: 120.h,
-                child: Center(
-                  child: Text(
-                    'No hay categorias',
-                    style: Style.getHeaderThree(color: Style.getTextColor()),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          _freelancersCarousel(),
         ],
-
-        title("vacantes", icon: Icons.category_rounded, action: () {}),
-
-        if (isLoading) ...[
-          Container(
-            padding: Style.getPadding(),
-            height: 180.h,
-            child: Shimmer.fromColors(
-              baseColor: Style.getCardColor(),
-              highlightColor: Style.getPrimaryColor().withValues(alpha: 0.2),
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: Style.getBorderRadius(),
-                  color: Style.getCardColor(),
-                ),
-              ),
-            ),
+        if (_showServicesSection) ...[
+          SizedBox(height: 8.h),
+          title(
+            MultiLanguages.of(context)!.translate('services'),
+            icon: Icons.design_services_rounded,
+            action: _openServices,
           ),
-        ] else ...[
-          Padding(
-            padding: Style.getPadding(),
-            child: Card(
-              color: Style.getCardColor(),
-              shape: RoundedRectangleBorder(
-                borderRadius: Style.getBorderRadius(),
-              ),
-              child: Container(
-                padding: Style.getPadding(),
-                height: 120.h,
-                child: Center(
-                  child: Text(
-                    'No hay vacantes disponibles',
-                    style: Style.getHeaderThree(color: Style.getTextColor()),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          _servicesCarousel(),
         ],
-
-        SizedBox(height: 10.h),
-
-        title("Solicitudes", icon: Icons.assignment_rounded, action: () {}),
-
-        if (isLoading) ...[
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: Style.getPadding(),
-            itemCount: 4,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisExtent: 180.h,
-              crossAxisSpacing: 10.w,
-              mainAxisSpacing: 10.h,
-            ),
-            itemBuilder: (context, index) {
-              return Shimmer.fromColors(
-                baseColor: Style.getCardColor(),
-                highlightColor: Style.getPrimaryColor().withValues(alpha: 0.2),
-                child: Container(
-                  width: double.infinity,
-                  height: 160.h,
-                  decoration: BoxDecoration(
-                    borderRadius: Style.getBorderRadius(),
-                    color: Style.getCardColor(),
-                  ),
-                ),
-              );
-            },
+        if (_showRequestsSection) ...[
+          SizedBox(height: 8.h),
+          title(
+            MultiLanguages.of(context)!.translate('requests'),
+            icon: Icons.assignment_rounded,
+            action: _openRequests,
           ),
-        ] else ...[
-          Padding(
-            padding: Style.getPadding(),
-            child: Card(
-              color: Style.getCardColor(),
-              shape: RoundedRectangleBorder(
-                borderRadius: Style.getBorderRadius(),
-              ),
-              child: Container(
-                padding: Style.getPadding(),
-                height: 100.h,
-                child: Center(
-                  child: Text(
-                    'No hay tareas disponibles',
-                    style: Style.getHeaderThree(color: Style.getTextColor()),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          _requestsCarousel(),
         ],
-
+        if (_showVacanciesSection) ...[
+          SizedBox(height: 8.h),
+          title(
+            MultiLanguages.of(context)!.translate('vacancies'),
+            icon: Icons.work_outline_rounded,
+            action: _openVacancies,
+          ),
+          _vacanciesCarousel(),
+        ],
         SizedBox(height: 80.h),
       ],
     );
+  }
+
+  bool get _showFreelancersSection =>
+      _hasRole('empresa') || _hasRole('cliente') || _hasRole('admin');
+  bool get _showServicesSection =>
+      _hasRole('empresa') || _hasRole('cliente') || _hasRole('admin');
+  bool get _showRequestsSection =>
+      _hasRole('cliente') || _hasRole('freelancer') || _hasRole('admin');
+  bool get _showVacanciesSection =>
+      _hasRole('empresa') ||
+      _hasRole('cliente') ||
+      _hasRole('freelancer') ||
+      _hasRole('admin');
+
+  Widget _freelancersCarousel() {
+    if (isLoading) {
+      return _loadingHorizontal(height: 230.h);
+    }
+    if (_freelancers.isEmpty) {
+      return _emptyHorizontal(
+        MultiLanguages.of(context)!.translate('home_no_freelancers'),
+      );
+    }
+
+    return SizedBox(
+      height: 230.h,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: Style.getPadding(),
+        itemCount: _freelancers.length,
+        separatorBuilder: (_, __) => SizedBox(width: 10.w),
+        itemBuilder: (context, index) {
+          final freelancer = _freelancers[index];
+          return SizedBox(
+            width: 320.w,
+            child: FreelancerCard(
+              freelancer: freelancer,
+              onTap: () {
+                Navigator.of(context).push(
+                  Transitions.slideUpTransition(
+                    PortfolioScreen(freelancer: freelancer),
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _servicesCarousel() {
+    if (isLoading) {
+      return _loadingHorizontal(height: 260.h);
+    }
+    if (_services.isEmpty) {
+      return _emptyHorizontal(
+        MultiLanguages.of(context)!.translate('home_no_services'),
+      );
+    }
+
+    return SizedBox(
+      height: 260.h,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: Style.getPadding(),
+        itemCount: _services.length,
+        separatorBuilder: (_, __) => SizedBox(width: 10.w),
+        itemBuilder: (context, index) {
+          final service = _services[index];
+          return SizedBox(
+            width: 340.w,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ServiceCard(
+                service: service,
+                mode: ServiceCardMode.browse,
+                onTap: () {
+                  Navigator.of(context).push(
+                    Transitions.slideUpTransition(
+                      ServiceDetailScreen(serviceId: service.id),
+                    ),
+                  );
+                },
+                onRequest: () {
+                  Navigator.of(context).push(
+                    Transitions.slideUpTransition(
+                      ServiceDetailScreen(serviceId: service.id),
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _requestsCarousel() {
+    if (isLoading) {
+      return _loadingHorizontal(height: 315.h);
+    }
+    if (_requests.isEmpty) {
+      return _emptyHorizontal(
+        MultiLanguages.of(context)!.translate('home_no_requests'),
+      );
+    }
+
+    return SizedBox(
+      height: 315.h,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: Style.getPadding(),
+        itemCount: _requests.length,
+        separatorBuilder: (_, __) => SizedBox(width: 10.w),
+        itemBuilder: (context, index) {
+          final request = _requests[index];
+          return SizedBox(
+            width: 340.w,
+            child: RequestCard(
+              request: request,
+              mode: RequestCardMode.browse,
+              onTap: () {
+                _openRequestDetail(request);
+              },
+              onInterested: () {
+                _openRequestDetail(request);
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _openRequestDetail(WorkRequestModel request) {
+    if (request.id <= 0) {
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(
+          context,
+        )!.translate('home_invalid_request_title'),
+        message: MultiLanguages.of(
+          context,
+        )!.translate('home_invalid_request_message'),
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      Transitions.slideUpTransition(RequestDetailScreen(requestId: request.id)),
+    );
+  }
+
+  Widget _vacanciesCarousel() {
+    if (isLoading) {
+      return _loadingHorizontal(height: 315.h);
+    }
+    if (_vacancies.isEmpty) {
+      return _emptyHorizontal(
+        MultiLanguages.of(context)!.translate('home_no_vacancies'),
+      );
+    }
+
+    return SizedBox(
+      height: 315.h,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: Style.getPadding(),
+        itemCount: _vacancies.length,
+        separatorBuilder: (_, __) => SizedBox(width: 10.w),
+        itemBuilder: (context, index) {
+          final vacancy = _vacancies[index];
+          return SizedBox(
+            width: 340.w,
+            child: VacancyCard(
+              vacancy: vacancy,
+              mode: VacancyCardMode.freelancer,
+              onTap: () {
+                Navigator.of(context).push(
+                  Transitions.slideUpTransition(
+                    VacancyDetailScreen(vacancyId: vacancy.id),
+                  ),
+                );
+              },
+              onApply: () {
+                Navigator.of(context).push(
+                  Transitions.slideUpTransition(
+                    VacancyDetailScreen(vacancyId: vacancy.id),
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _loadingHorizontal({required double height}) {
+    return Container(
+      padding: Style.getPadding(),
+      height: height,
+      child: Shimmer.fromColors(
+        baseColor: Style.getCardColor(),
+        highlightColor: Style.getPrimaryColor().withValues(alpha: 0.2),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: Style.getBorderRadius(),
+            color: Style.getCardColor(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyHorizontal(String text) {
+    return Padding(
+      padding: Style.getPadding(),
+      child: Card(
+        color: Style.getCardColor(),
+        shape: RoundedRectangleBorder(borderRadius: Style.getBorderRadius()),
+        child: Container(
+          width: double.infinity,
+          padding: Style.getPadding(),
+          child: Text(
+            text,
+            style: Style.getTextStyle(color: Style.getObscureTextColor()),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  List<Widget> _buildRoleCards() {
+    if (_hasRole('admin')) {
+      return [
+        _homeActionCard(
+          MultiLanguages.of(context)!.translate('companies'),
+          Icons.apartment_rounded,
+          Style.getPrimaryColor(),
+          _openCompanies,
+        ),
+        _homeActionCard(
+          MultiLanguages.of(context)!.translate('freelancers'),
+          Icons.badge_rounded,
+          Style.getSecondaryColor(),
+          _openFreelancers,
+        ),
+        _homeActionCard(
+          MultiLanguages.of(context)!.translate('services'),
+          Icons.design_services_rounded,
+          Style.getAccentColor(),
+          _openServices,
+        ),
+        _homeActionCard(
+          MultiLanguages.of(context)!.translate('requests'),
+          Icons.assignment_rounded,
+          Style.kingBlue,
+          _openRequests,
+        ),
+        _homeActionCard(
+          MultiLanguages.of(context)!.translate('vacancies'),
+          Icons.work_outline_rounded,
+          Style.getPrimaryColor().darken(.1),
+          _openVacancies,
+        ),
+      ];
+    }
+
+    if (_hasRole('empresa')) {
+      return [
+        _homeActionCard(
+          MultiLanguages.of(context)!.translate('freelancers'),
+          Icons.badge_rounded,
+          Style.getPrimaryColor(),
+          _openFreelancers,
+        ),
+        _homeActionCard(
+          MultiLanguages.of(context)!.translate('services'),
+          Icons.design_services_rounded,
+          Style.getSecondaryColor(),
+          _openServices,
+        ),
+        _homeActionCard(
+          MultiLanguages.of(context)!.translate('my_vacancies'),
+          Icons.business_center_rounded,
+          Style.getAccentColor(),
+          _openMyVacancies,
+        ),
+        _homeActionCard(
+          MultiLanguages.of(context)!.translate('vacancies'),
+          Icons.work_outline_rounded,
+          Style.kingBlue,
+          _openVacancies,
+        ),
+        _homeActionCard(
+          MultiLanguages.of(context)!.translate('business_profile'),
+          Icons.apartment_rounded,
+          Style.getPrimaryColor().darken(.1),
+          _openCompanyProfile,
+        ),
+      ];
+    }
+
+    if (_hasRole('freelancer')) {
+      return [
+        _homeActionCard(
+          MultiLanguages.of(context)!.translate('vacancies'),
+          Icons.work_outline_rounded,
+          Style.getPrimaryColor(),
+          _openVacancies,
+        ),
+        _homeActionCard(
+          MultiLanguages.of(context)!.translate('requests'),
+          Icons.assignment_rounded,
+          Style.getSecondaryColor(),
+          _openRequests,
+        ),
+        _homeActionCard(
+          MultiLanguages.of(context)!.translate('my_services'),
+          Icons.work_history_rounded,
+          Style.kingBlue,
+          _openMyServices,
+        ),
+        _homeActionCard(
+          MultiLanguages.of(context)!.translate('my_requests'),
+          Icons.playlist_add_check_rounded,
+          Style.getPrimaryColor().darken(.1),
+          _openMyRequests,
+        ),
+      ];
+    }
+
+    return [
+      _homeActionCard(
+        MultiLanguages.of(context)!.translate('freelancers'),
+        Icons.badge_rounded,
+        Style.getPrimaryColor(),
+        _openFreelancers,
+      ),
+      _homeActionCard(
+        MultiLanguages.of(context)!.translate('services'),
+        Icons.design_services_rounded,
+        Style.getSecondaryColor(),
+        _openServices,
+      ),
+      _homeActionCard(
+        MultiLanguages.of(context)!.translate('requests'),
+        Icons.assignment_rounded,
+        Style.getAccentColor(),
+        _openRequests,
+      ),
+      _homeActionCard(
+        MultiLanguages.of(context)!.translate('vacancies'),
+        Icons.work_outline_rounded,
+        Style.kingBlue,
+        _openVacancies,
+      ),
+    ];
+  }
+
+  Widget _homeActionCard(
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    final cardWidth =
+        (MediaQuery.of(context).size.width -
+            (Style.horizontalPadding * 2) -
+            10.w) /
+        2;
+
+    return SizedBox(
+      width: cardWidth,
+      child: Material(
+        color: Style.getCardColor(),
+        borderRadius: Style.getBorderRadius(),
+        child: InkWell(
+          borderRadius: Style.getBorderRadius(),
+          onTap: onTap,
+          child: Container(
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              borderRadius: Style.getBorderRadius(),
+              border: Border.all(color: color.withValues(alpha: .24)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36.w,
+                  height: 36.w,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: .14),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 18.w),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  title,
+                  style: Style.getTextStyle(
+                    color: Style.getTextColor(),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openFreelancers() {
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const FreelancersScreen()));
+  }
+
+  void _openServices() {
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const ServicesScreen()));
+  }
+
+  void _openMyServices() {
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const MyServicesScreen()));
+  }
+
+  void _openRequests() {
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const RequestsScreen()));
+  }
+
+  void _openMyRequests() {
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const MyRequestsScreen()));
+  }
+
+  void _openVacancies() {
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const VacanciesScreen()));
+  }
+
+  void _openMyVacancies() {
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const MyVacanciesScreen()));
+  }
+
+  void _openCompanies() {
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const CompaniesScreen()));
+  }
+
+  void _openCompanyProfile() {
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const CompanyProfileScreen()));
   }
 
   @override

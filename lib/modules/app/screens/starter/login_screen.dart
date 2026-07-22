@@ -26,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final emailNode = FocusNode();
   final passwordNode = FocusNode();
 
+  // ignore: unused_field
   bool _showPassword = false;
   bool _loading = false;
   bool _biometricEnabled = false;
@@ -73,8 +74,8 @@ class _LoginScreenState extends State<LoginScreen> {
         Dialogs.showSimpleDialog(
           context,
           icon: Icons.waving_hand_rounded,
-          title: 'Bienvenido',
-          message: 'Accede con tu cuenta para continuar.',
+          title: MultiLanguages.of(context)!.translate('login_bye_title'),
+          message: MultiLanguages.of(context)!.translate('login_bye_message'),
           color: Style.getPrimaryColor(),
           duration: 1500,
         );
@@ -244,15 +245,21 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           CustomInputField(
             controller: emailController,
-            label: 'Correo electrónico',
-            hintText: 'usuario@empresa.com',
+            label: MultiLanguages.of(context)!.translate('login_email'),
+            hintText: MultiLanguages.of(context)!.translate('login_email_hint'),
             focusNode: emailNode,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             validator: (value) {
               final text = value?.trim() ?? '';
-              if (text.isEmpty) return 'Ingresa tu correo';
-              if (!text.isEmail) return 'Ingresa un correo válido';
+              if (text.isEmpty) {
+                return MultiLanguages.of(context)!.translate('enter_email');
+              }
+              if (!text.isEmail) {
+                return MultiLanguages.of(
+                  context,
+                )!.translate('enter_valid_email');
+              }
               return null;
             },
             onFieldSubmitted: (_) =>
@@ -260,11 +267,13 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           SizedBox(height: 16.h),
           CustomPasswordField(
-            label: 'Contraseña',
+            label: MultiLanguages.of(context)!.translate('login_password'),
             controller: passwordController,
             validator: (value) {
               final text = value?.trim() ?? '';
-              if (text.isEmpty) return 'Ingresa tu contraseña';
+              if (text.isEmpty) {
+                return MultiLanguages.of(context)!.translate('enter_password');
+              }
               return null;
             },
             onSubmitted: (_) => login(),
@@ -289,7 +298,7 @@ class _LoginScreenState extends State<LoginScreen> {
           builder: (context) => const ForgotPasswordDialog(),
         ),
         child: Text(
-          'Olvidé mi contraseña',
+          MultiLanguages.of(context)!.translate('login_forgot'),
           style: Style.getHeaderThree(
             color: Style.getPrimaryColor(),
             fontWeight: FontWeight.w600,
@@ -317,7 +326,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               )
             : Text(
-                'Iniciar sesión',
+                MultiLanguages.of(context)!.translate('login_sign_in'),
                 style: Style.getHeaderTwo(
                   color: Style.white,
                   fontWeight: FontWeight.w700,
@@ -339,7 +348,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 12.w),
           child: Text(
-            'o',
+            MultiLanguages.of(context)!.translate('or'),
             style: Style.getTextStyle(
               color: Style.getObscureTextColor(),
               fontWeight: FontWeight.w600,
@@ -371,7 +380,7 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: EdgeInsets.symmetric(vertical: 10.h),
         ),
         child: Text(
-          'Crear cuenta',
+          MultiLanguages.of(context)!.translate('login_create_account'),
           style: Style.getHeaderThree(
             color: Style.getPrimaryColor(),
             fontWeight: FontWeight.w700,
@@ -407,8 +416,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
       await Future.delayed(const Duration(milliseconds: 1700));
 
-      await _askToEnableBiometrics();
-
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -418,12 +425,12 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       final errorMessage = error is TimeoutException
-          ? 'Tiempo de espera agotado. Verifica tu conexión e inténtalo de nuevo'
+          ? MultiLanguages.of(context)!.translate('timeout_error')
           : error.toString().replaceFirst('Exception: ', '').trim();
 
       Dialogs.showSimpleDialog(
         context,
-        title: 'Error',
+        title: MultiLanguages.of(context)!.translate('error'),
         message: errorMessage,
         color: Style.getErrorColor(),
         svg: Assets.svgErrorIcon,
@@ -442,6 +449,7 @@ class _LoginScreenState extends State<LoginScreen> {
     ).push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
   }
 
+  // ignore: unused_element
   Future<void> _askToEnableBiometrics() async {
     if (!mounted) return;
 
@@ -451,12 +459,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final enableBiometric = await Dialogs.showConfirmDialog(
       context,
-      title: 'Activar autenticación biométrica',
-      message:
-          '¿Deseas activar el acceso biométrico para volver a entrar más rápido?',
+      title: MultiLanguages.of(context)!.translate('biometric_enable_title'),
+      message: MultiLanguages.of(
+        context,
+      )!.translate('biometric_enable_message'),
       svg: Assets.svgInfoIcon,
-      confirmText: 'Activar',
-      cancelText: 'Ahora no',
+      confirmText: MultiLanguages.of(context)!.translate('activate'),
+      cancelText: MultiLanguages.of(context)!.translate('not_now'),
     );
 
     if (enableBiometric) {
@@ -485,8 +494,12 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
         Dialogs.showSimpleDialog(
           context,
-          title: 'Biometría no disponible',
-          message: 'Este dispositivo no soporta autenticación biométrica.',
+          title: MultiLanguages.of(
+            context,
+          )!.translate('biometric_not_available_title'),
+          message: MultiLanguages.of(
+            context,
+          )!.translate('biometric_not_available_message'),
           color: Style.getErrorColor(),
           icon: Icons.fingerprint_rounded,
         );
@@ -498,9 +511,12 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
         Dialogs.showSimpleDialog(
           context,
-          title: 'Biometría no registrada',
-          message:
-              'Debes registrar una huella, rostro o método biométrico en el dispositivo para usar este acceso.',
+          title: MultiLanguages.of(
+            context,
+          )!.translate('biometric_not_enrolled_title'),
+          message: MultiLanguages.of(
+            context,
+          )!.translate('biometric_not_enrolled_message'),
           color: Style.getErrorColor(),
           icon: Icons.fingerprint_rounded,
         );
@@ -508,16 +524,19 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final authenticated = await biometricService.authenticate(
-        reason: 'Autentícate para acceder a tu sesión',
+        reason: MultiLanguages.of(context)!.translate('biometric_login_reason'),
       );
 
       if (!authenticated) {
         if (!mounted) return;
         Dialogs.showSimpleDialog(
           context,
-          title: 'Autenticación fallida',
-          message:
-              'No se pudo validar tu biometría. Verifica la huella o rostro e inténtalo otra vez.',
+          title: MultiLanguages.of(
+            context,
+          )!.translate('biometric_failed_title'),
+          message: MultiLanguages.of(
+            context,
+          )!.translate('biometric_failed_message'),
           color: Style.getErrorColor(),
           icon: Icons.fingerprint_rounded,
         );
@@ -526,6 +545,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('biometric_success_title'),
+        message: MultiLanguages.of(
+          context,
+        )!.translate('biometric_success_message'),
+        color: Style.getPrimaryColor(),
+        svg: Assets.svgCheckIcon,
+        duration: 1300,
+      );
+
+      await Future.delayed(const Duration(milliseconds: 1300));
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const DashboardScreen()),

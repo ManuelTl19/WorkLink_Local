@@ -98,10 +98,14 @@ class VacancyCard extends StatelessWidget {
                 children: [
                   _salaryTag(),
                   const Spacer(),
-                  Icon(Icons.people_alt_rounded, color: Style.getSecondaryColor(), size: 16.w),
+                  Icon(
+                    Icons.people_alt_rounded,
+                    color: Style.getSecondaryColor(),
+                    size: 16.w,
+                  ),
                   SizedBox(width: 4.w),
                   Text(
-                    '${vacancy.applicantsCount} postulantes',
+                    '${vacancy.applicantsCount} ${MultiLanguages.of(context)?.translate('applicants') ?? 'postulantes'}',
                     style: Style.getTextStyle(
                       color: Style.getTextColor(),
                       fontWeight: FontWeight.w700,
@@ -111,7 +115,10 @@ class VacancyCard extends StatelessWidget {
                 ],
               ),
               SizedBox(height: 12.h),
-              if (mode == VacancyCardMode.freelancer) _freelancerActions() else _companyActions(),
+              if (mode == VacancyCardMode.freelancer)
+                _freelancerActions(context)
+              else
+                _companyActions(context),
             ],
           ),
         ),
@@ -129,7 +136,8 @@ class VacancyCard extends StatelessWidget {
         child: CachedNetworkImage(
           imageUrl: vacancy.companyLogoUrl,
           fit: BoxFit.cover,
-          placeholder: (_, __) => Container(color: Style.getPrimaryColor().withValues(alpha: .08)),
+          placeholder: (_, __) =>
+              Container(color: Style.getPrimaryColor().withValues(alpha: .08)),
           errorWidget: (_, __, ___) => Icon(
             Icons.apartment_rounded,
             color: Style.getPrimaryColor(),
@@ -146,7 +154,9 @@ class VacancyCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Style.getBackgroundColor(),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Style.getBorderColor().withValues(alpha: .25)),
+        border: Border.all(
+          color: Style.getBorderColor().withValues(alpha: .25),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -206,14 +216,16 @@ class VacancyCard extends StatelessWidget {
     );
   }
 
-  Widget _freelancerActions() {
+  Widget _freelancerActions(BuildContext context) {
     return Row(
       children: [
         Expanded(
           child: OutlinedButton.icon(
             onPressed: onTap,
             icon: Icon(Icons.visibility_rounded, size: 16.w),
-            label: const Text('Ver'),
+            label: Text(
+              MultiLanguages.of(context)?.translate('view_detail') ?? 'Ver',
+            ),
           ),
         ),
         SizedBox(width: 10.w),
@@ -221,7 +233,9 @@ class VacancyCard extends StatelessWidget {
           child: ElevatedButton.icon(
             onPressed: onApply,
             icon: Icon(Icons.send_rounded, size: 16.w),
-            label: const Text('Aplicar'),
+            label: Text(
+              MultiLanguages.of(context)?.translate('apply') ?? 'Aplicar',
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: Style.getPrimaryColor(),
               foregroundColor: Style.white,
@@ -232,44 +246,48 @@ class VacancyCard extends StatelessWidget {
     );
   }
 
-  Widget _companyActions() {
+  Widget _companyActions(BuildContext context) {
     return Wrap(
       spacing: 8.w,
       runSpacing: 8.h,
       children: [
         _actionButton(
-          label: 'Ver',
+          label: MultiLanguages.of(context)?.translate('view_detail') ?? 'Ver',
           icon: Icons.visibility_rounded,
           onPressed: onTap,
           filled: false,
         ),
         _actionButton(
-          label: 'Editar',
+          label:
+              MultiLanguages.of(context)?.translate('edit_profile') ?? 'Editar',
           icon: Icons.edit_rounded,
           onPressed: onEdit,
         ),
         _actionButton(
-          label: 'Eliminar',
+          label: MultiLanguages.of(context)?.translate('delete') ?? 'Eliminar',
           icon: Icons.delete_rounded,
           onPressed: onDelete,
           destructive: true,
           filled: false,
         ),
         _actionButton(
-          label: 'Postulantes',
+          label:
+              MultiLanguages.of(context)?.translate('applicants') ??
+              'Postulantes',
           icon: Icons.people_alt_rounded,
           onPressed: onViewApplicants,
         ),
         if (onStatusPressed != null)
           _actionButton(
-            label: 'Estado',
+            label: MultiLanguages.of(context)?.translate('status') ?? 'Estado',
             icon: Icons.sync_alt_rounded,
             onPressed: onStatusPressed,
             filled: false,
           ),
         if (onViewCompany != null)
           _actionButton(
-            label: 'Empresa',
+            label:
+                MultiLanguages.of(context)?.translate('company') ?? 'Empresa',
             icon: Icons.apartment_rounded,
             onPressed: onViewCompany,
             filled: false,
@@ -286,7 +304,9 @@ class VacancyCard extends StatelessWidget {
     bool destructive = false,
   }) {
     final foreground = destructive ? Style.getErrorColor() : Style.white;
-    final background = destructive ? Style.getErrorColor() : Style.getPrimaryColor();
+    final background = destructive
+        ? Style.getErrorColor()
+        : Style.getPrimaryColor();
 
     return filled
         ? ElevatedButton.icon(
@@ -303,9 +323,13 @@ class VacancyCard extends StatelessWidget {
             icon: Icon(icon, size: 16.w),
             label: Text(label),
             style: OutlinedButton.styleFrom(
-              foregroundColor: destructive ? Style.getErrorColor() : Style.getTextColor(),
+              foregroundColor: destructive
+                  ? Style.getErrorColor()
+                  : Style.getTextColor(),
               side: BorderSide(
-                color: destructive ? Style.getErrorColor() : Style.getBorderColor(),
+                color: destructive
+                    ? Style.getErrorColor()
+                    : Style.getBorderColor(),
               ),
             ),
           );
@@ -314,11 +338,11 @@ class VacancyCard extends StatelessWidget {
   Color _statusColor(VacancyStatus status) {
     switch (status) {
       case VacancyStatus.abierta:
-        return const Color(0xFF28C76F);
+        return Style.getPrimaryColor();
       case VacancyStatus.cerrada:
         return Style.getErrorColor();
       case VacancyStatus.pausada:
-        return const Color(0xFFFFA500);
+        return Style.getSecondaryColor();
     }
   }
 }

@@ -17,21 +17,57 @@ class Dialogs {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder:
-          (context) => DialogAnimation(
-            content: SimpleDialogContent(
-              title: title,
-              message: message,
-              svg: svg ?? '',
-              icon: icon ?? Icons.info_outline_rounded,
-              color: color,
-            ),
-          ),
+      builder: (context) => DialogAnimation(
+        content: SimpleDialogContent(
+          title: title,
+          message: message,
+          svg: svg ?? '',
+          icon: icon ?? Icons.info_outline_rounded,
+          color: color,
+        ),
+      ),
     );
 
     Future.delayed(Duration(milliseconds: duration), () {
       if (context.mounted) Navigator.of(context).pop(true);
     });
+  }
+
+  static showLoader(BuildContext context, {String message = 'Cargando...'}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(20.w),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                ),
+                SizedBox(width: 16.w),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: Style.getTextStyle(
+                      color: Style.getTextColor(),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   // Function to show a dialog with a buttons for actions
@@ -46,17 +82,16 @@ class Dialogs {
   }) async {
     showDialog(
       context: context,
-      builder:
-          (context) => DialogAnimation(
-            content: ComplexDialogContent(
-              title: title,
-              message: message,
-              svg: svg ?? '',
-              icon: icon ?? Icons.info_outline_rounded,
-              color: color,
-              actions: actions,
-            ),
-          ),
+      builder: (context) => DialogAnimation(
+        content: ComplexDialogContent(
+          title: title,
+          message: message,
+          svg: svg ?? '',
+          icon: icon ?? Icons.info_outline_rounded,
+          color: color,
+          actions: actions,
+        ),
+      ),
     );
   }
 
@@ -72,43 +107,37 @@ class Dialogs {
     Color confirmColor = Colors.green,
     Color cancelColor = Colors.red,
   }) async {
-    bool? confirmed;
-
-    await showComplexDialog(
+    return showDialog<bool>(
       context: context,
-      title: title,
-      message: message,
-      svg: svg,
-      icon: icon,
-      color: cancelColor,
-      actions: [
-        TextButton(
-          onPressed: () {
-            confirmed = false;
-            Navigator.of(context).pop();
-          },
-          style: TextButton.styleFrom(
-            backgroundColor: cancelColor,
-            foregroundColor: Colors.white,
-          ),
-          child: Text(cancelText),
+      builder: (dialogContext) => DialogAnimation(
+        content: ComplexDialogContent(
+          title: title,
+          message: message,
+          svg: svg ?? '',
+          icon: icon ?? Icons.info_outline_rounded,
+          color: cancelColor,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              style: TextButton.styleFrom(
+                backgroundColor: cancelColor,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(cancelText),
+            ),
+            const SizedBox(width: 10),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: TextButton.styleFrom(
+                backgroundColor: confirmColor,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(confirmText),
+            ),
+          ],
         ),
-        const SizedBox(width: 10),
-        TextButton(
-          onPressed: () {
-            confirmed = true;
-            Navigator.of(context).pop();
-          },
-          style: TextButton.styleFrom(
-            backgroundColor: confirmColor,
-            foregroundColor: Colors.white,
-          ),
-          child: Text(confirmText),
-        ),
-      ],
+      ),
     );
-
-    return confirmed;
   }
 
   // Function to show a confirmation dialog

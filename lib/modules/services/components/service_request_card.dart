@@ -1,7 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/services/models/service_request_model.dart';
-import 'package:worklink_local/utils/utils.dart';
 
 class ServiceRequestCard extends StatelessWidget {
   final ServiceRequestModel request;
@@ -56,8 +55,12 @@ class ServiceRequestCard extends StatelessWidget {
                       ),
                       SizedBox(height: 6.h),
                       Text(
-                        DateFormat('dd MMM yyyy, HH:mm').format(request.requestedAt),
-                        style: Style.getTextStyle(color: Style.getObscureTextColor()),
+                        DateFormat(
+                          'dd MMM yyyy, HH:mm',
+                        ).format(request.requestedAt),
+                        style: Style.getTextStyle(
+                          color: Style.getObscureTextColor(),
+                        ),
                       ),
                     ],
                   ),
@@ -71,15 +74,21 @@ class ServiceRequestCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: onViewProfile,
                     icon: Icon(Icons.person_outline_rounded, size: 16.w),
-                    label: const Text('Ver perfil'),
+                    label: Text(
+                      MultiLanguages.of(context)?.translate('view_profile') ??
+                          'Ver perfil',
+                    ),
                   ),
                 ),
                 SizedBox(width: 10.w),
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: onContact,
-                    icon: Icon(Icons.chat_bubble_outline_rounded, size: 16.w),
-                    label: const Text('Contactar'),
+                    icon: Icon(Icons.chat_rounded, size: 16.w),
+                    label: Text(
+                      MultiLanguages.of(context)?.translate('contact') ??
+                          'Contactar',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Style.getPrimaryColor(),
                       foregroundColor: Style.white,
@@ -104,8 +113,13 @@ class ServiceRequestCard extends StatelessWidget {
         child: CachedNetworkImage(
           imageUrl: request.avatarUrl,
           fit: BoxFit.cover,
-          placeholder: (_, __) => Container(color: Style.getPrimaryColor().withValues(alpha: .08)),
-          errorWidget: (_, __, ___) => Icon(Icons.groups_rounded, color: Style.getPrimaryColor(), size: 24.w),
+          placeholder: (_, __) =>
+              Container(color: Style.getPrimaryColor().withValues(alpha: .08)),
+          errorWidget: (_, __, ___) => Icon(
+            Icons.groups_rounded,
+            color: Style.getPrimaryColor(),
+            size: 24.w,
+          ),
         ),
       ),
     );

@@ -1,6 +1,5 @@
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/app/screens/starter/login_screen.dart';
-import 'package:worklink_local/utils/utils.dart';
 import 'onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {

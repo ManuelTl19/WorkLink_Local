@@ -1,7 +1,15 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:worklink_local/utils/utils.dart';
 import 'package:worklink_local/helpers/helpers.dart';
-
-import '../../app/screens/dashboard_screen.dart';
+import 'package:worklink_local/modules/app/screens/starter/login_screen.dart';
+import 'package:worklink_local/modules/settings/screens/report_problem_screen.dart';
+import 'package:worklink_local/modules/settings/screens/terms_conditions_screen.dart';
+import 'package:worklink_local/modules/users/models/user_model.dart';
+import 'package:worklink_local/modules/users/services/user_service.dart';
+import 'package:worklink_local/main.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -197,43 +205,13 @@ class SettingsScreenState extends State<SettingsScreen> {
                               color: Style.getSecondaryColor(),
                               size: 18.w,
                             ),
-                            onTap: () => _showSimpleInfo(
-                              context: context,
-                              title: MultiLanguages.of(
-                                context,
-                              )!.translate('report_problem'),
-                              message: MultiLanguages.of(
-                                context,
-                              )!.translate('report_problem_description'),
-                              color: Style.getSecondaryColor(),
-                              icon: Icons.bug_report_rounded,
-                            ),
-                          ),
-                          _divider(),
-                          Tiles.settingTile(
-                            dense: true,
-                            title: MultiLanguages.of(
-                              context,
-                            )!.translate('privacy_policy'),
-                            subtitle: MultiLanguages.of(
-                              context,
-                            )!.translate('privacy_policy_description'),
-                            icon: Icon(
-                              Icons.privacy_tip_rounded,
-                              color: Style.getSecondaryColor(),
-                              size: 18.w,
-                            ),
-                            onTap: () => _showSimpleInfo(
-                              context: context,
-                              title: MultiLanguages.of(
-                                context,
-                              )!.translate('privacy_policy'),
-                              message: MultiLanguages.of(
-                                context,
-                              )!.translate('privacy_policy_description'),
-                              color: Style.getSecondaryColor(),
-                              icon: Icons.privacy_tip_rounded,
-                            ),
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const ReportProblemScreen(),
+                                ),
+                              );
+                            },
                           ),
                           _divider(),
                           Tiles.settingTile(
@@ -249,17 +227,13 @@ class SettingsScreenState extends State<SettingsScreen> {
                               color: Style.getSecondaryColor(),
                               size: 18.w,
                             ),
-                            onTap: () => _showSimpleInfo(
-                              context: context,
-                              title: MultiLanguages.of(
-                                context,
-                              )!.translate('terms_conditions'),
-                              message: MultiLanguages.of(
-                                context,
-                              )!.translate('terms_conditions_description'),
-                              color: Style.getSecondaryColor(),
-                              icon: Icons.gavel_rounded,
-                            ),
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const TermsConditionsScreen(),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -314,17 +288,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                               color: Style.getErrorColor(),
                               size: 18.w,
                             ),
-                            onTap: () => _showSimpleInfo(
-                              context: context,
-                              title: MultiLanguages.of(
-                                context,
-                              )!.translate('delete_account'),
-                              message: MultiLanguages.of(
-                                context,
-                              )!.translate('delete_account_description'),
-                              color: Style.getErrorColor(),
-                              icon: Icons.delete_forever_rounded,
-                            ),
+                            onTap: _deleteAccount,
                           ),
                         ],
                       ),
@@ -383,19 +347,190 @@ class SettingsScreenState extends State<SettingsScreen> {
         : 'English';
   }
 
-  void _showSimpleInfo({
-    required BuildContext context,
-    required String title,
-    required String message,
-    required Color color,
-    required IconData icon,
-  }) {
-    Dialogs.showSimpleDialog(
-      context,
-      title: title,
-      message: message,
-      icon: icon,
-      color: color,
+  Future<void> _deleteAccount() async {
+    final controller = TextEditingController();
+    var obscureText = true;
+    String? fieldError;
+    var isDeleting = false;
+    var successState = false;
+    String? successMessage;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Style.getCardColor(),
+              title: Text(
+                successState ? 'Cuenta eliminada' : 'Confirmar contraseña',
+                style: Style.getHeaderThree(
+                  color: successState
+                      ? Style.getPrimaryColor()
+                      : Style.getTextColor(),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              content: successState
+                  ? Text(
+                      successMessage ?? 'Tu cuenta se eliminó correctamente.',
+                      style: Style.getTextStyle(color: Style.getTextColor()),
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Para eliminar tu cuenta, ingresa tu contraseña actual.',
+                          style: Style.getTextStyle(
+                            color: Style.getObscureTextColor(),
+                          ),
+                        ),
+                        SizedBox(height: 12.h),
+                        TextField(
+                          controller: controller,
+                          obscureText: obscureText,
+                          enabled: !isDeleting,
+                          decoration: InputDecoration(
+                            labelText: 'Contraseña',
+                            errorText: fieldError,
+                            filled: true,
+                            fillColor: Style.getBackgroundColor(),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14.r),
+                            ),
+                            suffixIcon: IconButton(
+                              onPressed: isDeleting
+                                  ? null
+                                  : () {
+                                      setDialogState(() {
+                                        obscureText = !obscureText;
+                                      });
+                                    },
+                              icon: Icon(
+                                obscureText
+                                    ? Icons.visibility_off_rounded
+                                    : Icons.visibility_rounded,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+              actions: successState
+                  ? [
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Style.getPrimaryColor(),
+                          foregroundColor: Style.white,
+                        ),
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text('Continuar'),
+                      ),
+                    ]
+                  : [
+                      TextButton(
+                        onPressed: isDeleting
+                            ? null
+                            : () => Navigator.pop(dialogContext),
+                        child: Text(
+                          MultiLanguages.of(context)!.translate('cancel'),
+                        ),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Style.getErrorColor(),
+                          foregroundColor: Style.white,
+                        ),
+                        onPressed: isDeleting
+                            ? null
+                            : () async {
+                                final value = controller.text.trim();
+                                if (value.isEmpty) {
+                                  setDialogState(() {
+                                    fieldError = 'Ingresa tu contraseña';
+                                  });
+                                  return;
+                                }
+
+                                setDialogState(() {
+                                  fieldError = null;
+                                  isDeleting = true;
+                                });
+
+                                try {
+                                  final prefsLocal =
+                                      await SharedPreferences.getInstance();
+                                  final userRaw = prefsLocal.getString(
+                                    Constants.userEmailKey,
+                                  );
+
+                                  if (userRaw == null || userRaw.isEmpty) {
+                                    throw Exception(
+                                      'No hay sesión activa para eliminar.',
+                                    );
+                                  }
+
+                                  final user = UserModel.fromJson(
+                                    (jsonDecode(userRaw)
+                                        as Map<String, dynamic>),
+                                  );
+
+                                  await UserService.deleteUser(
+                                    userId: user.id,
+                                    password: value,
+                                  );
+
+                                  if (!mounted) return;
+
+                                  setDialogState(() {
+                                    successState = true;
+                                    successMessage =
+                                        'Tu cuenta se eliminó correctamente.';
+                                    isDeleting = false;
+                                  });
+
+                                  await AuthService.logout();
+                                } catch (error) {
+                                  if (!mounted) return;
+                                  setDialogState(() {
+                                    fieldError = error.toString().replaceFirst(
+                                      'Exception: ',
+                                      '',
+                                    );
+                                    isDeleting = false;
+                                  });
+                                }
+                              },
+                        child: isDeleting
+                            ? SizedBox(
+                                width: 18.w,
+                                height: 18.w,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Style.white,
+                                ),
+                              )
+                            : Text(
+                                MultiLanguages.of(context)!.translate('delete'),
+                              ),
+                      ),
+                    ],
+            );
+          },
+        );
+      },
     );
+
+    controller.dispose();
+
+    if (!mounted) return;
+
+    if (successState) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 }

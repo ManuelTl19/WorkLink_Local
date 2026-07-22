@@ -51,35 +51,108 @@ class _RequesterProfileScreenState extends State<RequesterProfileScreen> {
               onPressed: () => Navigator.pop(context),
               icon: Icon(Icons.arrow_back_ios_new_rounded, color: Style.white),
             ),
-            actions: [IconButton(onPressed: _loadData, icon: Icon(Icons.refresh_rounded, color: Style.white))],
-            title: Text('Perfil del solicitante', style: Style.getHeaderTwo(color: Style.white, fontWeight: FontWeight.w700)),
-            flexibleSpace: FlexibleSpaceBar(background: _loading ? Center(child: CustomWidgets.mProgress(Style.getPrimaryColor())) : _hero()),
+            actions: [
+              IconButton(
+                onPressed: _loadData,
+                icon: Icon(Icons.refresh_rounded, color: Style.white),
+              ),
+            ],
+            title: Text(
+              MultiLanguages.of(
+                    context,
+                  )?.translate('requester_profile_title') ??
+                  'Perfil del solicitante',
+              style: Style.getHeaderTwo(
+                color: Style.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            flexibleSpace: FlexibleSpaceBar(
+              background: _loading
+                  ? Center(
+                      child: CustomWidgets.mProgress(Style.getPrimaryColor()),
+                    )
+                  : _hero(),
+            ),
           ),
           if (_loading)
             SliverToBoxAdapter(child: SizedBox(height: 24.h))
           else if (_requester == null)
-            SliverFillRemaining(hasScrollBody: false, child: Center(child: Text('El solicitante no existe.', style: Style.getTextStyle(color: Style.getObscureTextColor()))))
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Text(
+                  MultiLanguages.of(
+                        context,
+                      )?.translate('requester_not_found') ??
+                      'El solicitante no existe.',
+                  style: Style.getTextStyle(color: Style.getObscureTextColor()),
+                ),
+              ),
+            )
           else ...[
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Style.horizontalPadding.w, 16.h, Style.horizontalPadding.w, 0),
+                padding: EdgeInsets.fromLTRB(
+                  Style.horizontalPadding.w,
+                  16.h,
+                  Style.horizontalPadding.w,
+                  0,
+                ),
                 child: Card(
                   color: Style.getCardColor(),
                   elevation: 4,
                   shadowColor: Style.getShadowColor(),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24.r),
+                  ),
                   child: Padding(
                     padding: EdgeInsets.all(18.w),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Información', style: Style.getHeaderTwo(color: Style.getTextColor(), fontWeight: FontWeight.w800)),
+                        Text(
+                          MultiLanguages.of(
+                                context,
+                              )?.translate('information') ??
+                              'Información',
+                          style: Style.getHeaderTwo(
+                            color: Style.getTextColor(),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                         SizedBox(height: 12.h),
-                        _detailRow('Descripción', _requester!.description),
-                        _detailRow('Ubicación', _requester!.location),
-                        _detailRow('Calificación', _requester!.rating.toStringAsFixed(1)),
-                        _detailRow('Información relevante', _requester!.relevantInfo),
-                        _detailRow('Sitio', _requester!.website),
+                        _detailRow(
+                          MultiLanguages.of(
+                                context,
+                              )?.translate('description') ??
+                              'Descripción',
+                          _requester!.description,
+                        ),
+                        _detailRow(
+                          MultiLanguages.of(context)?.translate('location') ??
+                              'Ubicación',
+                          _requester!.location,
+                        ),
+                        _detailRow(
+                          MultiLanguages.of(
+                                context,
+                              )?.translate('services_rating') ??
+                              'Calificación',
+                          _requester!.rating.toStringAsFixed(1),
+                        ),
+                        _detailRow(
+                          MultiLanguages.of(
+                                context,
+                              )?.translate('relevant_info') ??
+                              'Información relevante',
+                          _requester!.relevantInfo,
+                        ),
+                        _detailRow(
+                          MultiLanguages.of(context)?.translate('website') ??
+                              'Sitio',
+                          _requester!.website,
+                        ),
                       ],
                     ),
                   ),
@@ -103,7 +176,11 @@ class _RequesterProfileScreenState extends State<RequesterProfileScreen> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Colors.transparent, Colors.black.withValues(alpha: .38), Style.getBackgroundColor().withValues(alpha: .95)],
+              colors: [
+                Style.transparent,
+                Style.black.withValues(alpha: .38),
+                Style.getBackgroundColor().withValues(alpha: .95),
+              ],
             ),
           ),
         ),
@@ -115,7 +192,14 @@ class _RequesterProfileScreenState extends State<RequesterProfileScreen> {
               mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(requester.name, style: Style.getHeaderTwo(color: Style.white, fontWeight: FontWeight.w800, fontSize: 22)),
+                Text(
+                  requester.name,
+                  style: Style.getHeaderTwo(
+                    color: Style.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 22,
+                  ),
+                ),
                 SizedBox(height: 8.h),
                 Wrap(
                   spacing: 8.w,
@@ -139,9 +223,28 @@ class _RequesterProfileScreenState extends State<RequesterProfileScreen> {
       padding: EdgeInsets.only(bottom: 10.h),
       child: Row(
         children: [
-          Expanded(flex: 4, child: Text(label, style: Style.getTextStyle(color: Style.getObscureTextColor(), fontWeight: FontWeight.w600))),
+          Expanded(
+            flex: 4,
+            child: Text(
+              label,
+              style: Style.getTextStyle(
+                color: Style.getObscureTextColor(),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
           SizedBox(width: 12.w),
-          Expanded(flex: 6, child: Text(value, textAlign: TextAlign.right, style: Style.getTextStyle(color: Style.getTextColor(), fontWeight: FontWeight.w700))),
+          Expanded(
+            flex: 6,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: Style.getTextStyle(
+                color: Style.getTextColor(),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -150,8 +253,18 @@ class _RequesterProfileScreenState extends State<RequesterProfileScreen> {
   Widget _pill(String label) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-      decoration: BoxDecoration(color: Style.white.withValues(alpha: .16), borderRadius: BorderRadius.circular(999), border: Border.all(color: Style.white.withValues(alpha: .22))),
-      child: Text(label, style: Style.getTextStyle(color: Style.white, fontWeight: FontWeight.w700)),
+      decoration: BoxDecoration(
+        color: Style.white.withValues(alpha: .16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Style.white.withValues(alpha: .22)),
+      ),
+      child: Text(
+        label,
+        style: Style.getTextStyle(
+          color: Style.white,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }

@@ -20,6 +20,7 @@ class MessageService {
         text: 'Sí, ya funciona la pantalla de mensajes.',
         sentAt: DateTime.now().subtract(const Duration(minutes: 28)),
         isMine: true,
+        status: MessageDeliveryStatus.read,
       ),
       MessageModel(
         id: 3,
@@ -34,6 +35,7 @@ class MessageService {
         text: 'Por ahora solo es una prueba visual.',
         sentAt: DateTime.now().subtract(const Duration(minutes: 20)),
         isMine: true,
+        status: MessageDeliveryStatus.delivered,
       ),
     ],
     2: [
@@ -51,6 +53,7 @@ class MessageService {
         text: 'Claro, te lo mando ahorita.',
         sentAt: DateTime.now().subtract(const Duration(hours: 2, minutes: 6)),
         isMine: true,
+        status: MessageDeliveryStatus.read,
       ),
     ],
     3: [
@@ -70,6 +73,7 @@ class MessageService {
           const Duration(days: 1, hours: 1, minutes: 10),
         ),
         isMine: true,
+        status: MessageDeliveryStatus.delivered,
       ),
     ],
     4: [
@@ -172,7 +176,23 @@ class MessageService {
   static Future<List<MessageModel>> loadDemoConversation(int chatId) async {
     await Future.delayed(const Duration(milliseconds: 500));
 
-    return List<MessageModel>.from(_demoThreads[chatId] ?? const []);
+    final thread = List<MessageModel>.from(_demoThreads[chatId] ?? const []);
+    final normalized = thread
+        .map((message) => MessageModel(
+              id: message.id,
+              senderName: message.senderName,
+              text: message.text,
+              imageUrl: message.imageUrl,
+              sentAt: message.sentAt,
+              isMine: message.isMine,
+              unread: false,
+              type: message.type,
+              status: message.status,
+            ))
+        .toList();
+
+    _demoThreads[chatId] = normalized;
+    return normalized;
   }
 
   static Future<MessageModel> sendDemoMessage({
@@ -188,6 +208,8 @@ class MessageService {
       text: text.trim(),
       sentAt: DateTime.now(),
       isMine: true,
+      type: MessageType.text,
+      status: MessageDeliveryStatus.delivered,
     );
 
     final thread = _demoThreads[chatId] ?? <MessageModel>[];
@@ -202,6 +224,48 @@ class MessageService {
         avatarSeed: chat.avatarSeed,
         isOnline: chat.isOnline,
         lastMessage: newMessage.text,
+        lastMessageAt: newMessage.sentAt,
+        unreadCount: chat.unreadCount,
+        subtitle: chat.subtitle,
+        avatarUrl: chat.avatarUrl,
+        relatedEntityId: chat.relatedEntityId,
+        relatedEntityType: chat.relatedEntityType,
+      );
+    }
+
+    return newMessage;
+  }
+
+  static Future<MessageModel> sendDemoImageMessage({
+    required int chatId,
+    required int nextId,
+    required String imageUrl,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    final newMessage = MessageModel(
+      id: nextId,
+      senderName: 'Tú',
+      text: 'Imagen adjunta',
+      imageUrl: imageUrl,
+      sentAt: DateTime.now(),
+      isMine: true,
+      type: MessageType.image,
+      status: MessageDeliveryStatus.delivered,
+    );
+
+    final thread = _demoThreads[chatId] ?? <MessageModel>[];
+    _demoThreads[chatId] = [...thread, newMessage];
+
+    final chatIndex = _demoChats.indexWhere((chat) => chat.id == chatId);
+    if (chatIndex != -1) {
+      final chat = _demoChats[chatIndex];
+      _demoChats[chatIndex] = ChatModel(
+        id: chat.id,
+        name: chat.name,
+        avatarSeed: chat.avatarSeed,
+        isOnline: chat.isOnline,
+        lastMessage: 'Imagen',
         lastMessageAt: newMessage.sentAt,
         unreadCount: chat.unreadCount,
         subtitle: chat.subtitle,

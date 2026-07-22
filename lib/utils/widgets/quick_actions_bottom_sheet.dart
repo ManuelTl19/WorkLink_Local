@@ -60,7 +60,12 @@ class _QuickActionsState extends State<QuickActions> {
             builder: (context) => Container(
               height: 300,
               color: Colors.white,
-              child: const Center(child: Text('Pantalla en desarrollo')),
+              child: Center(
+                child: Text(
+                  MultiLanguages.of(context)?.translate('development_screen') ??
+                      'Pantalla en desarrollo',
+                ),
+              ),
             ),
           ),
         ),
@@ -75,7 +80,12 @@ class _QuickActionsState extends State<QuickActions> {
             builder: (context) => Container(
               height: 300,
               color: Colors.white,
-              child: const Center(child: Text('Pantalla en desarrollo')),
+              child: Center(
+                child: Text(
+                  MultiLanguages.of(context)?.translate('development_screen') ??
+                      'Pantalla en desarrollo',
+                ),
+              ),
             ),
           ),
         ),
@@ -90,7 +100,12 @@ class _QuickActionsState extends State<QuickActions> {
             builder: (context) => Container(
               height: 300,
               color: Colors.white,
-              child: const Center(child: Text('Pantalla en desarrollo')),
+              child: Center(
+                child: Text(
+                  MultiLanguages.of(context)?.translate('development_screen') ??
+                      'Pantalla en desarrollo',
+                ),
+              ),
             ),
           ),
         ),
