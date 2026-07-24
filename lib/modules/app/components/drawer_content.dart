@@ -8,7 +8,6 @@ import 'package:worklink_local/modules/app/screens/dashboard_screen.dart';
 import 'package:worklink_local/modules/app/screens/starter/login_screen.dart';
 import 'package:worklink_local/modules/companies/screens/company_profile_screen.dart';
 import 'package:worklink_local/modules/freelancers/freelancers.dart';
-import 'package:worklink_local/modules/notifications/screens/notifications_screen.dart';
 import 'package:worklink_local/modules/reviews/screens/reviews_screen.dart';
 import 'package:worklink_local/modules/reports/screens/reports_screen.dart';
 import 'package:worklink_local/modules/services/services.dart';
@@ -28,6 +27,7 @@ class DrawerContent extends StatefulWidget {
 
 class _DrawerContentState extends State<DrawerContent> with RouteAware {
   UserModel? _user;
+  bool _hasFreelancerProfile = true;
   // ignore: unused_field
   bool _isLoading = true;
   String? _activeSection;
@@ -62,23 +62,81 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
   }
 
   Future<void> _loadUser() async {
+    UserModel? loadedUser;
+    var hasFreelancerProfile = true;
+
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final userRaw = prefs.getString(Constants.userEmailKey);
 
       if (userRaw != null && userRaw.isNotEmpty) {
         final userMap = jsonDecode(userRaw) as Map<String, dynamic>;
-        _user = UserModel.fromJson(userMap);
+        loadedUser = UserModel.fromJson(userMap);
+
+        if (_isFreelancerUser(loadedUser) && loadedUser.id > 0) {
+          final profile = await FreelancersService.getProfileByUserId(
+            loadedUser.id,
+          );
+          hasFreelancerProfile = profile?.id != null;
+        }
       }
     } catch (e) {
+      if (loadedUser != null && _isFreelancerUser(loadedUser)) {
+        hasFreelancerProfile = false;
+      }
       logWarning('No se pudo leer el usuario del drawer: $e');
     } finally {
       if (mounted) {
         setState(() {
+          _user = loadedUser;
+          _hasFreelancerProfile = hasFreelancerProfile;
           _isLoading = false;
         });
       }
     }
+  }
+
+  VoidCallback _freelancerRestrictedAction(VoidCallback onAllowed) {
+    return () {
+      if (!_hasFreelancerProfile) {
+        _showFreelancerProfileRequiredDialog();
+        return;
+      }
+      onAllowed();
+    };
+  }
+
+  bool _isFreelancerUser(UserModel user) {
+    final roles = user.roles
+        .map((value) => value.toLowerCase().trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+    final type = user.tipoCuenta.toLowerCase().trim();
+    return roles.contains('freelancer') || type == 'freelancer';
+  }
+
+  void _showFreelancerProfileRequiredDialog() {
+    Dialogs.showSimpleDialog(
+      context,
+      title:
+          MultiLanguages.of(
+            context,
+          )?.translate('freelancer_profile_required_title') ??
+          'Perfil profesional requerido',
+      message:
+          MultiLanguages.of(
+            context,
+          )?.translate('freelancer_profile_required_message') ??
+          'Primero crea tu perfil profesional para habilitar esta opción.',
+      color: Style.getPrimaryColor(),
+      icon: Icons.info_outline_rounded,
+    );
   }
 
   void _syncActiveRoute() {
@@ -122,7 +180,35 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
                         _navigateToDashboard(1);
                       },
                     ),
-                    ..._buildRoleMenuItems(),
+                    if (_isLoading)
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 18.w,
+                          vertical: 10.h,
+                        ),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 16.w,
+                              height: 16.w,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Style.getPrimaryColor(),
+                              ),
+                            ),
+                            SizedBox(width: 10.w),
+                            Text(
+                              MultiLanguages.of(context)!.translate('loading'),
+                              style: Style.getTextStyle(
+                                color: Style.getObscureTextColor(),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ..._buildRoleMenuItems(),
                     SizedBox(height: 8.h),
                     _groupTitle(
                       MultiLanguages.of(context)!.translate('account'),
@@ -410,13 +496,6 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
     );
   }
 
-  void _pushFreelancerAvailability() {
-    Navigator.of(context).pop();
-    Navigator.of(
-      context,
-    ).push(Transitions.slideUpTransition(const FreelancerAvailabilityScreen()));
-  }
-
   void _pushVacancies() {
     Navigator.of(context).pop();
     Navigator.of(
@@ -466,13 +545,6 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
     ).push(Transitions.slideUpTransition(const CompanyProfileScreen()));
   }
 
-  void _pushNotifications() {
-    Navigator.of(context).pop();
-    Navigator.of(
-      context,
-    ).push(Transitions.slideUpTransition(const NotificationsScreen()));
-  }
-
   void _pushReviews() {
     Navigator.of(context).pop();
     Navigator.of(
@@ -485,10 +557,6 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
     Navigator.of(
       context,
     ).push(Transitions.slideUpTransition(const ReportsScreen()));
-  }
-
-  void _goToChats() {
-    _navigateToDashboard(0);
   }
 
   String get _fullName {
@@ -517,8 +585,7 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
         .map((role) => role.trim())
         .firstWhere(
           (role) =>
-              role.isNotEmpty &&
-              !restrictedRoles.contains(role.toLowerCase()),
+              role.isNotEmpty && !restrictedRoles.contains(role.toLowerCase()),
           orElse: () => '',
         );
     if (visibleRole.isNotEmpty) return visibleRole;
@@ -601,25 +668,11 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
           onTap: _pushVacancies,
         ),
         _navItem(
-          title: MultiLanguages.of(context)!.translate('chats'),
-          icon: Icons.chat_bubble_rounded,
-          section: 'gestion',
-          item: 'chats_empresa',
-          onTap: _goToChats,
-        ),
-        _navItem(
           title: MultiLanguages.of(context)!.translate('business_profile'),
           icon: Icons.apartment_rounded,
           section: 'gestion',
           item: 'perfil_empresa',
           onTap: _pushCompanyProfile,
-        ),
-        _navItem(
-          title: MultiLanguages.of(context)!.translate('notifications'),
-          icon: Icons.notifications_rounded,
-          section: 'gestion',
-          item: 'notificaciones_empresa',
-          onTap: _pushNotifications,
         ),
       ];
     }
@@ -631,35 +684,35 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
           icon: Icons.work_history_rounded,
           section: 'gestion',
           item: 'mis_servicios_freelancer',
-          onTap: _pushMyServices,
+          onTap: _freelancerRestrictedAction(_pushMyServices),
         ),
         _navItem(
           title: MultiLanguages.of(context)!.translate('vacancies'),
           icon: Icons.work_outline_rounded,
           section: 'gestion',
           item: 'vacantes_freelancer',
-          onTap: _pushVacancies,
+          onTap: _freelancerRestrictedAction(_pushVacancies),
         ),
         _navItem(
           title: 'Mis postulaciones',
           icon: Icons.assignment_ind_rounded,
           section: 'gestion',
           item: 'postulaciones_freelancer',
-          onTap: _pushMyApplications,
+          onTap: _freelancerRestrictedAction(_pushMyApplications),
         ),
         _navItem(
           title: MultiLanguages.of(context)!.translate('requests'),
           icon: Icons.assignment_rounded,
           section: 'gestion',
           item: 'solicitudes_freelancer',
-          onTap: _pushRequests,
+          onTap: _freelancerRestrictedAction(_pushRequests),
         ),
         _navItem(
           title: MultiLanguages.of(context)!.translate('chats'),
           icon: Icons.chat_bubble_rounded,
           section: 'gestion',
           item: 'chats_freelancer',
-          onTap: _goToChats,
+          onTap: _freelancerRestrictedAction(() => _navigateToDashboard(0)),
         ),
         _navItem(
           title: MultiLanguages.of(context)!.translate('professional_profile'),
@@ -667,20 +720,6 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
           section: 'gestion',
           item: 'perfil_freelancer',
           onTap: _pushProfessionalProfile,
-        ),
-        _navItem(
-          title: MultiLanguages.of(context)!.translate('availability'),
-          icon: Icons.calendar_month_rounded,
-          section: 'gestion',
-          item: 'disponibilidad_freelancer',
-          onTap: _pushFreelancerAvailability,
-        ),
-        _navItem(
-          title: MultiLanguages.of(context)!.translate('notifications'),
-          icon: Icons.notifications_rounded,
-          section: 'gestion',
-          item: 'notificaciones_freelancer',
-          onTap: _pushNotifications,
         ),
       ];
     }
@@ -706,20 +745,6 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
         section: 'gestion',
         item: 'solicitudes_cliente',
         onTap: _pushRequests,
-      ),
-      _navItem(
-        title: MultiLanguages.of(context)!.translate('chats'),
-        icon: Icons.chat_bubble_rounded,
-        section: 'gestion',
-        item: 'chats_cliente',
-        onTap: _goToChats,
-      ),
-      _navItem(
-        title: MultiLanguages.of(context)!.translate('notifications'),
-        icon: Icons.notifications_rounded,
-        section: 'gestion',
-        item: 'notificaciones_cliente',
-        onTap: _pushNotifications,
       ),
     ];
   }

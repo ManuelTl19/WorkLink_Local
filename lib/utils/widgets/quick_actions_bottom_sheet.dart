@@ -1,7 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/cupertino.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:worklink_local/helpers/helpers.dart';
+import 'package:worklink_local/modules/freelancers/services/freelancers_service.dart';
 import 'package:worklink_local/modules/messages/messages.dart';
+import 'package:worklink_local/modules/users/models/user_model.dart';
+import 'package:worklink_local/utils/widgets/dialogs.dart';
 // import 'package:worklink_local/modules/clients/components/tasks/task_form_modal.dart';
 
 // import 'package:worklink_local/modules/comercial/components/leads/leads_modal.dart';
@@ -25,6 +31,68 @@ class QuickActions extends StatefulWidget {
 }
 
 class _QuickActionsState extends State<QuickActions> {
+  bool _canOpenMessages = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMessageAccess();
+  }
+
+  Future<void> _loadMessageAccess() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userRaw = prefs.getString(Constants.userEmailKey);
+      if (userRaw == null || userRaw.isEmpty) return;
+
+      final user = UserModel.fromJson(
+        jsonDecode(userRaw) as Map<String, dynamic>,
+      );
+      if (!_isFreelancerUser(user)) return;
+      if (user.id <= 0) {
+        if (!mounted) return;
+        setState(() => _canOpenMessages = false);
+        return;
+      }
+
+      final profile = await FreelancersService.getProfileByUserId(user.id);
+      if (!mounted) return;
+      setState(() {
+        _canOpenMessages = profile?.id != null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _canOpenMessages = false);
+    }
+  }
+
+  bool _isFreelancerUser(UserModel user) {
+    final roles = user.roles
+        .map((value) => value.toLowerCase().trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+    final type = user.tipoCuenta.toLowerCase().trim();
+    return roles.contains('freelancer') || type == 'freelancer';
+  }
+
+  void _showFreelancerProfileRequiredDialog() {
+    Dialogs.showSimpleDialog(
+      context,
+      title:
+          MultiLanguages.of(
+            context,
+          )?.translate('freelancer_profile_required_title') ??
+          'Perfil profesional requerido',
+      message:
+          MultiLanguages.of(
+            context,
+          )?.translate('freelancer_profile_required_message') ??
+          'Primero crea tu perfil profesional para habilitar esta opción.',
+      color: Style.getPrimaryColor(),
+      icon: Icons.info_outline_rounded,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GridView(
@@ -39,8 +107,14 @@ class _QuickActionsState extends State<QuickActions> {
         card(
           label: 'Mensajes',
           icon: Icons.chat_bubble_rounded,
-          color: Style.getSecondaryColor(),
+          color: _canOpenMessages
+              ? Style.getSecondaryColor()
+              : Style.getObscureTextColor(),
           onTap: () {
+            if (!_canOpenMessages) {
+              _showFreelancerProfileRequiredDialog();
+              return;
+            }
             Navigator.pop(context);
             Future.microtask(() {
               if (context.mounted) {
@@ -117,7 +191,7 @@ class _QuickActionsState extends State<QuickActions> {
     required String label,
     required IconData icon,
     required Color color,
-    required Function onTap,
+    required VoidCallback onTap,
   }) {
     return Padding(
       padding: Style.getPaddingAll(5),
@@ -127,7 +201,7 @@ class _QuickActionsState extends State<QuickActions> {
         shadowColor: Style.getShadowColor(),
         shape: RoundedRectangleBorder(borderRadius: Style.getBorderRadius()),
         child: InkWell(
-          onTap: () => onTap(),
+          onTap: onTap,
           borderRadius: Style.getBorderRadius(),
           splashColor: color.withValues(alpha: .2),
           child: Column(

@@ -1,12 +1,11 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:worklink_local/helpers/services/legal_documents_service.dart';
 import 'package:worklink_local/utils/utils.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/app/screens/starter/login_screen.dart';
 import 'package:worklink_local/modules/reports/screens/reports_screen.dart';
-import 'package:worklink_local/modules/settings/screens/terms_conditions_screen.dart';
 import 'package:worklink_local/modules/users/models/user_model.dart';
 import 'package:worklink_local/modules/users/services/user_service.dart';
 import 'package:worklink_local/main.dart';
@@ -24,6 +23,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   bool _biometricEnabled = false;
   bool _biometricSupported = true;
+  bool _openingTerms = false;
 
   @override
   void initState() {
@@ -231,13 +231,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                               color: Style.getSecondaryColor(),
                               size: 18.w,
                             ),
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const TermsConditionsScreen(),
-                                ),
-                              );
-                            },
+                            onTap: _openingTerms ? () {} : _openTermsDirect,
                           ),
                         ],
                       ),
@@ -349,6 +343,30 @@ class SettingsScreenState extends State<SettingsScreen> {
     return Localizations.localeOf(context).languageCode == 'es'
         ? 'Español'
         : 'English';
+  }
+
+  Future<void> _openTermsDirect() async {
+    if (_openingTerms) return;
+
+    setState(() => _openingTerms = true);
+    try {
+      final metadata =
+          await LegalDocumentsService.fetchTermsAndConditionsMetadata();
+      await LegalDocumentsService.openTermsAndConditionsPdf(metadata);
+    } catch (e) {
+      if (!mounted) return;
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)?.translate('error') ?? 'Error',
+        message: e.toString().replaceFirst('Exception: ', ''),
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _openingTerms = false);
+      }
+    }
   }
 
   Future<void> _deleteAccount() async {

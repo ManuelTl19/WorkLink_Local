@@ -8,21 +8,17 @@ import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/freelancers/models/freelancer_availability_model.dart';
 
 class FreelancerAvailabilityService {
+  static const Set<String> _allowedStatuses = {'available', 'busy', 'vacation'};
+
   static Future<List<FreelancerAvailabilityModel>> getByFreelancer(
     int freelancerId,
   ) async {
     try {
       final token = await SecureStorageService.getToken();
-      final uri = Apis.availabilities.replace(
-        queryParameters: {
-          ...Apis.availabilities.queryParameters,
-          'freelancer_id': '$freelancerId',
-        },
-      );
 
       final response = await http
           .get(
-            uri,
+            Apis.availabilitiesMe,
             headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
@@ -37,6 +33,27 @@ class FreelancerAvailabilityService {
       if (response.statusCode == 200 &&
           (body['success'] == null || body['success'] == true)) {
         final data = body['data'];
+
+        if (data is Map<String, dynamic>) {
+          final nestedAvailabilities = data['availabilities'];
+          if (nestedAvailabilities is List) {
+            return nestedAvailabilities
+                .whereType<Map<String, dynamic>>()
+                .map(FreelancerAvailabilityModel.fromJson)
+                .where((item) => item.freelancerId == freelancerId)
+                .toList();
+          }
+
+          if (nestedAvailabilities is Map<String, dynamic>) {
+            final availability = FreelancerAvailabilityModel.fromJson(
+              nestedAvailabilities,
+            );
+            if (availability.freelancerId == freelancerId) {
+              return [availability];
+            }
+          }
+        }
+
         if (data is List) {
           return data
               .whereType<Map<String, dynamic>>()
@@ -75,6 +92,8 @@ class FreelancerAvailabilityService {
         throw Exception('Sesion expirada. Inicia sesion nuevamente.');
       }
 
+      final payload = _buildPayload(availability);
+
       final response = await http
           .post(
             Apis.availabilities,
@@ -83,7 +102,7 @@ class FreelancerAvailabilityService {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
             },
-            body: jsonEncode(availability.toJson()),
+            body: jsonEncode(payload),
           )
           .timeout(const Duration(seconds: 20));
 
@@ -93,7 +112,8 @@ class FreelancerAvailabilityService {
 
       if (isSuccessStatus &&
           (body['success'] == null || body['success'] == true)) {
-        final data = (body['data'] as Map<String, dynamic>?) ??
+        final data =
+            (body['data'] as Map<String, dynamic>?) ??
             (body['availability'] as Map<String, dynamic>?) ??
             body;
         return FreelancerAvailabilityModel.fromJson(data);
@@ -110,7 +130,9 @@ class FreelancerAvailabilityService {
     }
   }
 
-  static Future<FreelancerAvailabilityModel?> getById(int availabilityId) async {
+  static Future<FreelancerAvailabilityModel?> getById(
+    int availabilityId,
+  ) async {
     try {
       final token = await SecureStorageService.getToken();
 
@@ -159,15 +181,17 @@ class FreelancerAvailabilityService {
         throw Exception('Sesion expirada. Inicia sesion nuevamente.');
       }
 
+      final payload = _buildPayload(availability);
+
       final response = await http
-          .put(
+          .patch(
             Apis.availabilityById(availabilityId),
             headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
             },
-            body: jsonEncode(availability.toJson()),
+            body: jsonEncode(payload),
           )
           .timeout(const Duration(seconds: 20));
 
@@ -177,7 +201,8 @@ class FreelancerAvailabilityService {
 
       if (isSuccessStatus &&
           (body['success'] == null || body['success'] == true)) {
-        final data = (body['data'] as Map<String, dynamic>?) ??
+        final data =
+            (body['data'] as Map<String, dynamic>?) ??
             (body['availability'] as Map<String, dynamic>?) ??
             body;
         return FreelancerAvailabilityModel.fromJson(data);
@@ -236,5 +261,32 @@ class FreelancerAvailabilityService {
     final decoded = jsonDecode(raw);
     if (decoded is Map<String, dynamic>) return decoded;
     return <String, dynamic>{};
+  }
+
+  static Map<String, dynamic> _buildPayload(
+    FreelancerAvailabilityModel availability,
+  ) {
+    if (availability.freelancerId <= 0) {
+      throw Exception('freelancer_id invalido para disponibilidad.');
+    }
+
+    final normalizedStatus = availability.status.toLowerCase().trim();
+    if (!_allowedStatuses.contains(normalizedStatus)) {
+      throw Exception('status invalido. Usa: available, busy o vacation.');
+    }
+
+    return {
+      'freelancer_id': availability.freelancerId,
+      'start_date': _formatDate(availability.startDate),
+      'end_date': _formatDate(availability.endDate),
+      'status': normalizedStatus,
+    };
+  }
+
+  static String _formatDate(DateTime value) {
+    final year = value.year.toString().padLeft(4, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
   }
 }

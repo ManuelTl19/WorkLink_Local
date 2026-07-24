@@ -570,13 +570,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _goToEditProfile() async {
     if (_user == null) return;
 
-    final updatedUser = await showDialog<UserModel>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return _EditProfileDialog(user: _user!);
-      },
+    final pushedResult = await Navigator.of(context).push(
+      Transitions.slideUpTransition(_EditProfileDialog(user: _user!)),
     );
+    final updatedUser = pushedResult is UserModel ? pushedResult : null;
 
     if (!mounted || updatedUser == null) return;
 
@@ -772,130 +769,158 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Style.getCardColor(),
-          borderRadius: BorderRadius.circular(28.r),
-        ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.all(24.w),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Scaffold(
+      backgroundColor: Style.getBackgroundColor(),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 4.h),
+              child: Row(
                 children: [
-                  Text(
-                    MultiLanguages.of(context)!.translate('edit_profile'),
-                    style: Style.getHeaderTwo(
+                  IconButton(
+                    onPressed: _isSaving ? null : () => Navigator.pop(context),
+                    icon: Icon(
+                      Icons.close_rounded,
                       color: Style.getTextColor(),
-                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    'Actualiza tus datos personales y guarda los cambios.',
-                    style: Style.getTextStyle(
-                      color: Style.getObscureTextColor(),
+                  Expanded(
+                    child: Text(
+                      MultiLanguages.of(context)!.translate('edit_profile'),
+                      textAlign: TextAlign.center,
+                      style: Style.getHeaderThree(
+                        color: Style.getTextColor(),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                  SizedBox(height: 24.h),
-                  CustomInputField(
-                    controller: _nameController,
-                    label: 'Nombre',
-                    requiredField: true,
-                    textInputAction: TextInputAction.next,
-                  ),
-                  SizedBox(height: 14.h),
-                  CustomInputField(
-                    controller: _lastNameController,
-                    label: 'Apellido paterno',
-                    requiredField: true,
-                    textInputAction: TextInputAction.next,
-                  ),
-                  SizedBox(height: 14.h),
-                  CustomInputField(
-                    controller: _maternalLastNameController,
-                    label: 'Apellido materno',
-                    textInputAction: TextInputAction.next,
-                  ),
-                  SizedBox(height: 14.h),
-                  CustomInputField(
-                    controller: _emailController,
-                    label: 'Correo electrónico',
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    requiredField: true,
-                    validator: (value) {
-                      final text = value?.trim() ?? '';
-                      if (!text.isEmail) {
-                        return 'Ingresa un correo válido';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 14.h),
-                  CustomInputField(
-                    controller: _phoneController,
-                    label: 'Teléfono',
-                    keyboardType: TextInputType.phone,
-                    textInputAction: TextInputAction.done,
-                  ),
-                  SizedBox(height: 24.h),
-                  Row(
+                  SizedBox(width: 48.w),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(18.w, 8.h, 18.w, 12.h),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: CustomWidgets.button(
-                          onTap: _isSaving
-                              ? () {}
-                              : () => Navigator.pop(context),
-                          color: Style.getCardColor(),
-                          height: 48,
-                          shape: 1,
-                          child: Text(
-                            MultiLanguages.of(context)!.translate('cancel'),
-                            style: Style.getHeaderThree(
-                              color: Style.getPrimaryColor(),
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                      Text(
+                        'Actualiza tus datos personales y guarda los cambios.',
+                        style: Style.getTextStyle(
+                          color: Style.getObscureTextColor(),
                         ),
                       ),
-                      SizedBox(width: 10.w),
-                      Expanded(
-                        child: CustomWidgets.button(
-                          onTap: _isSaving ? () {} : () => _saveProfile(),
-                          color: Style.getPrimaryColor(),
-                          height: 48,
-                          shape: 1,
-                          child: _isSaving
-                              ? SizedBox(
-                                  width: 18.w,
-                                  height: 18.w,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Style.white,
-                                  ),
-                                )
-                              : Text(
-                                  MultiLanguages.of(context)!.translate('save'),
-                                  style: Style.getHeaderThree(
-                                    color: Style.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                        ),
+                      SizedBox(height: 16.h),
+                      CustomInputField(
+                        controller: _nameController,
+                        label: 'Nombre',
+                        requiredField: true,
+                        textInputAction: TextInputAction.next,
+                      ),
+                      SizedBox(height: 14.h),
+                      CustomInputField(
+                        controller: _lastNameController,
+                        label: 'Apellido paterno',
+                        requiredField: true,
+                        textInputAction: TextInputAction.next,
+                      ),
+                      SizedBox(height: 14.h),
+                      CustomInputField(
+                        controller: _maternalLastNameController,
+                        label: 'Apellido materno',
+                        textInputAction: TextInputAction.next,
+                      ),
+                      SizedBox(height: 14.h),
+                      CustomInputField(
+                        controller: _emailController,
+                        label: 'Correo electrónico',
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        requiredField: true,
+                        validator: (value) {
+                          final text = value?.trim() ?? '';
+                          if (!text.isEmail) {
+                            return 'Ingresa un correo válido';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 14.h),
+                      CustomInputField(
+                        controller: _phoneController,
+                        label: 'Teléfono',
+                        keyboardType: TextInputType.phone,
+                        textInputAction: TextInputAction.done,
                       ),
                     ],
+                  ),
+                ),
+              ),
+            ),
+            Container(
+              padding: EdgeInsets.fromLTRB(18.w, 10.h, 18.w, 16.h),
+              color: Style.getBackgroundColor(),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isSaving ? null : () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 14.h),
+                        side: BorderSide(
+                          color: Style.getPrimaryColor().withValues(alpha: .45),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14.r),
+                        ),
+                      ),
+                      child: Text(
+                        MultiLanguages.of(context)!.translate('cancel'),
+                        style: Style.getTextStyle(
+                          color: Style.getPrimaryColor(),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isSaving ? null : _saveProfile,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Style.getPrimaryColor(),
+                        foregroundColor: Style.white,
+                        padding: EdgeInsets.symmetric(vertical: 14.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14.r),
+                        ),
+                      ),
+                      child: _isSaving
+                          ? SizedBox(
+                              width: 18.w,
+                              height: 18.w,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Style.white,
+                              ),
+                            )
+                          : Text(
+                              MultiLanguages.of(context)!.translate('save'),
+                              style: Style.getTextStyle(
+                                color: Style.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
+          ],
         ),
       ),
     );

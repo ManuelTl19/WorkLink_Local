@@ -1,11 +1,15 @@
 import 'dart:ui';
+import 'dart:convert';
 
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:worklink_local/main.dart';
 
 import '../../../utils/widgets/widgets.dart';
 import 'package:worklink_local/helpers/helpers.dart';
+import 'package:worklink_local/modules/freelancers/services/freelancers_service.dart';
 import 'package:worklink_local/modules/messages/messages.dart';
+import 'package:worklink_local/modules/users/models/user_model.dart';
 
 // Screens
 import 'package:worklink_local/modules/app/screens/starter/home_screen.dart';
@@ -24,6 +28,7 @@ class DashboardScreenState extends State<DashboardScreen> {
   late GlobalKey<ScaffoldState> _scaffoldKey;
   late PageController _pageController;
   int _screenIndex = 1;
+  bool _canOpenFreelancerChat = true;
 
   final List<Widget> _screens = [
     const MessagesScreen(),
@@ -39,6 +44,7 @@ class DashboardScreenState extends State<DashboardScreen> {
     _scaffoldKey = GlobalKey<ScaffoldState>();
     _pageController = PageController(initialPage: 1);
     currentDashboardState = this;
+    _loadFreelancerChatGate();
   }
 
   @override
@@ -111,6 +117,11 @@ class DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _buttonPress(int index) {
+    if (index == 0 && !_canOpenFreelancerChat) {
+      _showFreelancerProfileRequiredDialog();
+      return;
+    }
+
     if (_screenIndex != index) {
       _pageController.animateToPage(
         index,
@@ -118,6 +129,67 @@ class DashboardScreenState extends State<DashboardScreen> {
         curve: Curves.easeOutCubic,
       );
     }
+  }
+
+  Future<void> _loadFreelancerChatGate() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userRaw = prefs.getString(Constants.userEmailKey);
+
+      if (userRaw == null || userRaw.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _canOpenFreelancerChat = true;
+        });
+        return;
+      }
+
+      final user = UserModel.fromJson(jsonDecode(userRaw));
+      final roles = user.roles
+          .map((value) => value.toLowerCase().trim())
+          .where((value) => value.isNotEmpty)
+          .toList();
+      final accountType = user.tipoCuenta.toLowerCase().trim();
+      final isFreelancer =
+          roles.contains('freelancer') || accountType == 'freelancer';
+
+      if (!isFreelancer || user.id <= 0) {
+        if (!mounted) return;
+        setState(() {
+          _canOpenFreelancerChat = !isFreelancer;
+        });
+        return;
+      }
+
+      final profile = await FreelancersService.getProfileByUserId(user.id);
+      if (!mounted) return;
+      setState(() {
+        _canOpenFreelancerChat = profile?.id != null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _canOpenFreelancerChat = false;
+      });
+    }
+  }
+
+  void _showFreelancerProfileRequiredDialog() {
+    Dialogs.showSimpleDialog(
+      context,
+      title:
+          MultiLanguages.of(
+            context,
+          )?.translate('freelancer_profile_required_title') ??
+          'Perfil profesional requerido',
+      message:
+          MultiLanguages.of(
+            context,
+          )?.translate('freelancer_profile_required_message') ??
+          'Primero crea tu perfil profesional para habilitar esta opción.',
+      color: Style.getPrimaryColor(),
+      icon: Icons.info_outline_rounded,
+    );
   }
 
   Widget _floatingNavigationBar() {

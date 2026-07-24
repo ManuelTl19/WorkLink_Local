@@ -176,9 +176,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     _topRow(app),
-                    SizedBox(height: 20.h),
+                    SizedBox(height: 8.h),
                     _header(),
-                    SizedBox(height: 30.h),
+                    SizedBox(height: 14.h),
                     _loginFields(context),
                     SizedBox(height: 8.h),
                     _forgotPassword(context),
@@ -247,8 +247,8 @@ class _LoginScreenState extends State<LoginScreen> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 68.w,
-          height: 68.w,
+          width: 150.w,
+          height: 150.w,
           child: Image.asset(
             AppSettings.isDarkModeOn
                 ? Assets.companyHorDarkLogo
@@ -256,16 +256,7 @@ class _LoginScreenState extends State<LoginScreen> {
             fit: BoxFit.contain,
           ),
         ),
-        SizedBox(height: 18.h),
-        Text(
-          'Worklink Local',
-          style: Style.getHeaderTwo(
-            color: Style.getPrimaryColor(),
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        SizedBox(height: 6.h),
+        SizedBox(height: 4.h),
       ],
     );
   }

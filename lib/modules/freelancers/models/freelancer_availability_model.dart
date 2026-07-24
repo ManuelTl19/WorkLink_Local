@@ -15,8 +15,9 @@ class FreelancerAvailabilityModel {
 
   factory FreelancerAvailabilityModel.fromJson(Map<String, dynamic> json) {
     return FreelancerAvailabilityModel(
-      id: json['id'] as int?,
-      freelancerId: (json['freelancer_id'] as num?)?.toInt() ?? 0,
+      id: _parseNullableInt(json['id']),
+      freelancerId:
+          _parseNullableInt(json['freelancer_id'] ?? json['freelancerId']) ?? 0,
       startDate: DateTime.parse(
         json['start_date']?.toString() ?? DateTime.now().toIso8601String(),
       ),
@@ -58,5 +59,12 @@ class FreelancerAvailabilityModel {
     final month = value.month.toString().padLeft(2, '0');
     final day = value.day.toString().padLeft(2, '0');
     return '$year-$month-$day';
+  }
+
+  static int? _parseNullableInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
   }
 }

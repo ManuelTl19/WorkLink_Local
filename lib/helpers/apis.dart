@@ -179,6 +179,9 @@ class Apis {
 
   // ---- Freelancer Availability ----
   static final Uri availabilities = Uri.parse('$baseUrl/api/availabilities');
+  static final Uri availabilitiesMe = Uri.parse(
+    '$baseUrl/api/availabilities/me',
+  );
 
   static Uri availabilityById(int id) =>
       Uri.parse('$baseUrl/api/availabilities/$id');

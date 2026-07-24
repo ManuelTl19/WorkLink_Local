@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:worklink_local/modules/app/components/general/form/form_widgets.dart';
 import 'package:worklink_local/utils/utils.dart';
 import 'package:worklink_local/helpers/helpers.dart';
@@ -38,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen>
   int mode = 0;
   bool isLoading = true;
   UserModel? _user;
+  bool _hasFreelancerProfile = true;
   int _notificationCount = 0;
   final ServicesService _servicesService = ServicesService();
   final RequestsService _requestsService = RequestsService();
@@ -180,19 +182,94 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _loadHeaderData() async {
+    UserModel? loadedUser;
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final userRaw = prefs.getString(Constants.userEmailKey);
 
       if (userRaw != null && userRaw.isNotEmpty) {
         final userMap = jsonDecode(userRaw) as Map<String, dynamic>;
-        _user = UserModel.fromJson(userMap);
+        loadedUser = UserModel.fromJson(userMap);
       }
     } catch (e) {
       logWarning('No se pudo cargar la cabecera de inicio: $e');
     } finally {
-      if (mounted) setState(() {});
+      if (mounted) {
+        setState(() {
+          _user = loadedUser;
+        });
+      }
+      await _loadFreelancerProfileGate(loadedUser);
     }
+  }
+
+  Future<void> _loadFreelancerProfileGate(UserModel? user) async {
+    if (user == null || !_isFreelancerUser(user)) {
+      if (mounted) {
+        setState(() {
+          _hasFreelancerProfile = true;
+        });
+      }
+      return;
+    }
+
+    if (user.id <= 0) {
+      if (mounted) {
+        setState(() {
+          _hasFreelancerProfile = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final profile = await FreelancersService.getProfileByUserId(user.id);
+      if (!mounted) return;
+      setState(() {
+        _hasFreelancerProfile = profile?.id != null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _hasFreelancerProfile = false;
+      });
+    }
+  }
+
+  bool _isFreelancerUser(UserModel user) {
+    final roles = user.roles
+        .map((value) => value.toLowerCase().trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+    final accountType = user.tipoCuenta.toLowerCase().trim();
+    return roles.contains('freelancer') || accountType == 'freelancer';
+  }
+
+  bool get _mustCompleteFreelancerProfile =>
+      _hasRole('freelancer') && !_hasFreelancerProfile && !_hasRole('admin');
+
+  bool _guardFreelancerProfile() {
+    if (!_mustCompleteFreelancerProfile) {
+      return true;
+    }
+
+    Dialogs.showSimpleDialog(
+      context,
+      title:
+          MultiLanguages.of(
+            context,
+          )?.translate('freelancer_profile_required_title') ??
+          'Perfil profesional requerido',
+      message:
+          MultiLanguages.of(
+            context,
+          )?.translate('freelancer_profile_required_message') ??
+          'Primero crea tu perfil profesional para habilitar esta opción.',
+      color: Style.getPrimaryColor(),
+      icon: Icons.info_outline_rounded,
+    );
+    return false;
   }
 
   Future<void> _loadHomeCards() async {
@@ -420,9 +497,9 @@ class _HomeScreenState extends State<HomeScreen>
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ChatbotScreen()),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const ChatbotScreen()));
         },
         child: Container(
           width: 42.w,
@@ -1042,6 +1119,8 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _openRequestDetail(WorkRequestModel request) {
+    if (!_guardFreelancerProfile()) return;
+
     if (request.id <= 0) {
       Dialogs.showSimpleDialog(
         context,
@@ -1087,6 +1166,7 @@ class _HomeScreenState extends State<HomeScreen>
               vacancy: vacancy,
               mode: VacancyCardMode.freelancer,
               onTap: () {
+                if (!_guardFreelancerProfile()) return;
                 Navigator.of(context).push(
                   Transitions.slideUpTransition(
                     VacancyDetailScreen(vacancyId: vacancy.id),
@@ -1094,6 +1174,7 @@ class _HomeScreenState extends State<HomeScreen>
                 );
               },
               onApply: () {
+                if (!_guardFreelancerProfile()) return;
                 Navigator.of(context).push(
                   Transitions.slideUpTransition(
                     VacancyDetailScreen(vacancyId: vacancy.id),
@@ -1328,48 +1409,56 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _openFreelancers() {
+    if (!_guardFreelancerProfile()) return;
     Navigator.of(
       context,
     ).push(Transitions.slideUpTransition(const FreelancersScreen()));
   }
 
   void _openServices() {
+    if (!_guardFreelancerProfile()) return;
     Navigator.of(
       context,
     ).push(Transitions.slideUpTransition(const ServicesScreen()));
   }
 
   void _openMyServices() {
+    if (!_guardFreelancerProfile()) return;
     Navigator.of(
       context,
     ).push(Transitions.slideUpTransition(const MyServicesScreen()));
   }
 
   void _openRequests() {
+    if (!_guardFreelancerProfile()) return;
     Navigator.of(
       context,
     ).push(Transitions.slideUpTransition(const RequestsScreen()));
   }
 
   void _openMyRequests() {
+    if (!_guardFreelancerProfile()) return;
     Navigator.of(
       context,
     ).push(Transitions.slideUpTransition(const MyRequestsScreen()));
   }
 
   void _openVacancies() {
+    if (!_guardFreelancerProfile()) return;
     Navigator.of(
       context,
     ).push(Transitions.slideUpTransition(const VacanciesScreen()));
   }
 
   void _openMyVacancies() {
+    if (!_guardFreelancerProfile()) return;
     Navigator.of(
       context,
     ).push(Transitions.slideUpTransition(const MyVacanciesScreen()));
   }
 
   void _openCompanies() {
+    if (!_guardFreelancerProfile()) return;
     Navigator.of(
       context,
     ).push(Transitions.slideUpTransition(const CompaniesScreen()));

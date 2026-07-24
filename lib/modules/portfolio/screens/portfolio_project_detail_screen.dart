@@ -143,34 +143,6 @@ class PortfolioProjectDetailScreen extends StatelessWidget {
                               _infoTag(Icons.lock_outline_rounded, portfolio.availabilityNote),
                             ],
                           ),
-                          SizedBox(height: 14.h),
-                          _sectionLabel('Tecnologías'),
-                          SizedBox(height: 8.h),
-                          Wrap(
-                            spacing: 8.w,
-                            runSpacing: 8.h,
-                            children: project.technologies
-                                .map(
-                                  (tech) => Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 12.w,
-                                      vertical: 8.h,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Style.getPrimaryColor().withValues(alpha: .1),
-                                      borderRadius: Style.getCircularBorderRadius(100),
-                                    ),
-                                    child: Text(
-                                      tech,
-                                      style: Style.getTextStyle(
-                                        color: Style.getPrimaryColor(),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          ),
                         ],
                       ),
                     ),
