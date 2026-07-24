@@ -1,4 +1,5 @@
 import 'package:worklink_local/helpers/helpers.dart';
+import 'package:worklink_local/modules/app/components/general/form/form_widgets.dart';
 import 'package:worklink_local/modules/freelancers/models/freelancer_model.dart';
 import 'package:worklink_local/utils/utils.dart';
 
@@ -41,15 +42,17 @@ class _FreelancerProfileFormDialogState
   late final FocusNode _locationFocus;
 
   final GlobalKey<FormState> _baseStepKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _optionsStepKey = GlobalKey<FormState>();
   int _currentStep = 0;
   bool _isAvailable = true;
   bool _isLoading = false;
+  bool _showOptionsInlineErrors = false;
   String? _selectedRateType;
   String? _selectedWorkMode;
   String? _selectedLanguage;
   final List<String> _selectedLanguages = [];
 
-  static const List<String> _rateTypeOptions = ['hourly', 'project'];
+  static const List<String> _rateTypeOptions = ['hourly', 'project', 'negotiable'];
   static const List<String> _workModeOptions = [
     'remote',
     'on_site',
@@ -158,7 +161,9 @@ class _FreelancerProfileFormDialogState
     _locationFocus = FocusNode();
 
     _isAvailable = widget.initialProfile?.available ?? true;
-    _selectedRateType = _normalizeRateType(_rateTypeController.text);
+    _selectedRateType =
+      _normalizeRateType(_rateTypeController.text) ?? 'negotiable';
+    _rateTypeController.text = _selectedRateType ?? 'negotiable';
     _selectedWorkMode = _normalizeWorkMode(_workModeController.text);
     _selectedLanguages.addAll(
       (widget.initialProfile?.languages ?? const [])
@@ -197,8 +202,10 @@ class _FreelancerProfileFormDialogState
     if (raw == null || raw.isEmpty) return null;
     if (raw == 'hourly') return 'hourly';
     if (raw == 'project') return 'project';
+    if (raw == 'negotiable') return 'negotiable';
     if (raw == 'por hora') return 'hourly';
     if (raw == 'por proyecto') return 'project';
+    if (raw == 'negociable') return 'negotiable';
     return null;
   }
 
@@ -233,9 +240,13 @@ class _FreelancerProfileFormDialogState
 
   String _rateTypeLabel(String value) {
     if (_isEnglish) {
-      return value == 'hourly' ? 'Hourly' : 'Per project';
+      if (value == 'hourly') return 'Hourly';
+      if (value == 'project') return 'Per project';
+      return 'Negotiable';
     }
-    return value == 'hourly' ? 'Por hora' : 'Por proyecto';
+    if (value == 'hourly') return 'Por hora';
+    if (value == 'project') return 'Por proyecto';
+    return 'Negociable';
   }
 
   String _workModeLabel(String value) {
@@ -256,6 +267,23 @@ class _FreelancerProfileFormDialogState
     return _languageEs[value] ?? value;
   }
 
+  bool get _isNegotiableRate =>
+      (_selectedRateType ?? '').toLowerCase().trim() == 'negotiable';
+
+  String _rateLabelByType() {
+    if ((_selectedRateType ?? '').toLowerCase().trim() == 'project') {
+      return _t('Tarifa por proyecto', 'Project rate');
+    }
+    return _t('Tarifa por hora', 'Hourly rate');
+  }
+
+  String _rateHintByType() {
+    if ((_selectedRateType ?? '').toLowerCase().trim() == 'project') {
+      return _t('Ej. 150 por proyecto', 'Example: 150 per project');
+    }
+    return _t('Ej. 25 por hora', 'Example: 25 per hour');
+  }
+
   String? _validateSpecialty(String? value) {
     final text = value?.trim() ?? '';
     if (text.isEmpty) return _t('Campo requerido', 'Required field');
@@ -273,6 +301,19 @@ class _FreelancerProfileFormDialogState
   }
 
   String? _validateRate(String? value) {
+    if ((_selectedRateType ?? '').toLowerCase().trim() == 'negotiable') {
+      final text = value?.trim() ?? '';
+      if (text.isEmpty) return null;
+      final optionalRate = double.tryParse(text);
+      if (optionalRate == null) {
+        return _t('Ingresa un numero valido', 'Enter a valid number');
+      }
+      if (optionalRate < 0) {
+        return _t('La tarifa no puede ser negativa', 'Rate cannot be negative');
+      }
+      return null;
+    }
+
     final text = value?.trim() ?? '';
     if (text.isEmpty) return _t('Campo requerido', 'Required field');
     final rate = double.tryParse(text);
@@ -290,6 +331,22 @@ class _FreelancerProfileFormDialogState
     return null;
   }
 
+  String? _validateServiceArea(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return _t('Campo requerido', 'Required field');
+    if (text.length < 3) return _t('Minimo 3 caracteres', 'Minimum 3 characters');
+    if (text.length > 120) return _t('Maximo 120 caracteres', 'Maximum 120 characters');
+    return null;
+  }
+
+  String? _validateExperience(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return _t('Campo requerido', 'Required field');
+    if (text.length < 5) return _t('Minimo 5 caracteres', 'Minimum 5 characters');
+    if (text.length > 500) return _t('Maximo 500 caracteres', 'Maximum 500 characters');
+    return null;
+  }
+
   List<String> _missingFieldsForStep(int step) {
     final missing = <String>[];
 
@@ -300,9 +357,6 @@ class _FreelancerProfileFormDialogState
       if ((_validateDescription(_descriptionController.text) ?? '').isNotEmpty) {
         missing.add(_t('Descripcion valida', 'Valid description'));
       }
-      if ((_validateRate(_rateController.text) ?? '').isNotEmpty) {
-        missing.add(_t('Tarifa valida', 'Valid rate'));
-      }
       if ((_validateLocation(_locationController.text) ?? '').isNotEmpty) {
         missing.add(_t('Ubicacion valida', 'Valid location'));
       }
@@ -312,11 +366,17 @@ class _FreelancerProfileFormDialogState
       if (_selectedRateType == null || _selectedRateType!.isEmpty) {
         missing.add(_t('Tipo de tarifa', 'Rate type'));
       }
+      if ((_validateRate(_rateController.text) ?? '').isNotEmpty) {
+        missing.add(_t('Tarifa valida', 'Valid rate'));
+      }
       if (_selectedWorkMode == null || _selectedWorkMode!.isEmpty) {
         missing.add(_t('Modalidad', 'Work mode'));
       }
-      if (_selectedLanguages.isEmpty) {
-        missing.add(_t('Al menos un idioma', 'At least one language'));
+      if ((_validateServiceArea(_serviceAreaController.text) ?? '').isNotEmpty) {
+        missing.add(_t('Area de servicio valida', 'Valid service area'));
+      }
+      if ((_validateExperience(_experienceController.text) ?? '').isNotEmpty) {
+        missing.add(_t('Experiencia valida', 'Valid experience'));
       }
     }
 
@@ -327,6 +387,18 @@ class _FreelancerProfileFormDialogState
     if (_currentStep == 0) {
       final isValid = _baseStepKey.currentState?.validate() ?? false;
       if (!isValid) {
+        await _showMissingDialog(_missingFieldsForStep(_currentStep));
+        return false;
+      }
+    }
+
+    if (_currentStep == 1) {
+      if (!_showOptionsInlineErrors && mounted) {
+        setState(() => _showOptionsInlineErrors = true);
+      }
+
+      final optionsValid = _optionsStepKey.currentState?.validate() ?? false;
+      if (!optionsValid) {
         await _showMissingDialog(_missingFieldsForStep(_currentStep));
         return false;
       }
@@ -352,15 +424,18 @@ class _FreelancerProfileFormDialogState
     );
   }
 
-  void _addSelectedLanguage() {
-    final lang = _selectedLanguage;
+  void _addLanguage(String? lang) {
     if (lang == null || lang.isEmpty) return;
-    if (_selectedLanguages.contains(lang)) return;
 
     setState(() {
-      _selectedLanguages.add(lang);
+      if (!_selectedLanguages.contains(lang)) {
+        _selectedLanguages.add(lang);
+      }
       _languagesController.text = _selectedLanguages.join(', ');
       _selectedLanguage = null;
+      if (_selectedLanguages.isNotEmpty) {
+        _showOptionsInlineErrors = false;
+      }
     });
   }
 
@@ -369,40 +444,6 @@ class _FreelancerProfileFormDialogState
       _selectedLanguages.remove(lang);
       _languagesController.text = _selectedLanguages.join(', ');
     });
-  }
-
-  InputDecoration _inputDecoration(String label, String hint) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      isDense: true,
-      filled: true,
-      fillColor: Style.getBackgroundColor(),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.r),
-        borderSide: BorderSide(
-          color: Style.getBorderColor().withValues(alpha: .2),
-        ),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.r),
-        borderSide: BorderSide(
-          color: Style.getBorderColor().withValues(alpha: .2),
-        ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.r),
-        borderSide: BorderSide(color: Style.getPrimaryColor(), width: 1.4),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.r),
-        borderSide: BorderSide(color: Style.getErrorColor()),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.r),
-        borderSide: BorderSide(color: Style.getErrorColor(), width: 1.4),
-      ),
-    );
   }
 
   Widget _textField({
@@ -415,58 +456,41 @@ class _FreelancerProfileFormDialogState
     int minLines = 1,
     int maxLines = 1,
     void Function(String)? onFieldSubmitted,
+    bool requiredField = false,
   }) {
-    return TextFormField(
+    return CustomInputField(
       controller: controller,
       focusNode: focusNode,
+      label: label,
+      hintText: hint,
       keyboardType: keyboardType,
       minLines: minLines,
       maxLines: maxLines,
       validator: validator,
-      style: Style.getTextStyle(color: Style.getTextColor()),
-      decoration: _inputDecoration(label, hint),
       onFieldSubmitted: onFieldSubmitted,
+      requiredField: requiredField,
     );
   }
 
-  Widget _stepHeader() {
-    Widget chip(int step, String title) {
-      final active = _currentStep == step;
-      return Expanded(
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: 8.h),
-          decoration: BoxDecoration(
-            color: active
-                ? Style.getPrimaryColor().withValues(alpha: .14)
-                : Style.getBackgroundColor(),
-            borderRadius: BorderRadius.circular(999.r),
-            border: Border.all(
-              color: active
-                  ? Style.getPrimaryColor()
-                  : Style.getBorderColor().withValues(alpha: .24),
-            ),
-          ),
-          child: Center(
-            child: Text(
-              title,
-              style: Style.getTextStyle(
-                color: active ? Style.getPrimaryColor() : Style.getTextColor(),
-                fontWeight: FontWeight.w700,
-                fontSize: 10,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
+  Widget _sectionTitle(String title) {
     return Row(
       children: [
-        chip(0, _t('Paso 1', 'Step 1')),
+        Container(
+          width: 10.w,
+          height: 10.w,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Style.getPrimaryColor(),
+          ),
+        ),
         SizedBox(width: 8.w),
-        chip(1, _t('Paso 2', 'Step 2')),
-        SizedBox(width: 8.w),
-        chip(2, _t('Paso 3', 'Step 3')),
+        Text(
+          title,
+          style: Style.getHeaderThree(
+            color: Style.getTextColor(),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ],
     );
   }
@@ -476,7 +500,10 @@ class _FreelancerProfileFormDialogState
       return Form(
         key: _baseStepKey,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _sectionTitle(_t('Informacion profesional', 'Professional information')),
+            SizedBox(height: 14.h),
             _textField(
               controller: _specialtyController,
               focusNode: _specialtyFocus,
@@ -484,6 +511,7 @@ class _FreelancerProfileFormDialogState
               hint: MultiLanguages.of(context)!.translate('specialty_hint'),
               validator: _validateSpecialty,
               onFieldSubmitted: (_) => _descriptionFocus.requestFocus(),
+              requiredField: true,
             ),
             SizedBox(height: 14.h),
             _textField(
@@ -495,20 +523,8 @@ class _FreelancerProfileFormDialogState
               minLines: 3,
               maxLines: 5,
               validator: _validateDescription,
-              onFieldSubmitted: (_) => _rateFocus.requestFocus(),
-            ),
-            SizedBox(height: 14.h),
-            _textField(
-              controller: _rateController,
-              focusNode: _rateFocus,
-              label: MultiLanguages.of(context)!.translate('hourly_rate'),
-              hint: MultiLanguages.of(context)!.translate('hourly_rate_hint'),
-              keyboardType: const TextInputType.numberWithOptions(
-                signed: false,
-                decimal: true,
-              ),
-              validator: _validateRate,
               onFieldSubmitted: (_) => _locationFocus.requestFocus(),
+              requiredField: true,
             ),
             SizedBox(height: 14.h),
             _textField(
@@ -517,6 +533,7 @@ class _FreelancerProfileFormDialogState
               label: MultiLanguages.of(context)!.translate('location'),
               hint: MultiLanguages.of(context)!.translate('location_hint'),
               validator: _validateLocation,
+              requiredField: true,
             ),
           ],
         ),
@@ -524,151 +541,168 @@ class _FreelancerProfileFormDialogState
     }
 
     if (_currentStep == 1) {
-      return Column(
-        children: [
-          DropdownButtonFormField<String>(
-            initialValue: _selectedRateType,
-            decoration: _inputDecoration(
-              _t('Tipo de tarifa', 'Rate type'),
-              _t('Selecciona una opcion', 'Select an option'),
+      return Form(
+        key: _optionsStepKey,
+        autovalidateMode: _showOptionsInlineErrors
+            ? AutovalidateMode.always
+            : AutovalidateMode.disabled,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionTitle(_t('Condiciones de trabajo', 'Work conditions')),
+            SizedBox(height: 14.h),
+            CustomPickerField<String>(
+              label: _t('Tipo de tarifa', 'Rate type'),
+              value: _selectedRateType,
+              hintText: _t('Selecciona una opcion', 'Select an option'),
+              requiredField: true,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return _t('Campo requerido', 'Required field');
+                }
+                return null;
+              },
+              items: _rateTypeOptions
+                  .map(
+                    (option) => CustomPickerOption<String>(
+                      value: option,
+                      label: _rateTypeLabel(option),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedRateType = value;
+                  _rateTypeController.text = value ?? '';
+                  if (_isNegotiableRate) {
+                    _rateController.clear();
+                  }
+                });
+              },
             ),
-            isExpanded: true,
-            menuMaxHeight: 300.h,
-            items: _rateTypeOptions
-                .map(
-                  (option) => DropdownMenuItem<String>(
-                    value: option,
-                    child: Text(_rateTypeLabel(option)),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedRateType = value;
-                _rateTypeController.text = value ?? '';
-              });
-            },
-          ),
-          SizedBox(height: 14.h),
-          DropdownButtonFormField<String>(
-            initialValue: _selectedWorkMode,
-            decoration: _inputDecoration(
-              _t('Modalidad', 'Work mode'),
-              _t('Selecciona una opcion', 'Select an option'),
+            if (!_isNegotiableRate) ...[
+              SizedBox(height: 14.h),
+              _textField(
+                controller: _rateController,
+                focusNode: _rateFocus,
+                label: _rateLabelByType(),
+                hint: _rateHintByType(),
+                keyboardType: const TextInputType.numberWithOptions(
+                  signed: false,
+                  decimal: true,
+                ),
+                validator: _validateRate,
+                requiredField: true,
+              ),
+            ],
+            SizedBox(height: 14.h),
+            CustomPickerField<String>(
+              label: _t('Modalidad', 'Work mode'),
+              value: _selectedWorkMode,
+              hintText: _t('Selecciona una opcion', 'Select an option'),
+              requiredField: true,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return _t('Campo requerido', 'Required field');
+                }
+                return null;
+              },
+              items: _workModeOptions
+                  .map(
+                    (option) => CustomPickerOption<String>(
+                      value: option,
+                      label: _workModeLabel(option),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedWorkMode = value;
+                  _workModeController.text = value ?? '';
+                });
+              },
             ),
-            isExpanded: true,
-            menuMaxHeight: 300.h,
-            items: _workModeOptions
-                .map(
-                  (option) => DropdownMenuItem<String>(
-                    value: option,
-                    child: Text(_workModeLabel(option)),
+            SizedBox(height: 14.h),
+            CustomPickerField<String>(
+              key: ValueKey<String?>(_selectedLanguage),
+              label: _t('Idiomas', 'Languages'),
+              value: _selectedLanguage,
+              hintText: _t('Selecciona y agrega', 'Select and add'),
+              items: _languageOptions
+                  .map(
+                    (option) => CustomPickerOption<String>(
+                      value: option,
+                      label: _languageLabel(option),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _addLanguage,
+            ),
+            SizedBox(height: 10.h),
+            if (_selectedLanguages.isEmpty)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                    _t(
+                      'Agrega idiomas si quieres mostrarlos en tu perfil.',
+                      'Add languages if you want to display them on your profile.',
+                    ),
+                  style: Style.getTextStyle(
+                      color: Style.getObscureTextColor(),
                   ),
-                )
-                .toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedWorkMode = value;
-                _workModeController.text = value ?? '';
-              });
-            },
-          ),
-          SizedBox(height: 14.h),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey<String?>(_selectedLanguage),
-                  initialValue: _selectedLanguage,
-                  decoration: _inputDecoration(
-                    _t('Idiomas', 'Languages'),
-                    _t('Selecciona y agrega', 'Select and add'),
-                  ),
-                  isExpanded: true,
-                  menuMaxHeight: 320.h,
-                  items: _languageOptions
+                ),
+              )
+            else
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: 8.w,
+                  runSpacing: 8.h,
+                  children: _selectedLanguages
                       .map(
-                        (option) => DropdownMenuItem<String>(
-                          value: option,
-                          child: Text(_languageLabel(option)),
+                        (lang) => Chip(
+                          label: Text(_languageLabel(lang)),
+                          onDeleted: () => _removeLanguage(lang),
                         ),
                       )
                       .toList(),
-                  onChanged: (value) =>
-                      setState(() => _selectedLanguage = value),
                 ),
               ),
-              SizedBox(width: 10.w),
-              SizedBox(
-                width: 48.w,
-                height: 48.h,
-                child: ElevatedButton(
-                  onPressed: _addSelectedLanguage,
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    backgroundColor: Style.getPrimaryColor(),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                  ),
-                  child: Icon(Icons.add_rounded, color: Style.white, size: 22),
-                ),
+            SizedBox(height: 14.h),
+            _textField(
+              controller: _serviceAreaController,
+              label: _t('Area de servicio', 'Service area'),
+              hint: _t(
+                'Ej. Desarrollo web y apps empresariales',
+                'Example: Web and business app development',
               ),
-            ],
-          ),
-          SizedBox(height: 10.h),
-          if (_selectedLanguages.isEmpty)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                _t('Agrega al menos un idioma.', 'Add at least one language.'),
-                style: Style.getTextStyle(color: Style.getObscureTextColor()),
+              validator: _validateServiceArea,
+              requiredField: true,
+            ),
+            SizedBox(height: 14.h),
+            _textField(
+              controller: _experienceController,
+              label: _t('Experiencia', 'Experience'),
+              hint: _t(
+                'Ej. Tres anos desarrollando apps',
+                'Example: Three years building apps',
               ),
-            )
-          else
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Wrap(
-                spacing: 8.w,
-                runSpacing: 8.h,
-                children: _selectedLanguages
-                    .map(
-                      (lang) => Chip(
-                        label: Text(_languageLabel(lang)),
-                        onDeleted: () => _removeLanguage(lang),
-                      ),
-                    )
-                    .toList(),
-              ),
+              keyboardType: TextInputType.multiline,
+              minLines: 2,
+              maxLines: 4,
+              validator: _validateExperience,
+              requiredField: true,
             ),
-          SizedBox(height: 14.h),
-          _textField(
-            controller: _serviceAreaController,
-            label: _t('Area de servicio', 'Service area'),
-            hint: _t(
-              'Ej. Desarrollo web y apps empresariales',
-              'Example: Web and business app development',
-            ),
-          ),
-          SizedBox(height: 14.h),
-          _textField(
-            controller: _experienceController,
-            label: _t('Experiencia', 'Experience'),
-            hint: _t(
-              'Ej. Tres anos desarrollando apps',
-              'Example: Three years building apps',
-            ),
-            keyboardType: TextInputType.multiline,
-            minLines: 2,
-            maxLines: 4,
-          ),
-        ],
+          ],
+        ),
       );
     }
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _sectionTitle(_t('Enlaces y disponibilidad', 'Links and availability')),
+        SizedBox(height: 14.h),
         _textField(
           controller: _websiteController,
           label: 'Website',
@@ -782,13 +816,17 @@ class _FreelancerProfileFormDialogState
         return;
       }
 
+        final parsedRate = ((_selectedRateType ?? '').toLowerCase().trim() == 'negotiable')
+          ? 0.0
+          : double.parse(_rateController.text);
+
       final profile = FreelancerModel(
         id: widget.initialProfile?.id,
         userId: widget.initialProfile?.userId,
         fullName: widget.initialProfile?.fullName ?? '',
         specialty: _specialtyController.text.trim(),
         description: _descriptionController.text.trim(),
-        hourlyRate: double.parse(_rateController.text),
+        hourlyRate: parsedRate,
         available: _isAvailable,
         location: _locationController.text.trim(),
         avatarUrl: widget.initialProfile?.avatarUrl ?? '',
@@ -842,109 +880,56 @@ class _FreelancerProfileFormDialogState
 
   @override
   Widget build(BuildContext context) {
-    final isTitle = MultiLanguages.of(context)!.translate(
+    final title = MultiLanguages.of(context)!.translate(
       widget.isEditing
           ? 'edit_professional_profile'
           : 'create_professional_profile',
     );
 
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Style.getCardColor(),
-          borderRadius: BorderRadius.circular(28.r),
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(24.w),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isTitle,
-                style: Style.getHeaderTwo(
-                  color: Style.getTextColor(),
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              SizedBox(height: 8.h),
-              Text(
-                MultiLanguages.of(context)!.translate(
-                  'complete_your_profile_description',
-                ),
-                style: Style.getTextStyle(color: Style.getObscureTextColor()),
-              ),
-              SizedBox(height: 16.h),
-              _stepHeader(),
-              SizedBox(height: 16.h),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: Container(
-                      key: ValueKey<int>(_currentStep),
-                      child: _buildStepContent(),
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 20.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomWidgets.button(
-                      onTap: _currentStep == 0
-                          ? () => Navigator.pop(context)
-                          : () => setState(() => _currentStep -= 1),
-                      color: Style.getCardColor(),
-                      isFilled: false,
-                      withBorder: true,
-                      child: Text(
-                        _currentStep == 0
-                            ? MultiLanguages.of(context)!.translate('cancel')
-                            : _t('Anterior', 'Back'),
-                        style: Style.getHeaderThree(
-                          color: Style.getTextColor(),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 12.w),
-                  Expanded(
-                    child: CustomWidgets.button(
-                      onTap: () async {
-                        if (_isLoading) return;
-                        if (_currentStep < 2) {
-                          final canContinue = await _validateCurrentStep();
-                          if (!canContinue) return;
-                          if (!mounted) return;
-                          setState(() => _currentStep += 1);
-                          return;
-                        }
-                        await _handleSubmit();
-                      },
-                      color: Style.getPrimaryColor(),
-                      child: _isLoading
-                          ? CustomWidgets.mProgress(Style.white)
-                          : Text(
-                              _currentStep < 2
-                                  ? _t('Siguiente', 'Next')
-                                  : MultiLanguages.of(context)!.translate('save'),
-                              style: Style.getHeaderThree(
-                                color: Style.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+    return MultiStepFormScaffold(
+      title: title,
+      stepTitles: <String>[
+        _t('Basico', 'Basic'),
+        _t('Opciones', 'Options'),
+        _t('Enlaces', 'Links'),
+      ],
+      currentStep: _currentStep,
+      onClose: () => Navigator.pop(context),
+      onBack: _currentStep == 0 ? null : () => setState(() => _currentStep -= 1),
+      onNext: _isLoading
+          ? null
+          : () async {
+              if (_currentStep < 2) {
+                final canContinue = await _validateCurrentStep();
+                if (!canContinue) return;
+                if (!mounted) return;
+                setState(() => _currentStep += 1);
+                return;
+              }
+              await _handleSubmit();
+            },
+      isLastStep: _currentStep == 2,
+      isLoading: _isLoading,
+      nextLabel: _t('Siguiente', 'Next'),
+      submitLabel: MultiLanguages.of(context)!.translate('save'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            MultiLanguages.of(context)!.translate(
+              'complete_your_profile_description',
+            ),
+            style: Style.getTextStyle(color: Style.getObscureTextColor()),
           ),
-        ),
+          SizedBox(height: 14.h),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: Container(
+              key: ValueKey<int>(_currentStep),
+              child: _buildStepContent(),
+            ),
+          ),
+        ],
       ),
     );
   }

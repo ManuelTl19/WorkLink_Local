@@ -1,15 +1,11 @@
 import 'package:worklink_local/helpers/helpers.dart';
-import 'package:worklink_local/modules/vacancies/models/company_model.dart';
+import 'package:worklink_local/modules/companies/models/company_profile_model.dart';
 
 class CompanyCard extends StatelessWidget {
-  final CompanyModel company;
+  final CompanyProfileModel company;
   final VoidCallback onTap;
 
-  const CompanyCard({
-    super.key,
-    required this.company,
-    required this.onTap,
-  });
+  const CompanyCard({super.key, required this.company, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -31,20 +27,14 @@ class CompanyCard extends StatelessWidget {
                 child: Container(
                   width: 56.w,
                   height: 56.w,
-                  color: Style.getPrimaryColor().withValues(alpha: .08),
-                  child: company.logoUrl.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: company.logoUrl,
+                  color: Style.getPrimaryColor().withValues(alpha: .10),
+                  child: company.photoUrl.isNotEmpty
+                      ? Image.network(
+                          company.photoUrl,
                           fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => Icon(
-                            Icons.apartment_rounded,
-                            color: Style.getPrimaryColor(),
-                          ),
+                          errorBuilder: (_, __, ___) => _fallbackAvatar(),
                         )
-                      : Icon(
-                          Icons.apartment_rounded,
-                          color: Style.getPrimaryColor(),
-                        ),
+                      : _fallbackAvatar(),
                 ),
               ),
               SizedBox(width: 12.w),
@@ -53,7 +43,7 @@ class CompanyCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      company.name,
+                      company.companyName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Style.getHeaderTwo(
@@ -79,6 +69,32 @@ class CompanyCard extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 8.h),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.star_rounded,
+                          size: 16.w,
+                          color: Style.getSecondaryColor(),
+                        ),
+                        SizedBox(width: 4.w),
+                        Text(
+                          company.averageRate.toStringAsFixed(1),
+                          style: Style.getTextStyle(
+                            color: Style.getTextColor(),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        SizedBox(width: 10.w),
+                        Text(
+                          company.ownerName,
+                          style: Style.getTextStyle(
+                            color: Style.getObscureTextColor(),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8.h),
                     Text(
                       company.description,
                       maxLines: 2,
@@ -92,6 +108,18 @@ class CompanyCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _fallbackAvatar() {
+    return Center(
+      child: Text(
+        company.initials,
+        style: Style.getHeaderThree(
+          color: Style.getPrimaryColor(),
+          fontWeight: FontWeight.w800,
         ),
       ),
     );

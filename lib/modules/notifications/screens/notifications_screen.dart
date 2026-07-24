@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/notifications/components/notification_tile.dart';
@@ -24,16 +23,30 @@ class NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _loadNotifications() async {
-    setState(() {
-      _loading = true;
-    });
-    _notifications = await NotificationService.fetchNotifications(
-      onlyRead: _onlyRead,
-    );
     if (mounted) {
       setState(() {
+        _loading = true;
+      });
+    }
+
+    try {
+      final notifications = await NotificationService.fetchNotifications(
+        onlyRead: _onlyRead,
+      );
+      if (!mounted) return;
+      setState(() {
+        _notifications = notifications;
         _loading = false;
       });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _notifications = const [];
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudieron cargar las notificaciones: $e')),
+      );
     }
   }
 
@@ -44,6 +57,11 @@ class NotificationsScreenState extends State<NotificationsScreen> {
 
   Future<void> _markAllAsRead() async {
     await NotificationService.markAllAsRead();
+    await _loadNotifications();
+  }
+
+  Future<void> _deleteNotification(int id) async {
+    await NotificationService.deleteNotification(id);
     await _loadNotifications();
   }
 
@@ -146,9 +164,68 @@ class NotificationsScreenState extends State<NotificationsScreen> {
               ..._notifications.map(
                 (notification) => Padding(
                   padding: EdgeInsets.only(bottom: 12.h),
-                  child: NotificationTile(
-                    notification: notification,
-                    onTap: () => _markAsRead(notification.id),
+                  child: Dismissible(
+                    key: ValueKey(notification.id),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: EdgeInsets.symmetric(horizontal: 18.w),
+                      decoration: BoxDecoration(
+                        color: Style.getErrorColor(),
+                        borderRadius: Style.getBorderRadius(),
+                      ),
+                      child: Icon(
+                        Icons.delete_outline_rounded,
+                        color: Style.white,
+                        size: 22.w,
+                      ),
+                    ),
+                    confirmDismiss: (_) async {
+                      return await showDialog<bool>(
+                            context: context,
+                            builder: (dialogContext) => AlertDialog(
+                              backgroundColor: Style.getCardColor(),
+                              title: Text(
+                                'Eliminar notificación',
+                                style: Style.getHeaderTwo(
+                                  color: Style.getTextColor(),
+                                ),
+                              ),
+                              content: Text(
+                                'Solo se eliminará de tu buzón personal.',
+                                style: Style.getTextStyle(
+                                  color: Style.getTextColor(),
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dialogContext, false),
+                                  child: Text(
+                                    'Cancelar',
+                                    style: Style.getTextStyle(
+                                      color: Style.getObscureTextColor(),
+                                    ),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dialogContext, true),
+                                  child: Text(
+                                    'Eliminar',
+                                    style: Style.getTextStyle(
+                                      color: Style.getErrorColor(),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ) ??
+                          false;
+                    },
+                    onDismissed: (_) => _deleteNotification(notification.id),
+                    child: NotificationTile(
+                      notification: notification,
+                      onTap: () => _markAsRead(notification.id),
+                    ),
                   ),
                 ),
               ),

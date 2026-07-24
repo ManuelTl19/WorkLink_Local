@@ -1,135 +1,29 @@
-import 'package:worklink_local/modules/messages/models/message_model.dart';
+import 'dart:async' show TimeoutException;
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:worklink_local/helpers/apis.dart';
+import 'package:worklink_local/helpers/helpers.dart';
+import 'package:worklink_local/modules/companies/services/companies_service.dart';
+import 'package:worklink_local/modules/freelancers/services/freelancers_service.dart';
 import 'package:worklink_local/modules/messages/models/chat_model.dart';
+import 'package:worklink_local/modules/messages/models/message_model.dart';
+import 'package:worklink_local/modules/users/models/user_model.dart';
+
+class MessagesFlowException implements Exception {
+  final int? statusCode;
+  final String message;
+
+  const MessagesFlowException(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
 
 class MessageService {
-  static int _nextChatId = 5;
-
-  static final Map<int, List<MessageModel>> _demoThreads = {
-    1: [
-      MessageModel(
-        id: 1,
-        senderName: 'Ana',
-        text: 'Hola, ¿ya viste el nuevo mensaje de prueba?',
-        sentAt: DateTime.now().subtract(const Duration(minutes: 32)),
-        isMine: false,
-        unread: true,
-      ),
-      MessageModel(
-        id: 2,
-        senderName: 'Tú',
-        text: 'Sí, ya funciona la pantalla de mensajes.',
-        sentAt: DateTime.now().subtract(const Duration(minutes: 28)),
-        isMine: true,
-        status: MessageDeliveryStatus.read,
-      ),
-      MessageModel(
-        id: 3,
-        senderName: 'Ana',
-        text: 'Perfecto. Luego conectamos la API real.',
-        sentAt: DateTime.now().subtract(const Duration(minutes: 24)),
-        isMine: false,
-      ),
-      MessageModel(
-        id: 4,
-        senderName: 'Tú',
-        text: 'Por ahora solo es una prueba visual.',
-        sentAt: DateTime.now().subtract(const Duration(minutes: 20)),
-        isMine: true,
-        status: MessageDeliveryStatus.delivered,
-      ),
-    ],
-    2: [
-      MessageModel(
-        id: 1,
-        senderName: 'Carlos',
-        text: '¿Me compartes el avance de hoy?',
-        sentAt: DateTime.now().subtract(const Duration(hours: 2, minutes: 12)),
-        isMine: false,
-        unread: false,
-      ),
-      MessageModel(
-        id: 2,
-        senderName: 'Tú',
-        text: 'Claro, te lo mando ahorita.',
-        sentAt: DateTime.now().subtract(const Duration(hours: 2, minutes: 6)),
-        isMine: true,
-        status: MessageDeliveryStatus.read,
-      ),
-    ],
-    3: [
-      MessageModel(
-        id: 1,
-        senderName: 'Equipo soporte',
-        text: 'Tu solicitud fue recibida.',
-        sentAt: DateTime.now().subtract(const Duration(days: 1, hours: 1)),
-        isMine: false,
-        unread: true,
-      ),
-      MessageModel(
-        id: 2,
-        senderName: 'Tú',
-        text: 'Gracias, quedo pendiente.',
-        sentAt: DateTime.now().subtract(
-          const Duration(days: 1, hours: 1, minutes: 10),
-        ),
-        isMine: true,
-        status: MessageDeliveryStatus.delivered,
-      ),
-    ],
-    4: [
-      MessageModel(
-        id: 1,
-        senderName: 'María',
-        text: '¿A qué hora puedes revisar el contrato?',
-        sentAt: DateTime.now().subtract(const Duration(days: 2, minutes: 40)),
-        isMine: false,
-        unread: false,
-      ),
-    ],
-  };
-
-  static final List<ChatModel> _demoChats = [
-    ChatModel(
-      id: 1,
-      name: 'Ana',
-      avatarSeed: 'Ana',
-      isOnline: true,
-      lastMessage: 'Perfecto. Luego conectamos la API real.',
-      lastMessageAt: DateTime.now().subtract(const Duration(minutes: 24)),
-      unreadCount: 1,
-    ),
-    ChatModel(
-      id: 2,
-      name: 'Carlos',
-      avatarSeed: 'Carlos',
-      isOnline: false,
-      lastMessage: 'Claro, te lo mando ahorita.',
-      lastMessageAt: DateTime.now().subtract(
-        const Duration(hours: 2, minutes: 6),
-      ),
-      unreadCount: 0,
-    ),
-    ChatModel(
-      id: 3,
-      name: 'Equipo soporte',
-      avatarSeed: 'Soporte',
-      isOnline: false,
-      lastMessage: 'Tu solicitud fue recibida.',
-      lastMessageAt: DateTime.now().subtract(const Duration(days: 1, hours: 1)),
-      unreadCount: 3,
-    ),
-    ChatModel(
-      id: 4,
-      name: 'María',
-      avatarSeed: 'María',
-      isOnline: true,
-      lastMessage: '¿A qué hora puedes revisar el contrato?',
-      lastMessageAt: DateTime.now().subtract(
-        const Duration(days: 2, minutes: 40),
-      ),
-      unreadCount: 0,
-    ),
-  ];
+  static final CompaniesService _companiesService = CompaniesService();
 
   static Future<ChatModel> getOrCreateChat({
     required String name,
@@ -140,17 +34,33 @@ class MessageService {
     int? relatedEntityId,
     String? relatedEntityType,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 180));
+    final resolvedUserId = await _resolveConversationUserId(
+      relatedEntityId: relatedEntityId,
+      relatedEntityType: relatedEntityType,
+    );
 
-    for (final chat in _demoChats) {
-      if (chat.relatedEntityId == relatedEntityId &&
-          chat.relatedEntityType == relatedEntityType) {
-        return chat;
+    if (resolvedUserId != null) {
+      final conversations = await loadDemoChats();
+      for (final chat in conversations) {
+        if (chat.id == resolvedUserId ||
+            chat.relatedEntityId == resolvedUserId) {
+          return chat.copyWith(
+            name: chat.name.isNotEmpty ? chat.name : name,
+            avatarSeed: chat.avatarSeed.isNotEmpty
+                ? chat.avatarSeed
+                : avatarSeed,
+            subtitle: chat.subtitle ?? subtitle,
+            avatarUrl: chat.avatarUrl ?? avatarUrl,
+            relatedEntityId: resolvedUserId,
+            relatedEntityType:
+                relatedEntityType ?? chat.relatedEntityType ?? 'user',
+          );
+        }
       }
     }
 
-    final chat = ChatModel(
-      id: _nextChatId++,
+    return ChatModel(
+      id: resolvedUserId ?? relatedEntityId ?? 0,
       name: name,
       avatarSeed: avatarSeed,
       isOnline: isOnline,
@@ -159,40 +69,19 @@ class MessageService {
       unreadCount: 0,
       subtitle: subtitle,
       avatarUrl: avatarUrl,
-      relatedEntityId: relatedEntityId,
+      relatedEntityId: resolvedUserId ?? relatedEntityId,
       relatedEntityType: relatedEntityType,
     );
-
-    _demoChats.insert(0, chat);
-    _demoThreads[chat.id] = <MessageModel>[];
-    return chat;
   }
 
   static Future<List<ChatModel>> loadDemoChats() async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    return List<ChatModel>.from(_demoChats);
+    return getConversations();
   }
 
   static Future<List<MessageModel>> loadDemoConversation(int chatId) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    final thread = List<MessageModel>.from(_demoThreads[chatId] ?? const []);
-    final normalized = thread
-        .map((message) => MessageModel(
-              id: message.id,
-              senderName: message.senderName,
-              text: message.text,
-              imageUrl: message.imageUrl,
-              sentAt: message.sentAt,
-              isMine: message.isMine,
-              unread: false,
-              type: message.type,
-              status: message.status,
-            ))
-        .toList();
-
-    _demoThreads[chatId] = normalized;
-    return normalized;
+    final messages = await getConversationByUserId(chatId);
+    await markConversationAsRead(chatId);
+    return messages;
   }
 
   static Future<MessageModel> sendDemoMessage({
@@ -200,40 +89,20 @@ class MessageService {
     required int nextId,
     required String text,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 250));
-
-    final newMessage = MessageModel(
-      id: nextId,
-      senderName: 'Tú',
-      text: text.trim(),
-      sentAt: DateTime.now(),
-      isMine: true,
-      type: MessageType.text,
-      status: MessageDeliveryStatus.delivered,
-    );
-
-    final thread = _demoThreads[chatId] ?? <MessageModel>[];
-    _demoThreads[chatId] = [...thread, newMessage];
-
-    final chatIndex = _demoChats.indexWhere((chat) => chat.id == chatId);
-    if (chatIndex != -1) {
-      final chat = _demoChats[chatIndex];
-      _demoChats[chatIndex] = ChatModel(
-        id: chat.id,
-        name: chat.name,
-        avatarSeed: chat.avatarSeed,
-        isOnline: chat.isOnline,
-        lastMessage: newMessage.text,
-        lastMessageAt: newMessage.sentAt,
-        unreadCount: chat.unreadCount,
-        subtitle: chat.subtitle,
-        avatarUrl: chat.avatarUrl,
-        relatedEntityId: chat.relatedEntityId,
-        relatedEntityType: chat.relatedEntityType,
-      );
-    }
-
-    return newMessage;
+    final message = await sendMessage(receiverId: chatId, content: text);
+    return message.id == 0
+        ? MessageModel(
+            id: nextId,
+            senderName: message.senderName,
+            text: message.text,
+            imageUrl: message.imageUrl,
+            sentAt: message.sentAt,
+            isMine: message.isMine,
+            unread: message.unread,
+            type: message.type,
+            status: message.status,
+          )
+        : message;
   }
 
   static Future<MessageModel> sendDemoImageMessage({
@@ -241,40 +110,543 @@ class MessageService {
     required int nextId,
     required String imageUrl,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    final newMessage = MessageModel(
-      id: nextId,
-      senderName: 'Tú',
-      text: 'Imagen adjunta',
-      imageUrl: imageUrl,
-      sentAt: DateTime.now(),
-      isMine: true,
-      type: MessageType.image,
-      status: MessageDeliveryStatus.delivered,
+    final message = await sendMessage(
+      receiverId: chatId,
+      content: 'Imagen adjunta',
     );
 
-    final thread = _demoThreads[chatId] ?? <MessageModel>[];
-    _demoThreads[chatId] = [...thread, newMessage];
+    return MessageModel(
+      id: message.id == 0 ? nextId : message.id,
+      senderName: message.senderName.isNotEmpty ? message.senderName : 'Tú',
+      text: message.text.isNotEmpty ? message.text : 'Imagen adjunta',
+      imageUrl: imageUrl,
+      sentAt: message.sentAt,
+      isMine: true,
+      unread: false,
+      type: MessageType.image,
+      status: message.status,
+    );
+  }
 
-    final chatIndex = _demoChats.indexWhere((chat) => chat.id == chatId);
-    if (chatIndex != -1) {
-      final chat = _demoChats[chatIndex];
-      _demoChats[chatIndex] = ChatModel(
-        id: chat.id,
-        name: chat.name,
-        avatarSeed: chat.avatarSeed,
-        isOnline: chat.isOnline,
-        lastMessage: 'Imagen',
-        lastMessageAt: newMessage.sentAt,
-        unreadCount: chat.unreadCount,
-        subtitle: chat.subtitle,
-        avatarUrl: chat.avatarUrl,
-        relatedEntityId: chat.relatedEntityId,
-        relatedEntityType: chat.relatedEntityType,
+  static Future<List<ChatModel>> getConversations() async {
+    try {
+      final response = await _authorizedGet(Apis.messageConversations);
+      final body = _decodeBody(response.body);
+
+      if (!_isSuccessful(response.statusCode, body)) {
+        throw MessagesFlowException(
+          _extractMessage(body, 'No se pudieron cargar las conversaciones.'),
+          statusCode: response.statusCode,
+        );
+      }
+
+      final items = _extractDataList(body);
+      final chats = items.map(_chatFromConversationJson).toList();
+      chats.sort(
+        (left, right) => right.lastMessageAt.compareTo(left.lastMessageAt),
+      );
+      return chats;
+    } on TimeoutException {
+      rethrow;
+    } catch (e) {
+      if (e is MessagesFlowException) rethrow;
+      throw MessagesFlowException(_normalizeError(e));
+    }
+  }
+
+  static Future<List<MessageModel>> getConversationByUserId(
+    int userId, {
+    int perPage = 30,
+  }) async {
+    try {
+      final uri = Apis.messageConversationByUserId(userId).replace(
+        queryParameters: {'per_page': perPage.clamp(1, 100).toString()},
+      );
+      final response = await _authorizedGet(uri);
+      final body = _decodeBody(response.body);
+
+      if (!_isSuccessful(response.statusCode, body)) {
+        throw MessagesFlowException(
+          _extractMessage(body, 'No se pudo cargar la conversación.'),
+          statusCode: response.statusCode,
+        );
+      }
+
+      final currentUserId = await _currentUserId();
+      final messages = _extractDataList(
+        body,
+      ).map((item) => _messageFromJson(item, currentUserId)).toList();
+      messages.sort((left, right) => left.sentAt.compareTo(right.sentAt));
+      return messages;
+    } on TimeoutException {
+      rethrow;
+    } catch (e) {
+      if (e is MessagesFlowException) rethrow;
+      throw MessagesFlowException(_normalizeError(e));
+    }
+  }
+
+  static Future<MessageModel> sendMessage({
+    required int receiverId,
+    required String content,
+  }) async {
+    try {
+      final trimmed = content.trim();
+      if (trimmed.isEmpty) {
+        throw MessagesFlowException(
+          'El contenido del mensaje no puede ir vacío.',
+        );
+      }
+      if (trimmed.length > 5000) {
+        throw MessagesFlowException(
+          'El contenido no puede superar 5000 caracteres.',
+        );
+      }
+
+      final currentUserId = await _currentUserId();
+      if (currentUserId != null && receiverId == currentUserId) {
+        throw MessagesFlowException(
+          'No te puedes enviar un mensaje a ti mismo.',
+        );
+      }
+
+      final response = await _authorizedPost(
+        Apis.messages,
+        body: jsonEncode({'receiver_id': receiverId, 'content': trimmed}),
+      );
+
+      final body = _decodeBody(response.body);
+      if (!_isSuccessful(response.statusCode, body)) {
+        throw MessagesFlowException(
+          _extractMessage(body, 'No se pudo enviar el mensaje.'),
+          statusCode: response.statusCode,
+        );
+      }
+
+      final data = _extractDataMap(body);
+      if (data.isNotEmpty) {
+        return _messageFromJson(data, currentUserId, fallbackMine: true);
+      }
+
+      return MessageModel(
+        id: 0,
+        senderName: 'Tú',
+        text: trimmed,
+        sentAt: DateTime.now(),
+        isMine: true,
+        unread: false,
+        type: MessageType.text,
+        status: MessageDeliveryStatus.sent,
+      );
+    } on TimeoutException {
+      rethrow;
+    } catch (e) {
+      if (e is MessagesFlowException) rethrow;
+      throw MessagesFlowException(_normalizeError(e));
+    }
+  }
+
+  static Future<void> markConversationAsRead(int userId) async {
+    try {
+      final response = await _authorizedPatch(
+        Apis.messageReadAllByUserId(userId),
+      );
+      _throwIfFailed(response, 'No se pudo marcar la conversación como leída.');
+    } on TimeoutException {
+      rethrow;
+    } catch (e) {
+      if (e is MessagesFlowException) rethrow;
+      throw MessagesFlowException(_normalizeError(e));
+    }
+  }
+
+  static Future<void> markMessageAsRead(int messageId) async {
+    try {
+      final response = await _authorizedPatch(Apis.messageReadById(messageId));
+      _throwIfFailed(response, 'No se pudo marcar el mensaje como leído.');
+    } on TimeoutException {
+      rethrow;
+    } catch (e) {
+      if (e is MessagesFlowException) rethrow;
+      throw MessagesFlowException(_normalizeError(e));
+    }
+  }
+
+  static Future<void> deleteMessage(int messageId) async {
+    try {
+      final response = await _authorizedDelete(Apis.messageById(messageId));
+      if (response.statusCode == 204) return;
+      _throwIfFailed(response, 'No se pudo eliminar el mensaje.');
+    } on TimeoutException {
+      rethrow;
+    } catch (e) {
+      if (e is MessagesFlowException) rethrow;
+      throw MessagesFlowException(_normalizeError(e));
+    }
+  }
+
+  static Future<bool> canDeleteMessage(MessageModel message) async {
+    final currentUser = await _currentUser();
+    if (_isAdminUser(currentUser)) return true;
+    return message.isMine && message.status != MessageDeliveryStatus.read;
+  }
+
+  static Future<int?> _currentUserId() async {
+    final user = await _currentUser();
+    return user?.id;
+  }
+
+  static Future<UserModel?> _currentUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawUser = prefs.getString(Constants.userEmailKey);
+    if (rawUser == null || rawUser.trim().isEmpty) return null;
+
+    try {
+      return UserModel.fromJson(jsonDecode(rawUser) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static bool _isAdminUser(UserModel? user) {
+    if (user == null) return false;
+
+    final roles = user.roles.map((role) => role.toLowerCase().trim()).toList();
+    final type = user.tipoCuenta.toLowerCase().trim();
+
+    return roles.contains('admin') ||
+        roles.contains('administrador') ||
+        type == 'admin' ||
+        type == 'administrador';
+  }
+
+  static Future<int?> _resolveConversationUserId({
+    required int? relatedEntityId,
+    required String? relatedEntityType,
+  }) async {
+    if (relatedEntityId == null || relatedEntityId <= 0) return null;
+
+    final normalizedType = relatedEntityType?.toLowerCase().trim() ?? '';
+    if (normalizedType == 'company') {
+      final company = await _companiesService.getPublicCompanyById(
+        relatedEntityId,
+      );
+      return company?.userId ?? relatedEntityId;
+    }
+
+    if (normalizedType == 'freelancer') {
+      final freelancer = await FreelancersService.getProfileById(
+        relatedEntityId,
+      );
+      return freelancer?.userId ?? relatedEntityId;
+    }
+
+    return relatedEntityId;
+  }
+
+  static ChatModel _chatFromConversationJson(Map<String, dynamic> json) {
+    final otherUser = _extractUserMap(
+      json['user'] ?? json['other_user'] ?? json['participant'],
+    );
+    final otherUserId = _intValue(
+      json['user_id'] ??
+          json['other_user_id'] ??
+          json['conversation_user_id'] ??
+          json['participant_id'] ??
+          otherUser['id'],
+    );
+    final displayName = _stringValue(
+      json['user_name'] ??
+          json['other_user_name'] ??
+          json['conversation_user_name'] ??
+          json['participant_name'] ??
+          otherUser['name'] ??
+          otherUser['full_name'] ??
+          otherUser['nombre'] ??
+          otherUser['fullName'],
+    );
+
+    final avatarUrl = _stringValue(
+      json['avatar_url'] ??
+          json['photo_url'] ??
+          json['profile_photo_url'] ??
+          otherUser['avatar_url'] ??
+          otherUser['photo_url'] ??
+          otherUser['profile_photo_url'],
+    );
+
+    final lastMessage = _extractLastMessageText(json);
+    final lastMessageAt = _extractDateTime(
+      json['last_message_at'] ??
+          json['lastMessageAt'] ??
+          json['updated_at'] ??
+          json['updatedAt'] ??
+          json['last_message_created_at'],
+    );
+
+    return ChatModel(
+      id: otherUserId,
+      name: displayName.isNotEmpty ? displayName : 'Conversación',
+      avatarSeed: displayName.isNotEmpty ? displayName : 'Chat',
+      isOnline: _boolValue(
+        json['is_online'] ?? json['online'] ?? otherUser['is_online'],
+      ),
+      lastMessage: lastMessage,
+      lastMessageAt: lastMessageAt ?? DateTime.now(),
+      unreadCount: _intValue(json['unread_count'] ?? json['unreadCount']),
+      subtitle: _stringOrNull(
+        json['subtitle'] ??
+            json['description'] ??
+            otherUser['role'] ??
+            otherUser['tipo_cuenta'],
+      ),
+      avatarUrl: avatarUrl.isNotEmpty ? avatarUrl : null,
+      relatedEntityId: otherUserId > 0 ? otherUserId : null,
+      relatedEntityType: 'user',
+    );
+  }
+
+  static MessageModel _messageFromJson(
+    Map<String, dynamic> json,
+    int? currentUserId, {
+    bool fallbackMine = false,
+  }) {
+    final senderMap = _extractUserMap(json['sender']);
+    final senderId = _intNullable(
+      json['sender_id'] ?? json['senderId'] ?? senderMap['id'],
+    );
+    final mine = json['is_mine'] is bool
+        ? json['is_mine'] as bool
+        : json['isMine'] is bool
+        ? json['isMine'] as bool
+        : currentUserId != null && senderId != null
+        ? senderId == currentUserId
+        : fallbackMine;
+
+    final readFlag = _boolValue(
+      json['is_read'] ?? json['read'] ?? json['read_at'] ?? json['readAt'],
+    );
+    final status = mine
+        ? (readFlag ? MessageDeliveryStatus.read : MessageDeliveryStatus.sent)
+        : (readFlag
+              ? MessageDeliveryStatus.read
+              : MessageDeliveryStatus.delivered);
+
+    return MessageModel(
+      id: _intValue(json['id']),
+      senderName: _stringValue(
+        json['sender_name'] ??
+            json['senderName'] ??
+            senderMap['name'] ??
+            senderMap['full_name'] ??
+            senderMap['nombre'] ??
+            (mine ? 'Tú' : 'Usuario'),
+      ),
+      text: _stringValue(
+        json['content'] ?? json['text'] ?? json['message'] ?? '',
+      ),
+      imageUrl: _stringValue(json['image_url'] ?? json['imageUrl']),
+      sentAt:
+          _extractDateTime(
+            json['sent_at'] ?? json['created_at'] ?? json['createdAt'],
+          ) ??
+          DateTime.now(),
+      isMine: mine,
+      unread: !readFlag && !mine,
+      type: messageTypeFromValue(
+        json['type'] ?? (json['image_url'] != null ? 'image' : 'text'),
+      ),
+      status: status,
+    );
+  }
+
+  static Future<http.Response> _authorizedGet(Uri uri) async {
+    final headers = await _headers();
+    return http.get(uri, headers: headers).timeout(const Duration(seconds: 20));
+  }
+
+  static Future<http.Response> _authorizedPost(
+    Uri uri, {
+    required String body,
+  }) async {
+    final headers = await _headers();
+    return http
+        .post(uri, headers: headers, body: body)
+        .timeout(const Duration(seconds: 20));
+  }
+
+  static Future<http.Response> _authorizedPatch(Uri uri) async {
+    final headers = await _headers();
+    return http
+        .patch(uri, headers: headers)
+        .timeout(const Duration(seconds: 20));
+  }
+
+  static Future<http.Response> _authorizedDelete(Uri uri) async {
+    final headers = await _headers();
+    return http
+        .delete(uri, headers: headers)
+        .timeout(const Duration(seconds: 20));
+  }
+
+  static Future<Map<String, String>> _headers() async {
+    final token = await SecureStorageService.getToken();
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
+  }
+
+  static dynamic _decodeBody(String body) {
+    if (body.trim().isEmpty) return const <String, dynamic>{};
+    try {
+      return jsonDecode(body);
+    } catch (_) {
+      return const <String, dynamic>{};
+    }
+  }
+
+  static bool _isSuccessful(int statusCode, dynamic body) {
+    if (statusCode >= 200 && statusCode < 300) return true;
+    if (body is Map<String, dynamic>) {
+      final success = body['success'];
+      if (success is bool) return success;
+    }
+    return false;
+  }
+
+  static void _throwIfFailed(http.Response response, String fallback) {
+    final body = _decodeBody(response.body);
+    if (_isSuccessful(response.statusCode, body)) return;
+    throw MessagesFlowException(
+      _extractMessage(body, fallback),
+      statusCode: response.statusCode,
+    );
+  }
+
+  static List<Map<String, dynamic>> _extractDataList(dynamic body) {
+    if (body is List) {
+      return body.whereType<Map<String, dynamic>>().toList();
+    }
+
+    if (body is Map<String, dynamic>) {
+      final data = body['data'];
+      if (data is List) return data.whereType<Map<String, dynamic>>().toList();
+
+      if (data is Map<String, dynamic>) {
+        final nestedMessages = data['messages'];
+        if (nestedMessages is List) {
+          return nestedMessages.whereType<Map<String, dynamic>>().toList();
+        }
+
+        final nestedConversations = data['conversations'];
+        if (nestedConversations is List) {
+          return nestedConversations.whereType<Map<String, dynamic>>().toList();
+        }
+
+        final nestedItems = data['items'];
+        if (nestedItems is List) {
+          return nestedItems.whereType<Map<String, dynamic>>().toList();
+        }
+      }
+
+      final messages = body['messages'];
+      if (messages is List)
+        return messages.whereType<Map<String, dynamic>>().toList();
+
+      final conversations = body['conversations'];
+      if (conversations is List)
+        return conversations.whereType<Map<String, dynamic>>().toList();
+
+      final items = body['items'];
+      if (items is List)
+        return items.whereType<Map<String, dynamic>>().toList();
+    }
+
+    return const <Map<String, dynamic>>[];
+  }
+
+  static Map<String, dynamic> _extractDataMap(dynamic body) {
+    if (body is Map<String, dynamic>) {
+      final data = body['data'];
+      if (data is Map<String, dynamic>) return data;
+
+      final result = body['result'];
+      if (result is Map<String, dynamic>) return result;
+
+      return body;
+    }
+
+    if (body is List && body.isNotEmpty && body.first is Map<String, dynamic>) {
+      return body.first as Map<String, dynamic>;
+    }
+
+    return const <String, dynamic>{};
+  }
+
+  static Map<String, dynamic> _extractUserMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    return const <String, dynamic>{};
+  }
+
+  static String _extractLastMessageText(Map<String, dynamic> json) {
+    final message =
+        json['last_message'] ?? json['lastMessage'] ?? json['message'];
+    if (message is Map<String, dynamic>) {
+      return _stringValue(
+        message['content'] ?? message['text'] ?? message['message'],
       );
     }
 
-    return newMessage;
+    return _stringValue(message);
+  }
+
+  static String _extractMessage(dynamic body, String fallback) {
+    if (body is Map<String, dynamic>) {
+      final message = body['message'] ?? body['error'] ?? body['detail'];
+      if (message != null && message.toString().trim().isNotEmpty) {
+        return message.toString();
+      }
+    }
+    return fallback;
+  }
+
+  static DateTime? _extractDateTime(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString());
+  }
+
+  static String _stringValue(dynamic value) {
+    return value?.toString().trim() ?? '';
+  }
+
+  static String? _stringOrNull(dynamic value) {
+    final normalized = _stringValue(value);
+    return normalized.isEmpty ? null : normalized;
+  }
+
+  static bool _boolValue(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final normalized = value?.toString().toLowerCase().trim() ?? '';
+    return normalized == 'true' || normalized == '1' || normalized == 'yes';
+  }
+
+  static int _intValue(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static int? _intNullable(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
+  }
+
+  static String _normalizeError(Object error) {
+    return error.toString().replaceFirst('Exception: ', '').trim();
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async' show TimeoutException;
+
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/services/components/service_card.dart';
 import 'package:worklink_local/modules/services/models/service_model.dart';
@@ -5,6 +7,7 @@ import 'package:worklink_local/modules/services/services_service.dart';
 import 'package:worklink_local/modules/services/screens/freelancer_service_profile_screen.dart';
 import 'package:worklink_local/modules/services/screens/service_detail_screen.dart';
 import 'package:worklink_local/modules/services/screens/service_form_screen.dart';
+import 'package:worklink_local/modules/services/screens/service_requests_screen.dart';
 import 'package:worklink_local/utils/utils.dart';
 
 class MyServicesScreen extends StatefulWidget {
@@ -21,6 +24,7 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
   bool _loading = true;
   int? _currentFreelancerId;
   List<ServiceModel> _services = const [];
+  Map<int, int> _requestCounts = const {};
 
   @override
   void initState() {
@@ -36,16 +40,55 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
 
   Future<void> _loadServices() async {
     setState(() => _loading = true);
-    final freelancerId = await _service.getCurrentFreelancerId();
-    final services = await _service.getFreelancerServices(
-      freelancerId: freelancerId,
-    );
-    if (!mounted) return;
-    setState(() {
-      _currentFreelancerId = freelancerId;
-      _services = services;
-      _loading = false;
-    });
+    try {
+      final freelancerId = await _service.getCurrentFreelancerId();
+      final services = await _service.getFreelancerServices(
+        freelancerId: freelancerId,
+      );
+
+      final counts = await Future.wait(
+        services.map((service) async {
+          try {
+            final count =
+                await _service.getServiceContractRequestsCountByServiceId(
+                  service.id,
+                );
+            return MapEntry(service.id, count);
+          } catch (e) {
+            logWarning(
+              'No se pudo cargar solicitudes para servicio ${service.id}: $e',
+            );
+            return MapEntry(service.id, 0);
+          }
+        }),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _currentFreelancerId = freelancerId;
+        _services = services;
+        _requestCounts = Map<int, int>.fromEntries(counts);
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      final message = e is TimeoutException
+          ? MultiLanguages.of(context)?.translate('timeout_error') ??
+                'La solicitud tardo demasiado. Intenta de nuevo.'
+          : e.toString().replaceFirst('Exception: ', '');
+
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)?.translate('error') ?? 'Error',
+        message: message,
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
   }
 
   Future<void> _openForm({ServiceModel? service}) async {
@@ -151,6 +194,25 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
                     color: Style.getTextColor(),
                   ),
                 ),
+                actions: [
+                  IconButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        Transitions.slideUpTransition(
+                          const ServiceRequestsScreen(),
+                        ),
+                      );
+                    },
+                    icon: Icon(Icons.inbox_rounded, color: Style.getTextColor()),
+                  ),
+                  IconButton(
+                    onPressed: _loadServices,
+                    icon: Icon(
+                      Icons.refresh_rounded,
+                      color: Style.getTextColor(),
+                    ),
+                  ),
+                ],
                 title: Text(
                   MultiLanguages.of(context)?.translate('my_services_title') ??
                       'Mis Servicios',
@@ -190,12 +252,7 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
                         child: _summaryCard(
                           MultiLanguages.of(context)?.translate('requests') ??
                               'Solicitudes',
-                          _services
-                              .fold<int>(
-                                0,
-                                (sum, item) => sum + item.interestedCount,
-                              )
-                              .toString(),
+                          _requestCounts.values.fold<int>(0, (sum, value) => sum + value).toString(),
                           Icons.inbox_rounded,
                         ),
                       ),
@@ -302,6 +359,7 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
                       return ServiceCard(
                         service: service,
                         mode: ServiceCardMode.owner,
+                        requestCount: _requestCounts[service.id] ?? 0,
                         onTap: () {
                           Navigator.of(context).push(
                             Transitions.slideUpTransition(
@@ -311,6 +369,13 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
                         },
                         onEdit: () => _openForm(service: service),
                         onDelete: () => _deleteService(service),
+                        onViewRequests: () {
+                          Navigator.of(context).push(
+                            Transitions.slideUpTransition(
+                              ServiceRequestsScreen(serviceId: service.id),
+                            ),
+                          );
+                        },
                         onStatusPressed: () => _changeStatus(service),
                       );
                     },

@@ -23,13 +23,24 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Future<void> _loadChats() async {
-    final chats = await MessageService.loadDemoChats();
-    if (!mounted) return;
+    try {
+      final chats = await MessageService.loadDemoChats();
+      if (!mounted) return;
 
-    setState(() {
-      _chats = chats;
-      _loading = false;
-    });
+      setState(() {
+        _chats = chats;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _chats = const [];
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudieron cargar los chats: $e')),
+      );
+    }
   }
 
   String _timeLabel(DateTime dateTime) {
@@ -133,12 +144,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
               itemBuilder: (context, index) {
                 final chat = _filteredChats[index];
                 return InkWell(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ConversationScreen(chat: chat),
-                    ),
-                  ),
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ConversationScreen(chat: chat),
+                      ),
+                    );
+                    if (mounted) {
+                      await _loadChats();
+                    }
+                  },
                   borderRadius: Style.getBorderRadius(),
                   child: Container(
                     padding: EdgeInsets.all(12.w),

@@ -1,6 +1,19 @@
 enum ApplicationStatus { pendiente, enRevision, aceptada, rechazada }
 
 extension ApplicationStatusX on ApplicationStatus {
+  String get apiValue {
+    switch (this) {
+      case ApplicationStatus.pendiente:
+        return 'pending';
+      case ApplicationStatus.enRevision:
+        return 'pending';
+      case ApplicationStatus.aceptada:
+        return 'accepted';
+      case ApplicationStatus.rechazada:
+        return 'rejected';
+    }
+  }
+
   String get label {
     switch (this) {
       case ApplicationStatus.pendiente:
@@ -30,6 +43,9 @@ class VacancyApplicationModel {
   final int id;
   final int vacancyId;
   final int freelancerId;
+  final String message;
+  final String vacancyTitle;
+  final String companyName;
   final ApplicationStatus status;
   final DateTime appliedAt;
 
@@ -37,6 +53,9 @@ class VacancyApplicationModel {
     required this.id,
     required this.vacancyId,
     required this.freelancerId,
+    this.message = '',
+    this.vacancyTitle = '',
+    this.companyName = '',
     required this.status,
     required this.appliedAt,
   });
@@ -45,6 +64,9 @@ class VacancyApplicationModel {
     int? id,
     int? vacancyId,
     int? freelancerId,
+    String? message,
+    String? vacancyTitle,
+    String? companyName,
     ApplicationStatus? status,
     DateTime? appliedAt,
   }) {
@@ -52,18 +74,55 @@ class VacancyApplicationModel {
       id: id ?? this.id,
       vacancyId: vacancyId ?? this.vacancyId,
       freelancerId: freelancerId ?? this.freelancerId,
+      message: message ?? this.message,
+      vacancyTitle: vacancyTitle ?? this.vacancyTitle,
+      companyName: companyName ?? this.companyName,
       status: status ?? this.status,
       appliedAt: appliedAt ?? this.appliedAt,
     );
   }
 
   factory VacancyApplicationModel.fromJson(Map<String, dynamic> json) {
+    int parseInt(Object? value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    String readString(Object? value) {
+      if (value == null) return '';
+      if (value is String) return value.trim();
+      return value.toString().trim();
+    }
+
+    final vacancy = json['vacancy'] is Map<String, dynamic>
+        ? json['vacancy'] as Map<String, dynamic>
+        : const <String, dynamic>{};
+    final company = vacancy['company'] is Map<String, dynamic>
+        ? vacancy['company'] as Map<String, dynamic>
+        : const <String, dynamic>{};
+
     return VacancyApplicationModel(
-      id: json['id'] ?? 0,
-      vacancyId: json['vacancy_id'] ?? 0,
-      freelancerId: json['freelancer_id'] ?? 0,
+      id: parseInt(json['id']),
+      vacancyId: parseInt(json['vacancy_id'] ?? vacancy['id']),
+      freelancerId: parseInt(json['freelancer_id']),
+      message: readString(json['message']),
+      vacancyTitle: readString(json['vacancy_title'])
+          .isNotEmpty
+          ? readString(json['vacancy_title'])
+          : readString(vacancy['title']),
+      companyName: readString(json['company_name'])
+          .isNotEmpty
+          ? readString(json['company_name'])
+          : readString(company['company_name']).isNotEmpty
+          ? readString(company['company_name'])
+          : readString(company['name']),
       status: applicationStatusFromString(json['status'] ?? json['estado']),
-      appliedAt: DateTime.tryParse(json['applied_at']?.toString() ?? '') ?? DateTime.now(),
+      appliedAt:
+          DateTime.tryParse(
+            json['created_at']?.toString() ?? json['applied_at']?.toString() ?? '',
+          ) ??
+          DateTime.now(),
     );
   }
 
@@ -72,7 +131,10 @@ class VacancyApplicationModel {
       'id': id,
       'vacancy_id': vacancyId,
       'freelancer_id': freelancerId,
-      'status': status.label,
+      'message': message,
+      'vacancy_title': vacancyTitle,
+      'company_name': companyName,
+      'status': status.apiValue,
       'applied_at': appliedAt.toIso8601String(),
     };
   }

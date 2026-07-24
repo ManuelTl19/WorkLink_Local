@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:worklink_local/utils/utils.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/app/screens/starter/login_screen.dart';
-import 'package:worklink_local/modules/settings/screens/report_problem_screen.dart';
+import 'package:worklink_local/modules/reports/screens/reports_screen.dart';
 import 'package:worklink_local/modules/settings/screens/terms_conditions_screen.dart';
 import 'package:worklink_local/modules/users/models/user_model.dart';
 import 'package:worklink_local/modules/users/services/user_service.dart';
@@ -194,21 +194,25 @@ class SettingsScreenState extends State<SettingsScreen> {
                         children: [
                           Tiles.settingTile(
                             dense: true,
-                            title: MultiLanguages.of(
-                              context,
-                            )!.translate('report_problem'),
-                            subtitle: MultiLanguages.of(
-                              context,
-                            )!.translate('report_problem_description'),
+                            title:
+                                MultiLanguages.of(
+                                  context,
+                                )?.translate('report_problem') ??
+                                'Mis reportes',
+                            subtitle:
+                                MultiLanguages.of(
+                                  context,
+                                )?.translate('report_problem_description') ??
+                                'Consulta los reportes que has enviado.',
                             icon: Icon(
-                              Icons.bug_report_rounded,
+                              Icons.report_problem_rounded,
                               color: Style.getSecondaryColor(),
                               size: 18.w,
                             ),
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => const ReportProblemScreen(),
+                                  builder: (_) => const ReportsScreen(),
                                 ),
                               );
                             },

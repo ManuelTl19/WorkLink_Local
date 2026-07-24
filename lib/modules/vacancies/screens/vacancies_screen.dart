@@ -3,9 +3,8 @@ import 'package:worklink_local/modules/vacancies/components/vacancy_card.dart';
 import 'package:worklink_local/modules/vacancies/components/vacancy_filters_bar.dart';
 import 'package:worklink_local/modules/vacancies/models/vacancy_model.dart';
 import 'package:worklink_local/modules/vacancies/services/vacancies_service.dart';
-import 'package:worklink_local/modules/vacancies/screens/company_profile_screen.dart';
+import 'package:worklink_local/modules/companies/screens/company_profile_screen.dart';
 import 'package:worklink_local/modules/vacancies/screens/vacancy_detail_screen.dart';
-import 'package:worklink_local/utils/widgets/custom_widgets.dart';
 import 'package:worklink_local/utils/utils.dart';
 
 class VacanciesScreen extends StatefulWidget {
@@ -77,10 +76,7 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
 
   Future<void> _applyToVacancy(VacancyModel vacancy) async {
     try {
-      await _service.applyToVacancy(
-        vacancyId: vacancy.id,
-        freelancerId: VacanciesService.currentFreelancerId,
-      );
+      await _service.applyToVacancy(vacancyId: vacancy.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

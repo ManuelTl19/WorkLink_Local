@@ -1,12 +1,12 @@
 import 'package:intl/intl.dart';
 import 'package:worklink_local/helpers/helpers.dart';
+import 'package:worklink_local/modules/companies/services/companies_service.dart';
 import 'package:worklink_local/modules/messages/messages.dart';
 import 'package:worklink_local/modules/vacancies/models/vacancy_model.dart';
 import 'package:worklink_local/modules/vacancies/services/vacancies_service.dart';
 import 'package:worklink_local/modules/vacancies/screens/applicants_screen.dart';
-import 'package:worklink_local/modules/vacancies/screens/company_profile_screen.dart';
+import 'package:worklink_local/modules/companies/screens/company_profile_screen.dart';
 import 'package:worklink_local/modules/vacancies/screens/vacancy_form_screen.dart';
-import 'package:worklink_local/utils/widgets/custom_widgets.dart';
 import 'package:worklink_local/utils/utils.dart';
 
 class VacancyDetailScreen extends StatefulWidget {
@@ -20,8 +20,10 @@ class VacancyDetailScreen extends StatefulWidget {
 
 class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
   final VacanciesService _service = VacanciesService();
+  final CompaniesService _companyProfilesService = CompaniesService();
 
   bool _loading = true;
+  bool _isOwner = false;
   VacancyModel? _vacancy;
 
   @override
@@ -31,10 +33,18 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
   }
 
   Future<void> _loadVacancy() async {
-    final vacancy = await _service.getVacancyById(widget.vacancyId);
+    final companyProfileId = await _service.getCurrentCompanyProfileId();
+    final publicVacancy = await _service.getPublicVacancyById(widget.vacancyId);
+    final vacancy =
+        publicVacancy ?? await _service.getVacancyById(widget.vacancyId);
+
     if (!mounted) return;
     setState(() {
       _vacancy = vacancy;
+      _isOwner =
+          vacancy != null &&
+          companyProfileId != null &&
+          vacancy.companyId == companyProfileId;
       _loading = false;
     });
   }
@@ -43,31 +53,45 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
     final vacancy = _vacancy;
     if (vacancy == null || !vacancy.isOpen) return;
 
-    await _service.applyToVacancy(
-      vacancyId: vacancy.id,
-      freelancerId: VacanciesService.currentFreelancerId,
-    );
+    try {
+      await _service.applyToVacancy(vacancyId: vacancy.id);
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${MultiLanguages.of(context)?.translate('application_sent') ?? 'Tu postulación fue enviada a'} ${vacancy.companyName}.',
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${MultiLanguages.of(context)?.translate('application_sent') ?? 'Tu postulación fue enviada a'} ${vacancy.companyName}.',
+          ),
         ),
-      ),
-    );
-    await _loadVacancy();
+      );
+      await _loadVacancy();
+    } catch (e) {
+      if (!mounted) return;
+      Dialogs.showSimpleDialog(
+        context,
+        title: 'Postulaciones',
+        message: e.toString().replaceFirst('Exception: ', ''),
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+    }
   }
 
   Future<void> _contactCompany() async {
     final vacancy = _vacancy;
     if (vacancy == null) return;
 
+    final companyProfile = await _companyProfilesService.getPublicCompanyById(
+      vacancy.companyId,
+    );
+
     final chat = await MessageService.getOrCreateChat(
       name: vacancy.companyName,
       avatarSeed: vacancy.companyName,
       subtitle: vacancy.companyIndustry,
-      avatarUrl: vacancy.companyLogoUrl,
+      avatarUrl: companyProfile?.photoUrl.isNotEmpty == true
+          ? companyProfile!.photoUrl
+          : vacancy.companyLogoUrl,
       relatedEntityId: vacancy.companyId,
       relatedEntityType: 'company',
     );
@@ -278,24 +302,34 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
 
   Widget _buildActions() {
     final vacancy = _vacancy!;
-    final isOwner = vacancy.companyId == VacanciesService.currentCompanyId;
+    final isOwner = _isOwner;
+    final canEdit = isOwner && vacancy.status != VacancyStatus.cerrada;
 
     return Row(
       children: [
         Expanded(
           child: CustomWidgets.button(
-            onTap: isOwner
-                ? () {
-                    Navigator.of(context).push(
-                      Transitions.slideUpTransition(
-                        VacancyFormScreen(vacancy: vacancy),
-                      ),
-                    );
-                  }
-                : _contactCompany,
+            onTap: () {
+              if (canEdit) {
+                Navigator.of(context).push(
+                  Transitions.slideUpTransition(
+                    VacancyFormScreen(vacancy: vacancy),
+                  ),
+                );
+                return;
+              }
+
+              if (isOwner) return;
+
+              _contactCompany();
+            },
             color: Style.getPrimaryColor(),
             child: Text(
-              isOwner ? 'Editar vacante' : 'Contactar empresa',
+              canEdit
+                  ? 'Editar vacante'
+                  : isOwner
+                  ? 'Vacante cerrada'
+                  : 'Contactar empresa',
               style: Style.getHeaderThree(
                 color: Style.white,
                 fontWeight: FontWeight.w700,
@@ -342,6 +376,7 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
 
   Widget _companyCard() {
     final vacancy = _vacancy!;
+    final companyPhotoUrl = vacancy.companyLogoUrl;
     return Card(
       color: Style.getCardColor(),
       elevation: 4,
@@ -362,11 +397,11 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
             children: [
               CircleAvatar(
                 radius: 28.w,
-                backgroundImage: vacancy.companyLogoUrl.isNotEmpty
-                    ? NetworkImage(vacancy.companyLogoUrl)
+                backgroundImage: companyPhotoUrl.isNotEmpty
+                    ? NetworkImage(companyPhotoUrl)
                     : null,
                 backgroundColor: Style.getPrimaryColor().withValues(alpha: .10),
-                child: vacancy.companyLogoUrl.isEmpty
+                child: companyPhotoUrl.isEmpty
                     ? Icon(
                         Icons.apartment_rounded,
                         color: Style.getPrimaryColor(),

@@ -2,7 +2,7 @@ import 'package:worklink_local/modules/app/components/general/form/form_widgets.
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/requests/models/work_request_model.dart';
 import 'package:worklink_local/modules/requests/services/requests_service.dart';
-import 'package:worklink_local/utils/widgets/custom_widgets.dart';
+import 'package:worklink_local/utils/widgets/widgets.dart';
 
 class RequestFormScreen extends StatefulWidget {
   const RequestFormScreen({super.key, this.request});
@@ -15,7 +15,11 @@ class RequestFormScreen extends StatefulWidget {
 
 class _RequestFormScreenState extends State<RequestFormScreen> {
   final RequestsService _service = RequestsService();
-  final _formKey = GlobalKey<FormState>();
+  final List<GlobalKey<FormState>> _stepKeys = <GlobalKey<FormState>>[
+    GlobalKey<FormState>(),
+    GlobalKey<FormState>(),
+    GlobalKey<FormState>(),
+  ];
   late final TextEditingController _titleController;
   late final TextEditingController _categoryController;
   late final TextEditingController _shortDescriptionController;
@@ -24,6 +28,7 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
   late final TextEditingController _locationController;
   late RequestModality _modality;
   late RequestStatus _status;
+  int _currentStep = 0;
   bool _saving = false;
 
   bool get _isEditing => widget.request != null;
@@ -60,7 +65,6 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
 
     try {
@@ -115,205 +119,171 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Style.getBackgroundColor(),
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            pinned: true,
-            backgroundColor: Style.getBackgroundColor(),
-            surfaceTintColor: Style.transparent,
-            elevation: 0,
-            titleSpacing: 0,
-            leading: IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Style.getTextColor(),
-              ),
+    return MultiStepFormScaffold(
+      title: _isEditing
+          ? (MultiLanguages.of(context)?.translate('requests_edit_title') ??
+                'Editar solicitud')
+          : (MultiLanguages.of(context)?.translate('requests_new_title') ??
+                'Nueva solicitud'),
+      stepTitles: const <String>['General', 'Descripcion', 'Modalidad'],
+      currentStep: _currentStep,
+      onClose: () => Navigator.pop(context),
+      onBack: _currentStep == 0 ? null : () => setState(() => _currentStep--),
+      onNext: _saving ? null : _onNext,
+      isLastStep: _currentStep == 2,
+      isLoading: _saving,
+      submitLabel: _isEditing
+          ? (MultiLanguages.of(context)?.translate('save_changes') ??
+                'Guardar cambios')
+          : (MultiLanguages.of(context)?.translate('requests_create_button') ??
+                'Crear solicitud'),
+      child: _stepContent(),
+    );
+  }
+
+  Future<void> _onNext() async {
+    final valid = _stepKeys[_currentStep].currentState?.validate() ?? true;
+    if (!valid) {
+      _showStepValidationDialog();
+      return;
+    }
+
+    if (_currentStep < 2) {
+      setState(() => _currentStep++);
+      return;
+    }
+
+    await _save();
+  }
+
+  void _showStepValidationDialog() {
+    Dialogs.showSimpleDialog(
+      context,
+      title: MultiLanguages.of(context)?.translate('error') ?? 'Error',
+      message:
+          'No puedes avanzar porque faltan campos requeridos por completar.',
+      color: Style.getErrorColor(),
+      icon: Icons.error_outline_rounded,
+    );
+  }
+
+  Widget _stepContent() {
+    if (_currentStep == 0) {
+      return Form(
+        key: _stepKeys[0],
+        child: Column(
+          children: [
+            _field(
+              controller: _titleController,
+              label:
+                  MultiLanguages.of(
+                    context,
+                  )?.translate('services_field_title') ??
+                  'Titulo',
+              hint: 'Necesitamos un sitio web...',
             ),
-            title: Text(
-              _isEditing
-                  ? (MultiLanguages.of(
-                          context,
-                        )?.translate('requests_edit_title') ??
-                        'Editar solicitud')
-                  : (MultiLanguages.of(
-                          context,
-                        )?.translate('requests_new_title') ??
-                        'Nueva solicitud'),
-              style: Style.getHeaderTwo(
-                color: Style.getTextColor(),
-                fontWeight: FontWeight.w800,
-              ),
+            SizedBox(height: 14.h),
+            _field(
+              controller: _categoryController,
+              label:
+                  MultiLanguages.of(context)?.translate('services_category') ??
+                  'Categoria',
+              hint: 'Desarrollo Web',
             ),
+            SizedBox(height: 14.h),
+            _field(
+              controller: _budgetLabelController,
+              label:
+                  MultiLanguages.of(context)?.translate('requests_budget') ??
+                  'Presupuesto',
+              hint: r'$1,500',
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_currentStep == 1) {
+      return Form(
+        key: _stepKeys[1],
+        child: Column(
+          children: [
+            _field(
+              controller: _shortDescriptionController,
+              label:
+                  MultiLanguages.of(
+                    context,
+                  )?.translate('requests_short_description') ??
+                  'Descripcion resumida',
+              hint:
+                  MultiLanguages.of(
+                    context,
+                  )?.translate('requests_hint_short_description') ??
+                  'Resumen breve de la solicitud',
+              maxLines: 3,
+            ),
+            SizedBox(height: 14.h),
+            _field(
+              controller: _descriptionController,
+              label:
+                  MultiLanguages.of(
+                    context,
+                  )?.translate('services_full_description') ??
+                  'Descripcion completa',
+              hint:
+                  MultiLanguages.of(
+                    context,
+                  )?.translate('requests_hint_full_description') ??
+                  'Explica lo que necesitas',
+              maxLines: 6,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Form(
+      key: _stepKeys[2],
+      child: Column(
+        children: [
+          _field(
+            controller: _locationController,
+            label:
+                MultiLanguages.of(context)?.translate('location') ??
+                'Ubicacion',
+            hint: 'Remoto',
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.all(Style.horizontalPadding.w),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _field(
-                      controller: _titleController,
-                      label:
-                          MultiLanguages.of(
-                            context,
-                          )?.translate('services_field_title') ??
-                          'Título',
-                      hint: 'Necesitamos un sitio web...',
-                    ),
-                    SizedBox(height: 14.h),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _field(
-                            controller: _categoryController,
-                            label:
-                                MultiLanguages.of(
-                                  context,
-                                )?.translate('services_category') ??
-                                'Categoría',
-                            hint: 'Desarrollo Web',
-                          ),
-                        ),
-                        SizedBox(width: 12.w),
-                        Expanded(
-                          child: _field(
-                            controller: _budgetLabelController,
-                            label:
-                                MultiLanguages.of(
-                                  context,
-                                )?.translate('requests_budget') ??
-                                'Presupuesto',
-                            hint: r'$1,500',
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 14.h),
-                    _field(
-                      controller: _shortDescriptionController,
-                      label:
-                          MultiLanguages.of(
-                            context,
-                          )?.translate('requests_short_description') ??
-                          'Descripción resumida',
-                      hint:
-                          MultiLanguages.of(
-                            context,
-                          )?.translate('requests_hint_short_description') ??
-                          'Resumen breve de la solicitud',
-                      maxLines: 3,
-                    ),
-                    SizedBox(height: 14.h),
-                    _field(
-                      controller: _descriptionController,
-                      label:
-                          MultiLanguages.of(
-                            context,
-                          )?.translate('services_full_description') ??
-                          'Descripción completa',
-                      hint:
-                          MultiLanguages.of(
-                            context,
-                          )?.translate('requests_hint_full_description') ??
-                          'Explica lo que necesitas',
-                      maxLines: 6,
-                    ),
-                    SizedBox(height: 14.h),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _field(
-                            controller: _locationController,
-                            label:
-                                MultiLanguages.of(
-                                  context,
-                                )?.translate('location') ??
-                                'Ubicación',
-                            hint: 'Remoto',
-                          ),
-                        ),
-                        SizedBox(width: 12.w),
-                        Expanded(
-                          child: CustomPickerField<RequestModality>(
-                            label:
-                                MultiLanguages.of(
-                                  context,
-                                )?.translate('services_modality') ??
-                                'Modalidad',
-                            value: _modality,
-                            items: RequestModality.values
-                                .map(
-                                  (modality) => CustomPickerOption(
-                                    value: modality,
-                                    label: modality.label,
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              if (value != null)
-                                setState(() => _modality = value);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 14.h),
-                    CustomPickerField<RequestStatus>(
-                      label:
-                          MultiLanguages.of(context)?.translate('status') ??
-                          'Estado',
-                      value: _status,
-                      items: RequestStatus.values
-                          .map(
-                            (status) => CustomPickerOption(
-                              value: status,
-                              label: status.label,
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) setState(() => _status = value);
-                      },
-                    ),
-                    SizedBox(height: 22.h),
-                    CustomWidgets.button(
-                      onTap: _saving ? () {} : _save,
-                      color: Style.getPrimaryColor(),
-                      child: _saving
-                          ? SizedBox(
-                              height: 18.w,
-                              width: 18.w,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Style.white,
-                              ),
-                            )
-                          : Text(
-                              _isEditing
-                                  ? (MultiLanguages.of(
-                                          context,
-                                        )?.translate('save_changes') ??
-                                        'Guardar cambios')
-                                  : (MultiLanguages.of(context)?.translate(
-                                          'requests_create_button',
-                                        ) ??
-                                        'Crear solicitud'),
-                              style: Style.getHeaderThree(
-                                color: Style.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          SizedBox(height: 14.h),
+          CustomPickerField<RequestModality>(
+            label:
+                MultiLanguages.of(context)?.translate('services_modality') ??
+                'Modalidad',
+            value: _modality,
+            items: RequestModality.values
+                .map(
+                  (modality) => CustomPickerOption(
+                    value: modality,
+                    label: modality.label,
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value != null) setState(() => _modality = value);
+            },
+          ),
+          SizedBox(height: 14.h),
+          CustomPickerField<RequestStatus>(
+            label: MultiLanguages.of(context)?.translate('status') ?? 'Estado',
+            value: _status,
+            items: RequestStatus.values
+                .map(
+                  (status) =>
+                      CustomPickerOption(value: status, label: status.label),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value != null) setState(() => _status = value);
+            },
           ),
         ],
       ),
@@ -331,6 +301,7 @@ class _RequestFormScreenState extends State<RequestFormScreen> {
       label: label,
       hintText: hint,
       maxLines: maxLines,
+      requiredField: true,
       validator: (value) => (value == null || value.trim().isEmpty)
           ? (MultiLanguages.of(context)?.translate('field_required') ??
                 'Campo requerido')

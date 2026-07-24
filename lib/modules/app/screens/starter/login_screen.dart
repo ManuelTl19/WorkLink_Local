@@ -1,14 +1,31 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:worklink_local/modules/app/components/general/form/form_widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/app/components/forgot_password_content.dart';
 import 'package:worklink_local/modules/app/components/biometric_login_button.dart';
 import 'package:worklink_local/modules/app/screens/dashboard_screen.dart';
 import 'package:worklink_local/modules/app/screens/starter/register_screen.dart';
+import 'package:worklink_local/modules/users/models/user_model.dart';
 import 'package:worklink_local/modules/users/services/user_service.dart';
 import 'package:worklink_local/utils/extensions/extensions.dart';
 import 'package:worklink_local/utils/widgets/widgets.dart';
+
+class _QuickAccessAccount {
+  final String label;
+  final String email;
+  final String password;
+  final IconData icon;
+
+  const _QuickAccessAccount({
+    required this.label,
+    required this.email,
+    required this.password,
+    required this.icon,
+  });
+}
 
 class LoginScreen extends StatefulWidget {
   final bool showByeMesssage;
@@ -20,6 +37,27 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  static const List<_QuickAccessAccount> _quickAccessAccounts = [
+    _QuickAccessAccount(
+      label: 'Cliente',
+      email: 'cliente@worklink.com',
+      password: 'cliente123',
+      icon: Icons.person_rounded,
+    ),
+    _QuickAccessAccount(
+      label: 'Empresa',
+      email: 'empresa@worklink.com',
+      password: 'empresa123',
+      icon: Icons.apartment_rounded,
+    ),
+    _QuickAccessAccount(
+      label: 'Freelancer',
+      email: 'freelancer@worklink.com',
+      password: 'freelancer123',
+      icon: Icons.work_outline_rounded,
+    ),
+  ];
+
   final _formKey = GlobalKey<FormState>();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -146,6 +184,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     _forgotPassword(context),
                     SizedBox(height: 16.h),
                     _loginButton(),
+                    SizedBox(height: 12.h),
+                    _quickAccessButton(),
                     if (_showBiometricButton) ...[
                       SizedBox(height: 18.h),
                       BiometricLoginButton(
@@ -171,13 +211,6 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _topRow(AppSettings app) {
     return Row(
       children: [
-        _iconButton(
-          icon: Icons.bolt_rounded,
-          onTap: () {
-            emailController.text = 'admin@worklink.com';
-            passwordController.text = 'admin123';
-          },
-        ),
         const Spacer(),
         _iconButton(
           icon: AppSettings.isDarkModeOn
@@ -336,6 +369,35 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Widget _quickAccessButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _showQuickAccessPicker,
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(
+            color: Style.getSecondaryColor().withValues(alpha: .35),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: Style.getButtonBorderRadius(),
+          ),
+          padding: EdgeInsets.symmetric(vertical: 10.h),
+        ),
+        icon: Icon(
+          Icons.arrow_drop_down_circle_outlined,
+          color: Style.getSecondaryColor(),
+        ),
+        label: Text(
+          'Entrar con cuenta de prueba',
+          style: Style.getHeaderThree(
+            color: Style.getSecondaryColor(),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _separator() {
     return Row(
       children: [
@@ -405,9 +467,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
+      if (_isAdminUser(result.user)) {
+        await _blockAdminAccess();
+        return;
+      }
+
       Dialogs.showSimpleDialog(
         context,
-        title: result.message,
+        title: MultiLanguages.of(context)!.translate('login_success_message'),
         message: '${result.user.nombre} ${result.user.apellidoP}'.trim(),
         color: Style.getPrimaryColor(),
         svg: Assets.svgCheckIcon,
@@ -447,6 +514,54 @@ class _LoginScreenState extends State<LoginScreen> {
     Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
+  }
+
+  Future<void> _showQuickAccessPicker() async {
+    final selected = await showModalBottomSheet<_QuickAccessAccount>(
+      context: context,
+      backgroundColor: Style.getCardColor(),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 12.h),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Selecciona un tipo de cuenta',
+                  style: Style.getHeaderThree(
+                    color: Style.getTextColor(),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                ..._quickAccessAccounts.map(
+                  (account) => ListTile(
+                    leading: Icon(account.icon, color: Style.getPrimaryColor()),
+                    title: Text(
+                      account.label,
+                      style: Style.getTextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(account.email),
+                    onTap: () => Navigator.of(sheetContext).pop(account),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || selected == null) return;
+
+    setState(() {
+      emailController.text = selected.email;
+      passwordController.text = selected.password;
+    });
   }
 
   // ignore: unused_element
@@ -545,6 +660,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
+      final storedUser = await _readStoredUser();
+      if (!mounted) return;
+
+      if (_isAdminUser(storedUser)) {
+        await _blockAdminAccess();
+        return;
+      }
+
       Dialogs.showSimpleDialog(
         context,
         title: MultiLanguages.of(context)!.translate('biometric_success_title'),
@@ -569,5 +692,55 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     }
+  }
+
+  bool _isAdminUser(UserModel? user) {
+    if (user == null) return false;
+
+    final roles = user.roles
+        .map((item) => item.toLowerCase().trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    final type = user.tipoCuenta.toLowerCase().trim();
+
+    return roles.contains('admin') ||
+        roles.contains('administrador') ||
+        type == 'admin' ||
+        type == 'administrador';
+  }
+
+  Future<UserModel?> _readStoredUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawUser = prefs.getString(Constants.userEmailKey);
+    if (rawUser == null || rawUser.trim().isEmpty) return null;
+
+    try {
+      final map = jsonDecode(rawUser);
+      if (map is Map<String, dynamic>) {
+        return UserModel.fromJson(map);
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  Future<void> _blockAdminAccess() async {
+    await AuthService.logout();
+
+    if (!mounted) return;
+    setState(() {
+      _hasValidStoredToken = false;
+      _biometricEnabled = false;
+    });
+
+    Dialogs.showSimpleDialog(
+      context,
+      title: 'Acceso restringido',
+      message:
+          'La cuenta administrador se gestiona desde la plataforma web y no puede ingresar en esta app móvil.',
+      color: Style.getErrorColor(),
+      icon: Icons.block_rounded,
+      duration: 2600,
+    );
   }
 }

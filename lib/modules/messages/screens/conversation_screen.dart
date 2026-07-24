@@ -7,7 +7,8 @@ import 'package:worklink_local/modules/messages/components/message_composer.dart
 import 'package:worklink_local/modules/messages/models/chat_model.dart';
 import 'package:worklink_local/modules/messages/models/message_model.dart';
 import 'package:worklink_local/modules/messages/services/message_service.dart';
-import 'package:worklink_local/utils/widgets/widgets.dart';
+import 'package:worklink_local/modules/reports/screens/report_form_screen.dart';
+import 'package:worklink_local/utils/utils.dart';
 
 class ConversationScreen extends StatefulWidget {
   final ChatModel chat;
@@ -40,36 +41,58 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   Future<void> _loadConversation() async {
-    final messages = await MessageService.loadDemoConversation(widget.chat.id);
-    if (!mounted) return;
+    try {
+      final messages = await MessageService.loadDemoConversation(
+        widget.chat.id,
+      );
+      if (!mounted) return;
 
-    setState(() {
-      _messages = messages;
-      _loading = false;
-    });
+      setState(() {
+        _messages = messages;
+        _loading = false;
+      });
 
-    _scrollToBottom();
+      _scrollToBottom();
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _messages = const [];
+        _loading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo cargar la conversación: $e')),
+      );
+    }
   }
 
   Future<void> _sendMessage() async {
     final text = _composerController.text.trim();
     if (text.isEmpty) return;
 
-    final nextId = _messages.isEmpty ? 1 : _messages.last.id + 1;
-    final newMessage = await MessageService.sendDemoMessage(
-      chatId: widget.chat.id,
-      nextId: nextId,
-      text: text,
-    );
+    try {
+      final nextId = _messages.isEmpty ? 1 : _messages.last.id + 1;
+      final newMessage = await MessageService.sendDemoMessage(
+        chatId: widget.chat.id,
+        nextId: nextId,
+        text: text,
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _messages = [..._messages, newMessage];
-      _composerController.clear();
-    });
+      setState(() {
+        _messages = [..._messages, newMessage];
+        _composerController.clear();
+      });
 
-    _scrollToBottom();
+      _scrollToBottom();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo enviar el mensaje: $e')),
+      );
+    }
   }
 
   Future<void> _sendImage() async {
@@ -93,20 +116,89 @@ class _ConversationScreenState extends State<ConversationScreen> {
       return;
     }
 
-    final nextId = _messages.isEmpty ? 1 : _messages.last.id + 1;
-    final newMessage = await MessageService.sendDemoImageMessage(
-      chatId: widget.chat.id,
-      nextId: nextId,
-      imageUrl: filePath,
-    );
+    try {
+      final nextId = _messages.isEmpty ? 1 : _messages.last.id + 1;
+      final newMessage = await MessageService.sendDemoImageMessage(
+        chatId: widget.chat.id,
+        nextId: nextId,
+        imageUrl: filePath,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _messages = [..._messages, newMessage];
+      });
+
+      _scrollToBottom();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo enviar la imagen: $e')),
+      );
+    }
+  }
+
+  Future<void> _showMessageActions(MessageModel message) async {
+    final canDelete = await MessageService.canDeleteMessage(message);
+    if (!canDelete) return;
 
     if (!mounted) return;
 
-    setState(() {
-      _messages = [..._messages, newMessage];
-    });
+    final shouldDelete = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Style.getCardColor(),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(
+                  Icons.delete_outline_rounded,
+                  color: Style.getErrorColor(),
+                ),
+                title: Text(
+                  'Eliminar mensaje',
+                  style: Style.getHeaderThree(color: Style.getTextColor()),
+                ),
+                subtitle: Text(
+                  message.status == MessageDeliveryStatus.read
+                      ? 'Ya fue leído. Solo admin puede retirarlo.'
+                      : 'Retira este mensaje de la conversación.',
+                  style: Style.getTextStyle(color: Style.getObscureTextColor()),
+                ),
+                onTap: () => Navigator.pop(context, true),
+              ),
+              ListTile(
+                leading: Icon(Icons.close_rounded, color: Style.getTextColor()),
+                title: Text(
+                  'Cancelar',
+                  style: Style.getHeaderThree(color: Style.getTextColor()),
+                ),
+                onTap: () => Navigator.pop(context, false),
+              ),
+            ],
+          ),
+        );
+      },
+    );
 
-    _scrollToBottom();
+    if (shouldDelete != true) return;
+
+    try {
+      await MessageService.deleteMessage(message.id);
+      if (!mounted) return;
+      await _loadConversation();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo eliminar el mensaje: $e')),
+      );
+    }
   }
 
   void _scrollToBottom() {
@@ -128,6 +220,29 @@ class _ConversationScreenState extends State<ConversationScreen> {
       Style.kingBlue,
     ];
     return colors[widget.chat.id % colors.length];
+  }
+
+  bool get _canReportChat {
+    final relatedId = widget.chat.relatedEntityId;
+    final relatedType =
+        widget.chat.relatedEntityType?.toLowerCase().trim() ?? '';
+    if (relatedId == null || relatedId <= 0) return false;
+    return relatedType == 'service_requester' ||
+        relatedType == 'freelancer' ||
+        relatedType == 'user';
+  }
+
+  Future<void> _reportChatUser() async {
+    if (!_canReportChat) return;
+
+    await Navigator.of(context).push(
+      Transitions.slideUpTransition(
+        ReportFormScreen(
+          reportedUserId: widget.chat.relatedEntityId!,
+          reportedUserName: widget.chat.name,
+        ),
+      ),
+    );
   }
 
   @override
@@ -171,6 +286,16 @@ class _ConversationScreenState extends State<ConversationScreen> {
             ),
           ],
         ),
+        actions: [
+          if (_canReportChat)
+            IconButton(
+              onPressed: _reportChatUser,
+              icon: Icon(
+                Icons.report_problem_rounded,
+                color: Style.getTextColor(),
+              ),
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -187,7 +312,11 @@ class _ConversationScreenState extends State<ConversationScreen> {
                     ),
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
-                      return MessageBubble(message: _messages[index]);
+                      final message = _messages[index];
+                      return GestureDetector(
+                        onLongPress: () => _showMessageActions(message),
+                        child: MessageBubble(message: message),
+                      );
                     },
                   ),
           ),

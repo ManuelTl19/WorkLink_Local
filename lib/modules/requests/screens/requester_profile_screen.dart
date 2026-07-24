@@ -1,6 +1,7 @@
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/requests/models/requester_profile_model.dart';
 import 'package:worklink_local/modules/requests/services/requests_service.dart';
+import 'package:worklink_local/modules/reports/screens/report_form_screen.dart';
 import 'package:worklink_local/utils/widgets/custom_widgets.dart';
 import 'package:worklink_local/utils/utils.dart';
 
@@ -33,6 +34,20 @@ class _RequesterProfileScreenState extends State<RequesterProfileScreen> {
     });
   }
 
+  Future<void> _reportRequester() async {
+    final requester = _requester;
+    if (requester == null) return;
+
+    await Navigator.of(context).push(
+      Transitions.slideUpTransition(
+        ReportFormScreen(
+          reportedUserId: widget.requesterId,
+          reportedUserName: requester.name,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -56,6 +71,11 @@ class _RequesterProfileScreenState extends State<RequesterProfileScreen> {
                 onPressed: _loadData,
                 icon: Icon(Icons.refresh_rounded, color: Style.white),
               ),
+              if (_requester != null)
+                IconButton(
+                  onPressed: _reportRequester,
+                  icon: Icon(Icons.report_problem_rounded, color: Style.white),
+                ),
             ],
             title: Text(
               MultiLanguages.of(

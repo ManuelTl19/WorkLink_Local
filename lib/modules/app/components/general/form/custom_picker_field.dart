@@ -42,7 +42,8 @@ class CustomPickerField<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveValidator = validator ??
+    final effectiveValidator =
+        validator ??
         (requiredField
             ? (selected) => selected == null ? 'Campo requerido' : null
             : null);
@@ -50,11 +51,23 @@ class CustomPickerField<T> extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: Style.getHeaderThree(
-            color: Style.getObscureTextColor(),
-            fontWeight: FontWeight.w600,
+        RichText(
+          text: TextSpan(
+            style: Style.getHeaderThree(
+              color: Style.getObscureTextColor(),
+              fontWeight: FontWeight.w600,
+            ),
+            children: [
+              TextSpan(text: label),
+              if (requiredField)
+                TextSpan(
+                  text: ' *',
+                  style: Style.getHeaderThree(
+                    color: Style.getErrorColor(),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+            ],
           ),
         ),
         SizedBox(height: 6.h),
@@ -75,15 +88,27 @@ class CustomPickerField<T> extends StatelessWidget {
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: Style.getBorderRadius(),
-              borderSide: BorderSide(
-                color: Style.getBorderColor().withValues(alpha: .08),
-              ),
+              borderSide: BorderSide(color: Style.getFormFieldBorderColor()),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: Style.getBorderRadius(),
-              borderSide: BorderSide(color: Style.getPrimaryColor(), width: 1.2),
+              borderSide: BorderSide(
+                color: Style.getPrimaryColor(),
+                width: 1.2,
+              ),
             ),
-            contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 15.h),
+            errorBorder: OutlineInputBorder(
+              borderRadius: Style.getBorderRadius(),
+              borderSide: BorderSide(color: Style.getErrorColor(), width: 1.2),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: Style.getBorderRadius(),
+              borderSide: BorderSide(color: Style.getErrorColor(), width: 1.4),
+            ),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 14.w,
+              vertical: 15.h,
+            ),
           ),
           items: items
               .map(

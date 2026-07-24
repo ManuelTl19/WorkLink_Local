@@ -8,6 +8,7 @@ class ServiceCard extends StatelessWidget {
   final ServiceModel service;
   final ServiceCardMode mode;
   final VoidCallback onTap;
+  final int? requestCount;
   final VoidCallback? onRequest;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
@@ -19,6 +20,7 @@ class ServiceCard extends StatelessWidget {
     required this.service,
     required this.mode,
     required this.onTap,
+    this.requestCount,
     this.onRequest,
     this.onEdit,
     this.onDelete,
@@ -100,6 +102,19 @@ class ServiceCard extends StatelessWidget {
               if (mode == ServiceCardMode.owner) ...[
                 SizedBox(height: 10.h),
                 _ownerVisibilityRow(context),
+                if (onViewRequests != null) ...[
+                  SizedBox(height: 10.h),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: onViewRequests,
+                      icon: Icon(Icons.inbox_rounded, size: 16.w),
+                      label: Text(
+                        'Solicitudes (${requestCount ?? service.interestedCount})',
+                      ),
+                    ),
+                  ),
+                ],
               ],
               if (mode == ServiceCardMode.browse)
                 _browseActions(context)

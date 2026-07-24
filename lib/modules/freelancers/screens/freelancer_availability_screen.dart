@@ -1,15 +1,20 @@
+// ignore_for_file: curly_braces_in_flow_control_structures, use_build_context_synchronously
+
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:worklink_local/helpers/helpers.dart';
+import 'package:worklink_local/modules/freelancers/services/freelancers_service.dart';
 import 'package:worklink_local/modules/freelancers/models/freelancer_availability_model.dart';
 import 'package:worklink_local/modules/freelancers/services/freelancer_availability_service.dart';
 import 'package:worklink_local/modules/users/models/user_model.dart';
 import 'package:worklink_local/utils/utils.dart';
 
 class FreelancerAvailabilityScreen extends StatefulWidget {
-  const FreelancerAvailabilityScreen({super.key});
+  const FreelancerAvailabilityScreen({super.key, this.freelancerProfileId});
+
+  final int? freelancerProfileId;
 
   @override
   State<FreelancerAvailabilityScreen> createState() =>
@@ -26,8 +31,10 @@ class _FreelancerAvailabilityScreenState
 
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _canManage = false;
 
   UserModel? _user;
+  int? _targetFreelancerProfileId;
   DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now().add(const Duration(days: 7));
   String _status = 'available';
@@ -35,6 +42,18 @@ class _FreelancerAvailabilityScreenState
   String _dateFilter = 'all';
 
   List<FreelancerAvailabilityModel> _items = [];
+
+  void _showError(String message) {
+    if (!mounted) return;
+
+    Dialogs.showSimpleDialog(
+      context,
+      title: 'Error',
+      message: message,
+      color: Style.getErrorColor(),
+      icon: Icons.error_outline_rounded,
+    );
+  }
 
   @override
   void initState() {
@@ -55,13 +74,44 @@ class _FreelancerAvailabilityScreenState
         jsonDecode(rawUser) as Map<String, dynamic>,
       );
 
-      final list = await FreelancerAvailabilityService.getByFreelancer(
+      final currentUserProfile = await FreelancersService.getProfileByUserId(
         parsedUser.id,
       );
+
+      int? targetFreelancerId =
+          widget.freelancerProfileId ?? currentUserProfile?.id;
+      if (targetFreelancerId == null) {
+        throw Exception(
+          'No se encontro un perfil freelancer activo para administrar disponibilidad.',
+        );
+      }
+
+      if (targetFreelancerId <= 0) {
+        throw Exception(
+          'No se encontro un perfil freelancer activo para administrar disponibilidad.',
+        );
+      }
+
+      final list = await FreelancerAvailabilityService.getByFreelancer(
+        targetFreelancerId,
+      );
+
+      final normalizedRoles = parsedUser.roles
+          .map((role) => role.toLowerCase().trim())
+          .where((role) => role.isNotEmpty)
+          .toList();
+      final currentType = parsedUser.tipoCuenta.toLowerCase().trim();
+      final isAdmin =
+          normalizedRoles.contains('admin') ||
+          normalizedRoles.contains('administrador') ||
+          currentType == 'admin' ||
+          currentType == 'administrador';
 
       if (!mounted) return;
       setState(() {
         _user = parsedUser;
+        _targetFreelancerProfileId = targetFreelancerId;
+        _canManage = isAdmin || currentUserProfile?.id == targetFreelancerId;
         _items = list;
         _isLoading = false;
       });
@@ -69,13 +119,7 @@ class _FreelancerAvailabilityScreenState
       if (!mounted) return;
 
       setState(() => _isLoading = false);
-      Dialogs.showSimpleDialog(
-        context,
-        title: 'Error',
-        message: e.toString().replaceFirst('Exception: ', ''),
-        color: Style.getErrorColor(),
-        icon: Icons.error_outline_rounded,
-      );
+      _showError(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
@@ -106,7 +150,9 @@ class _FreelancerAvailabilityScreenState
   }
 
   Future<void> _saveAvailability() async {
-    if (_user == null || _isSaving) return;
+    if (_user == null || _isSaving || _targetFreelancerProfileId == null)
+      return;
+    if (!_canManage) return;
 
     if (_endDate.isBefore(_startDate)) {
       Dialogs.showSimpleDialog(
@@ -123,7 +169,7 @@ class _FreelancerAvailabilityScreenState
 
     try {
       final request = FreelancerAvailabilityModel(
-        freelancerId: _user!.id,
+        freelancerId: _targetFreelancerProfileId!,
         startDate: _startDate,
         endDate: _endDate,
         status: _status,
@@ -151,13 +197,7 @@ class _FreelancerAvailabilityScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      Dialogs.showSimpleDialog(
-        context,
-        title: 'Error',
-        message: e.toString().replaceFirst('Exception: ', ''),
-        color: Style.getErrorColor(),
-        icon: Icons.error_outline_rounded,
-      );
+      _showError(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
@@ -241,7 +281,10 @@ class _FreelancerAvailabilityScreenState
 
                 setState(() {
                   _items = _items
-                      .map((element) => element.id == updated.id ? updated : element)
+                      .map(
+                        (element) =>
+                            element.id == updated.id ? updated : element,
+                      )
                       .toList();
                 });
 
@@ -309,7 +352,9 @@ class _FreelancerAvailabilityScreenState
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14.r),
                         border: Border.all(
-                          color: Style.getObscureTextColor().withValues(alpha: .24),
+                          color: Style.getObscureTextColor().withValues(
+                            alpha: .24,
+                          ),
                         ),
                       ),
                       child: DropdownButtonHideUnderline(
@@ -340,7 +385,10 @@ class _FreelancerAvailabilityScreenState
                     SizedBox(
                       width: double.infinity,
                       child: CustomWidgets.button(
-                        onTap: modalIsSaving ? () {} : saveEdit,
+                        onTap: () {
+                          if (modalIsSaving) return;
+                          saveEdit();
+                        },
                         color: Style.getPrimaryColor(),
                         shape: 1,
                         child: modalIsSaving
@@ -473,6 +521,8 @@ class _FreelancerAvailabilityScreenState
   }
 
   Widget _formCard() {
+    final canManage = _canManage && _targetFreelancerProfileId != null;
+
     return Card(
       color: Style.getCardColor(),
       elevation: 5,
@@ -533,7 +583,10 @@ class _FreelancerAvailabilityScreenState
             SizedBox(
               width: double.infinity,
               child: CustomWidgets.button(
-                onTap: _isSaving ? () {} : _saveAvailability,
+                onTap: () {
+                  if (_isSaving || !canManage) return;
+                  _saveAvailability();
+                },
                 color: Style.getPrimaryColor(),
                 shape: 1,
                 child: _isSaving
@@ -546,7 +599,7 @@ class _FreelancerAvailabilityScreenState
                         ),
                       )
                     : Text(
-                      'Guardar disponibilidad',
+                        'Guardar disponibilidad',
                         style: Style.getHeaderThree(
                           color: Style.white,
                           fontWeight: FontWeight.w700,
@@ -722,6 +775,8 @@ class _FreelancerAvailabilityScreenState
   }
 
   Widget _availabilityCard(FreelancerAvailabilityModel item) {
+    final canManage = _canManage && _targetFreelancerProfileId != null;
+
     return Container(
       margin: EdgeInsets.only(bottom: 10.h),
       padding: EdgeInsets.all(12.w),
@@ -751,7 +806,10 @@ class _FreelancerAvailabilityScreenState
                 ),
                 SizedBox(height: 4.h),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10.w,
+                    vertical: 4.h,
+                  ),
                   decoration: BoxDecoration(
                     color: _statusColor(item.status).withValues(alpha: .14),
                     borderRadius: BorderRadius.circular(99.r),
@@ -768,22 +826,24 @@ class _FreelancerAvailabilityScreenState
               ],
             ),
           ),
-          IconButton(
-            onPressed: () => _openEditModal(item),
-            icon: Icon(
-              Icons.edit_rounded,
-              color: Style.getPrimaryColor(),
-              size: 20.w,
+          if (canManage)
+            IconButton(
+              onPressed: () => _openEditModal(item),
+              icon: Icon(
+                Icons.edit_rounded,
+                color: Style.getPrimaryColor(),
+                size: 20.w,
+              ),
             ),
-          ),
-          IconButton(
-            onPressed: () => _deleteAvailability(item),
-            icon: Icon(
-              Icons.delete_outline_rounded,
-              color: Style.getErrorColor(),
-              size: 20.w,
+          if (canManage)
+            IconButton(
+              onPressed: () => _deleteAvailability(item),
+              icon: Icon(
+                Icons.delete_outline_rounded,
+                color: Style.getErrorColor(),
+                size: 20.w,
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -823,12 +883,21 @@ class _FreelancerAvailabilityScreenState
     final today = DateTime(now.year, now.month, now.day);
 
     return _items.where((item) {
-      if (_statusFilter != 'all' && item.status.toLowerCase() != _statusFilter) {
+      if (_statusFilter != 'all' &&
+          item.status.toLowerCase() != _statusFilter) {
         return false;
       }
 
-      final start = DateTime(item.startDate.year, item.startDate.month, item.startDate.day);
-      final end = DateTime(item.endDate.year, item.endDate.month, item.endDate.day);
+      final start = DateTime(
+        item.startDate.year,
+        item.startDate.month,
+        item.startDate.day,
+      );
+      final end = DateTime(
+        item.endDate.year,
+        item.endDate.month,
+        item.endDate.day,
+      );
 
       switch (_dateFilter) {
         case 'active':

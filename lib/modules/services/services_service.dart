@@ -12,6 +12,16 @@ import 'package:worklink_local/modules/services/models/service_model.dart';
 import 'package:worklink_local/modules/services/models/service_request_model.dart';
 import 'package:worklink_local/modules/users/models/user_model.dart';
 
+class ServiceFlowException implements Exception {
+  final int? statusCode;
+  final String message;
+
+  const ServiceFlowException(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
 class ServicesService {
   static const int currentRequesterId = 901;
   static const String currentRequesterName = 'Empresa Demo';
@@ -20,8 +30,6 @@ class ServicesService {
       'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=600&q=80';
   static const String _fallbackServiceImage =
       'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80';
-
-  static final List<ServiceRequestModel> _requests = [];
 
   Future<int> getCurrentFreelancerId() async {
     final user = await _getStoredUser();
@@ -77,6 +85,10 @@ class ServicesService {
       final normalizedQuery = query.trim().toLowerCase();
 
       final filtered = list.where((service) {
+        if (!service.isActive) {
+          return false;
+        }
+
         final matchesQuery =
             normalizedQuery.isEmpty ||
             service.title.toLowerCase().contains(normalizedQuery) ||
@@ -215,40 +227,314 @@ class ServicesService {
   Future<List<ServiceRequestModel>> getServiceRequestsByServiceId(
     int serviceId,
   ) async {
-    final requests = _requests
-        .where((request) => request.serviceId == serviceId)
-        .toList();
-    requests.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
-    return requests;
+    return getServiceContractRequestsByServiceId(serviceId);
+  }
+
+  Future<int> getServiceContractRequestsCountByServiceId(int serviceId) async {
+    try {
+      final requests = await getServiceContractRequestsByServiceId(serviceId);
+      return requests.length;
+    } on ServiceFlowException catch (e) {
+      if (e.statusCode == 404) {
+        return 0;
+      }
+      rethrow;
+    }
+  }
+
+  Future<List<ServiceRequestModel>> getServiceContractRequestsByServiceId(
+    int serviceId,
+  ) async {
+    try {
+      final token = await SecureStorageService.getToken();
+      if (token == null || token.isEmpty) {
+        throw const ServiceFlowException(
+          'Sesion expirada. Inicia sesion nuevamente.',
+          statusCode: 401,
+        );
+      }
+
+      final response = await http
+          .get(
+            Apis.serviceContractRequestsByServiceId(serviceId),
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 20));
+
+      final body = _decodeBody(response.body);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw _serviceFlowExceptionFromResponse(response.statusCode, body);
+      }
+
+      final requests = _extractDataList(body)
+          .map(ServiceRequestModel.fromJson)
+          .toList()
+        ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+
+      return requests;
+    } on TimeoutException {
+      rethrow;
+    } on ServiceFlowException {
+      rethrow;
+    } catch (e) {
+      if (e is TimeoutException) rethrow;
+      throw ServiceFlowException(
+        e.toString().replaceFirst('Exception: ', ''),
+      );
+    }
+  }
+
+  Future<List<ServiceRequestModel>> getContractRequests({
+    int? serviceId,
+  }) async {
+    try {
+      final token = await SecureStorageService.getToken();
+      if (token == null || token.isEmpty) {
+        throw const ServiceFlowException(
+          'Sesion expirada. Inicia sesion nuevamente.',
+          statusCode: 401,
+        );
+      }
+
+      final response = await http
+          .get(
+            Apis.contractRequests,
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 20));
+
+      final body = _decodeBody(response.body);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw _serviceFlowExceptionFromResponse(response.statusCode, body);
+      }
+
+      final requests = _extractDataList(body)
+          .map(ServiceRequestModel.fromJson)
+          .toList();
+
+      if (serviceId != null) {
+        return requests
+            .where((item) => item.serviceId == serviceId)
+            .toList()
+          ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+      }
+
+      requests.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+      return requests;
+    } on TimeoutException {
+      rethrow;
+    } on ServiceFlowException {
+      rethrow;
+    } catch (e) {
+      if (e is TimeoutException) rethrow;
+      throw ServiceFlowException(
+        e.toString().replaceFirst('Exception: ', ''),
+      );
+    }
   }
 
   Future<ServiceRequestModel> requestService({
     required int serviceId,
-    required int requesterId,
-    required String requesterName,
-    required String accountType,
-    required String avatarUrl,
+    required String description,
+    double? budget,
+    int? clientId,
   }) async {
-    for (final request in _requests) {
-      if (request.serviceId == serviceId &&
-          request.requesterId == requesterId) {
-        return request;
+    try {
+      final token = await SecureStorageService.getToken();
+      if (token == null || token.isEmpty) {
+        throw const ServiceFlowException(
+          'Sesion expirada. Inicia sesion nuevamente.',
+          statusCode: 401,
+        );
       }
+
+      final storedUser = await _getStoredUser();
+      final resolvedClientId = clientId != null && clientId > 0
+          ? clientId
+          : storedUser?.id;
+
+      final payload = <String, dynamic>{
+        'service_id': serviceId,
+        'description': description.trim(),
+        if (budget != null && budget > 0) 'budget': budget,
+        if (resolvedClientId != null && resolvedClientId > 0)
+          'client_id': resolvedClientId,
+      };
+
+      final response = await http
+          .post(
+            Apis.contractRequests,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 20));
+
+      final body = _decodeBody(response.body);
+      final okStatus = response.statusCode == 200 || response.statusCode == 201;
+      if (!okStatus) {
+        throw _serviceFlowExceptionFromResponse(response.statusCode, body);
+      }
+
+      final data = _extractDataMap(body);
+      return ServiceRequestModel.fromJson(data);
+    } on TimeoutException {
+      rethrow;
+    } on ServiceFlowException {
+      rethrow;
+    } catch (e) {
+      if (e is TimeoutException) rethrow;
+      throw ServiceFlowException(
+        e.toString().replaceFirst('Exception: ', ''),
+      );
     }
+  }
 
-    final nextId = _requests.isEmpty ? 1 : _requests.last.id + 1;
-    final request = ServiceRequestModel(
-      id: nextId,
-      serviceId: serviceId,
-      requesterId: requesterId,
-      requesterName: requesterName,
-      accountType: accountType,
-      avatarUrl: avatarUrl,
-      requestedAt: DateTime.now(),
-    );
+  Future<ServiceRequestModel> updateContractRequestStatus({
+    required int requestId,
+    required ServiceContractRequestStatus status,
+  }) async {
+    try {
+      final token = await SecureStorageService.getToken();
+      if (token == null || token.isEmpty) {
+        throw const ServiceFlowException(
+          'Sesion expirada. Inicia sesion nuevamente.',
+          statusCode: 401,
+        );
+      }
 
-    _requests.add(request);
-    return request;
+      final response = await http
+          .patch(
+            Apis.contractRequestById(requestId),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({'status': status.apiValue}),
+          )
+          .timeout(const Duration(seconds: 20));
+
+      final body = _decodeBody(response.body);
+      final okStatus = response.statusCode == 200 || response.statusCode == 201;
+      if (!okStatus) {
+        throw _serviceFlowExceptionFromResponse(response.statusCode, body);
+      }
+
+      final data = _extractDataMap(body);
+      return ServiceRequestModel.fromJson(data);
+    } on TimeoutException {
+      rethrow;
+    } on ServiceFlowException {
+      rethrow;
+    } catch (e) {
+      if (e is TimeoutException) rethrow;
+      throw ServiceFlowException(
+        e.toString().replaceFirst('Exception: ', ''),
+      );
+    }
+  }
+
+  Future<void> deleteContractRequest(int requestId) async {
+    try {
+      final token = await SecureStorageService.getToken();
+      if (token == null || token.isEmpty) {
+        throw const ServiceFlowException(
+          'Sesion expirada. Inicia sesion nuevamente.',
+          statusCode: 401,
+        );
+      }
+
+      final response = await http
+          .delete(
+            Apis.contractRequestById(requestId),
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 20));
+
+      final body = _decodeBody(response.body);
+      final okStatus = response.statusCode == 200 || response.statusCode == 204;
+      if (!okStatus) {
+        throw _serviceFlowExceptionFromResponse(response.statusCode, body);
+      }
+    } on TimeoutException {
+      rethrow;
+    } on ServiceFlowException {
+      rethrow;
+    } catch (e) {
+      if (e is TimeoutException) rethrow;
+      throw ServiceFlowException(
+        e.toString().replaceFirst('Exception: ', ''),
+      );
+    }
+  }
+
+  Future<int?> createContractFromRequest({
+    required int requestId,
+    required double totalAmount,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? status,
+  }) async {
+    try {
+      final token = await SecureStorageService.getToken();
+      if (token == null || token.isEmpty) {
+        throw const ServiceFlowException(
+          'Sesion expirada. Inicia sesion nuevamente.',
+          statusCode: 401,
+        );
+      }
+
+      final payload = <String, dynamic>{
+        'request_id': requestId,
+        'start_date': _formatDate(startDate ?? DateTime.now()),
+        'total_amount': totalAmount,
+        if (endDate != null) 'end_date': _formatDate(endDate),
+        if (status != null && status.trim().isNotEmpty) 'status': status.trim(),
+      };
+
+      final response = await http
+          .post(
+            Apis.contracts,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 20));
+
+      final body = _decodeBody(response.body);
+      final okStatus = response.statusCode == 200 || response.statusCode == 201;
+      if (!okStatus) {
+        throw _serviceFlowExceptionFromResponse(response.statusCode, body);
+      }
+
+      final data = _extractDataMap(body);
+      return _parseInt(data['id'] ?? data['contract_id'] ?? data['contract']?['id']);
+    } on TimeoutException {
+      rethrow;
+    } on ServiceFlowException {
+      rethrow;
+    } catch (e) {
+      if (e is TimeoutException) rethrow;
+      throw ServiceFlowException(
+        e.toString().replaceFirst('Exception: ', ''),
+      );
+    }
   }
 
   Future<ServiceModel> createService({
@@ -408,7 +694,6 @@ class ServicesService {
         );
       }
 
-      _requests.removeWhere((request) => request.serviceId == serviceId);
     } on TimeoutException {
       rethrow;
     } catch (e) {
@@ -455,6 +740,62 @@ class ServicesService {
     }
   }
 
+  static ServiceFlowException _serviceFlowExceptionFromResponse(
+    int statusCode,
+    Map<String, dynamic> body,
+  ) {
+    final message = _extractFailureMessage(body);
+    if (statusCode == 401) {
+      return ServiceFlowException(
+        'No autorizado. Token requerido o invalido.',
+        statusCode: statusCode,
+      );
+    }
+    if (statusCode == 403) {
+      return ServiceFlowException(
+        'Sin permisos para esta accion.',
+        statusCode: statusCode,
+      );
+    }
+    if (statusCode == 422) {
+      return ServiceFlowException(
+        message.isNotEmpty ? message : 'Error de validacion.',
+        statusCode: statusCode,
+      );
+    }
+    return ServiceFlowException(
+      message.isNotEmpty ? message : 'Error en la solicitud.',
+      statusCode: statusCode,
+    );
+  }
+
+  static String _extractFailureMessage(Map<String, dynamic> body) {
+    final direct = body['message']?.toString() ?? '';
+    if (direct.trim().isNotEmpty) return direct.trim();
+
+    final errors = body['errors'];
+    if (errors is Map<String, dynamic>) {
+      for (final entry in errors.entries) {
+        final value = entry.value;
+        if (value is List && value.isNotEmpty) {
+          final first = value.first.toString().trim();
+          if (first.isNotEmpty) return first;
+        }
+        final text = value?.toString().trim() ?? '';
+        if (text.isNotEmpty) return text;
+      }
+    }
+
+    return '';
+  }
+
+  static String _formatDate(DateTime value) {
+    final year = value.year.toString().padLeft(4, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
   static List<Map<String, dynamic>> _extractDataList(
     Map<String, dynamic> body,
   ) {
@@ -463,7 +804,12 @@ class ServicesService {
       return data.whereType<Map<String, dynamic>>().toList();
     }
     if (data is Map<String, dynamic>) {
-      final nestedList = data['services'] ?? data['items'] ?? data['rows'];
+      final nestedList =
+          data['services'] ??
+          data['contract_requests'] ??
+          data['contracts'] ??
+          data['items'] ??
+          data['rows'];
       if (nestedList is List) {
         return nestedList.whereType<Map<String, dynamic>>().toList();
       }
@@ -476,7 +822,12 @@ class ServicesService {
     final data = body['data'];
     if (data is Map<String, dynamic>) {
       final nestedMap =
-          data['service'] ?? data['item'] ?? data['result'] ?? data['profile'];
+          data['service'] ??
+          data['contract_request'] ??
+          data['contract'] ??
+          data['item'] ??
+          data['result'] ??
+          data['profile'];
       if (nestedMap is Map<String, dynamic>) {
         return nestedMap;
       }

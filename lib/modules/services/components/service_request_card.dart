@@ -6,12 +6,14 @@ class ServiceRequestCard extends StatelessWidget {
   final ServiceRequestModel request;
   final VoidCallback onViewProfile;
   final VoidCallback onContact;
+  final List<Widget> actions;
 
   const ServiceRequestCard({
     super.key,
     required this.request,
     required this.onViewProfile,
     required this.onContact,
+    this.actions = const <Widget>[],
   });
 
   @override
@@ -53,6 +55,8 @@ class ServiceRequestCard extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+                      SizedBox(height: 6.h),
+                      _statusPill(),
                       SizedBox(height: 6.h),
                       Text(
                         DateFormat(
@@ -97,7 +101,71 @@ class ServiceRequestCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (request.description.trim().isNotEmpty) ...[
+              SizedBox(height: 10.h),
+              Text(
+                request.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Style.getTextStyle(
+                  color: Style.getObscureTextColor(),
+                ).copyWith(height: 1.35),
+              ),
+            ],
+            if (request.budget != null) ...[
+              SizedBox(height: 8.h),
+              Text(
+                'Presupuesto: ${request.budgetLabel}',
+                style: Style.getTextStyle(
+                  color: Style.getTextColor(),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+            if (actions.isNotEmpty) ...[
+              SizedBox(height: 12.h),
+              Wrap(spacing: 8.w, runSpacing: 8.h, children: actions),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statusPill() {
+    final status = request.status;
+    final Color color;
+    switch (status) {
+      case ServiceContractRequestStatus.pending:
+        color = Colors.orange;
+        break;
+      case ServiceContractRequestStatus.accepted:
+        color = Colors.blue;
+        break;
+      case ServiceContractRequestStatus.rejected:
+        color = Style.getErrorColor();
+        break;
+      case ServiceContractRequestStatus.canceled:
+        color = Colors.grey;
+        break;
+      case ServiceContractRequestStatus.contracted:
+        color = Style.getPrimaryColor();
+        break;
+    }
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: .3)),
+      ),
+      child: Text(
+        request.status.label,
+        style: Style.getTextStyle(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: 7,
         ),
       ),
     );

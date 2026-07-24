@@ -1,13 +1,17 @@
+import 'dart:convert';
+
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:worklink_local/helpers/helpers.dart';
+import 'package:worklink_local/modules/app/screens/starter/login_screen.dart';
 import 'package:worklink_local/modules/freelancers/models/freelancer_model.dart';
 import 'package:worklink_local/modules/freelancers/services/freelancers_service.dart';
 import 'package:worklink_local/modules/messages/messages.dart';
-import 'package:worklink_local/modules/messages/services/message_service.dart';
 import 'package:worklink_local/modules/services/models/service_model.dart';
+import 'package:worklink_local/modules/services/models/service_request_model.dart';
 import 'package:worklink_local/modules/services/services_service.dart';
 import 'package:worklink_local/modules/services/screens/freelancer_service_profile_screen.dart';
-import 'package:worklink_local/utils/widgets/custom_widgets.dart';
+import 'package:worklink_local/modules/users/models/user_model.dart';
 import 'package:worklink_local/utils/utils.dart';
 
 class ServiceDetailScreen extends StatefulWidget {
@@ -24,8 +28,11 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
   final ScrollController _scrollController = ScrollController();
 
   bool _loading = true;
+  bool _submittingRequest = false;
   ServiceModel? _serviceModel;
   FreelancerModel? _freelancer;
+  UserModel? _currentUser;
+  ServiceRequestModel? _currentRequest;
 
   @override
   void initState() {
@@ -50,10 +57,30 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     final freelancer = await FreelancersService.getFreelancerById(
       serviceModel.freelancerId,
     );
+    final currentUser = await _getCurrentUser();
+    ServiceRequestModel? currentRequest;
+
+    if (currentUser != null) {
+      try {
+        final requests = await _service.getServiceContractRequestsByServiceId(
+          widget.serviceId,
+        );
+        for (final request in requests) {
+          if (request.requesterId != currentUser.id) continue;
+          if (request.isPending || request.isAccepted || request.isContracted) {
+            currentRequest = request;
+            break;
+          }
+        }
+      } catch (_) {}
+    }
+
     if (!mounted) return;
     setState(() {
       _serviceModel = serviceModel;
       _freelancer = freelancer;
+      _currentUser = currentUser;
+      _currentRequest = currentRequest;
       _loading = false;
     });
   }
@@ -77,8 +104,264 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     ).push(Transitions.slideUpTransition(ConversationScreen(chat: chat)));
   }
 
+  bool get _canRequestHiring {
+    final user = _currentUser;
+    if (user == null) return false;
+    final roles = user.roles.map((item) => item.toLowerCase().trim()).toList();
+    final accountType = user.tipoCuenta.toLowerCase().trim();
+    final isFreelancer = roles.contains('freelancer') || accountType == 'freelancer';
+    final isAdmin = roles.contains('admin') || roles.contains('administrador');
+
+    if (isAdmin) return true;
+    return !isFreelancer;
+  }
+
+  Future<void> _openContractRequestForm() async {
+    final service = _serviceModel;
+    final user = _currentUser;
+    if (service == null || user == null) return;
+
+    final descriptionController = TextEditingController();
+    final budgetController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final payload = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Style.getCardColor(),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            18.w,
+            18.h,
+            18.w,
+            20.h + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Solicitar contratacion',
+                  style: Style.getHeaderTwo(
+                    color: Style.getTextColor(),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 10.h),
+                Text(
+                  'Describe lo que necesitas para este servicio.',
+                  style: Style.getTextStyle(color: Style.getObscureTextColor()),
+                ),
+                SizedBox(height: 14.h),
+                TextFormField(
+                  controller: descriptionController,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Descripcion',
+                    hintText: 'Necesito este servicio para...',
+                  ),
+                  validator: (value) {
+                    final text = value?.trim() ?? '';
+                    if (text.isEmpty) return 'La descripcion es obligatoria.';
+                    if (text.length < 8) return 'Agrega mas detalle en la descripcion.';
+                    return null;
+                  },
+                ),
+                SizedBox(height: 10.h),
+                TextFormField(
+                  controller: budgetController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Presupuesto (opcional)',
+                    hintText: 'Ej. 1200',
+                  ),
+                ),
+                SizedBox(height: 14.h),
+                SizedBox(
+                  width: double.infinity,
+                  child: CustomWidgets.button(
+                    onTap: () {
+                      final isValid = formKey.currentState?.validate() ?? false;
+                      if (!isValid) return;
+
+                      final rawBudget = budgetController.text.trim();
+                      final budget = rawBudget.isEmpty
+                          ? null
+                          : double.tryParse(rawBudget.replaceAll(',', '.'));
+
+                      Navigator.of(context).pop({
+                        'description': descriptionController.text.trim(),
+                        'budget': budget,
+                      });
+                    },
+                    color: Style.getPrimaryColor(),
+                    child: Text(
+                      'Enviar solicitud',
+                      style: Style.getHeaderThree(
+                        color: Style.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (payload == null) return;
+
+    final description = payload['description']?.toString() ?? '';
+    final budget = payload['budget'] as double?;
+
+    await _submitContractRequest(
+      serviceId: service.id,
+      description: description,
+      budget: budget,
+    );
+  }
+
+  Future<void> _submitContractRequest({
+    required int serviceId,
+    required String description,
+    double? budget,
+  }) async {
+    setState(() => _submittingRequest = true);
+    try {
+      final request = await _service.requestService(
+        serviceId: serviceId,
+        description: description,
+        budget: budget,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _currentRequest = request;
+      });
+      Dialogs.showSimpleDialog(
+        context,
+        title: 'Solicitud enviada',
+        message: 'Tu solicitud de contratacion se creo en estado pending.',
+        color: Style.getPrimaryColor(),
+        icon: Icons.check_circle_outline_rounded,
+      );
+    } on ServiceFlowException catch (e) {
+      await _handleFlowException(e);
+    } catch (e) {
+      if (!mounted) return;
+      Dialogs.showSimpleDialog(
+        context,
+        title: 'Error',
+        message: e.toString().replaceFirst('Exception: ', ''),
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+    } finally {
+      if (mounted) setState(() => _submittingRequest = false);
+    }
+  }
+
+  Future<void> _cancelCurrentRequest() async {
+    final request = _currentRequest;
+    if (request == null) return;
+
+    setState(() => _submittingRequest = true);
+    try {
+      await _service.updateContractRequestStatus(
+        requestId: request.id,
+        status: ServiceContractRequestStatus.canceled,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _currentRequest = null;
+      });
+      Dialogs.showSimpleDialog(
+        context,
+        title: 'Solicitud cancelada',
+        message: 'Ya puedes volver a solicitar este servicio.',
+        color: Style.getPrimaryColor(),
+        icon: Icons.info_outline_rounded,
+      );
+    } on ServiceFlowException catch (e) {
+      await _handleFlowException(e);
+    } catch (e) {
+      if (!mounted) return;
+      Dialogs.showSimpleDialog(
+        context,
+        title: 'Error',
+        message: e.toString().replaceFirst('Exception: ', ''),
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+    } finally {
+      if (mounted) setState(() => _submittingRequest = false);
+    }
+  }
+
+  Future<void> _handleFlowException(ServiceFlowException e) async {
+    if (!mounted) return;
+    if (e.statusCode == 401) {
+      Dialogs.showSimpleDialog(
+        context,
+        title: 'Sesion expirada',
+        message: 'Debes iniciar sesion para continuar.',
+        color: Style.getErrorColor(),
+        icon: Icons.lock_outline_rounded,
+      );
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        Transitions.slideUpTransition(const LoginScreen()),
+        (route) => false,
+      );
+      return;
+    }
+
+    final title = e.statusCode == 403
+        ? 'Sin permisos'
+        : e.statusCode == 422
+        ? 'Validacion'
+        : 'Error';
+    Dialogs.showSimpleDialog(
+      context,
+      title: title,
+      message: e.message,
+      color: Style.getErrorColor(),
+      icon: Icons.error_outline_rounded,
+    );
+  }
+
+  Future<UserModel?> _getCurrentUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawUser = prefs.getString(Constants.userEmailKey);
+    if (rawUser == null || rawUser.trim().isEmpty) return null;
+
+    try {
+      final decoded = jsonDecode(rawUser);
+      if (decoded is Map<String, dynamic>) {
+        return UserModel.fromJson(decoded);
+      }
+    } catch (_) {}
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final serviceModel = _serviceModel;
+    final currentRequest = _currentRequest;
+    final canRequest = _canRequestHiring && serviceModel?.isActive == true;
+    final hasActiveRequest = currentRequest != null;
+    final requestIsPending = currentRequest?.isPending ?? false;
+
     return Scaffold(
       backgroundColor: Style.getBackgroundColor(),
       body: CustomScrollView(
@@ -156,6 +439,71 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                         ),
                       ),
                     ),
+                    if (canRequest) ...[
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: CustomWidgets.button(
+                          onTap: _submittingRequest
+                              ? () {}
+                              : hasActiveRequest
+                              ? requestIsPending
+                                    ? _cancelCurrentRequest
+                                    : () {}
+                              : _openContractRequestForm,
+                          color: hasActiveRequest && !requestIsPending
+                              ? Style.getObscureTextColor().withValues(alpha: .12)
+                              : Style.getCardColor(),
+                          isFilled: false,
+                          withBorder: true,
+                          child: _submittingRequest
+                              ? SizedBox(
+                                  width: 18.w,
+                                  height: 18.w,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Style.getPrimaryColor(),
+                                  ),
+                                )
+                              : Text(
+                                  hasActiveRequest
+                                      ? (requestIsPending
+                                            ? 'Cancelar solicitud'
+                                            : 'Ya solicitado')
+                                      : 'Solicitar contratacion',
+                                  style: Style.getHeaderThree(
+                                    color: hasActiveRequest &&
+                                            !requestIsPending
+                                        ? Style.getObscureTextColor()
+                                        : Style.getTextColor(),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                    if (_canRequestHiring && serviceModel != null && !serviceModel.isActive)
+                      SizedBox(width: 10.w),
+                    if (_canRequestHiring && serviceModel != null && !serviceModel.isActive)
+                      Expanded(
+                        child: Container(
+                          height: 48.h,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Style.getErrorColor().withValues(alpha: .08),
+                            borderRadius: BorderRadius.circular(14.r),
+                            border: Border.all(
+                              color: Style.getErrorColor().withValues(alpha: .18),
+                            ),
+                          ),
+                          child: Text(
+                            'Servicio inactivo',
+                            style: Style.getTextStyle(
+                              color: Style.getErrorColor(),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

@@ -1,87 +1,243 @@
+import 'dart:async' show TimeoutException;
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+import 'package:worklink_local/helpers/apis.dart';
+import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/notifications/models/notification_model.dart';
 
+class NotificationsFlowException implements Exception {
+  final int? statusCode;
+  final String message;
+
+  const NotificationsFlowException(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
 class NotificationService {
-  static final List<NotificationModel> _notifications = [
-    NotificationModel(
-      id: 1,
-      title: 'Nuevo mensaje recibido',
-      body: 'Tienes un mensaje nuevo de Carla sobre el proyecto.',
-      createdAt: DateTime.now().subtract(const Duration(minutes: 10)),
-      isRead: false,
-      source: 'Mensajería',
-    ),
-    NotificationModel(
-      id: 2,
-      title: 'Solicitud aprobada',
-      body: 'Tu solicitud de trabajo ha sido aprobada por el cliente.',
-      createdAt: DateTime.now().subtract(const Duration(hours: 1, minutes: 20)),
-      isRead: false,
-      source: 'Solicitudes',
-    ),
-    NotificationModel(
-      id: 3,
-      title: 'Pago listo',
-      body: 'El pago de tu última orden se ha procesado correctamente.',
-      createdAt: DateTime.now().subtract(const Duration(hours: 3, minutes: 5)),
-      isRead: true,
-      source: 'Finanzas',
-    ),
-    NotificationModel(
-      id: 4,
-      title: 'Recordatorio de perfil',
-      body: 'Actualiza tu portafolio para aparecer en más búsquedas.',
-      createdAt: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
-      isRead: true,
-      source: 'Usuario',
-    ),
-  ];
-
-  static Future<List<NotificationModel>> fetchNotifications({bool? onlyRead}) async {
-    await Future.delayed(const Duration(milliseconds: 350));
-    if (onlyRead == null) {
-      return List<NotificationModel>.from(_notifications);
-    }
-
-    return _notifications
-        .where((notification) => notification.isRead == onlyRead)
-        .toList();
-  }
-
-  static Future<void> markAsRead(int id) async {
-    await Future.delayed(const Duration(milliseconds: 160));
-    final index = _notifications.indexWhere(
-      (notification) => notification.id == id,
-    );
-    if (index >= 0) {
-      _notifications[index] = NotificationModel(
-        id: _notifications[index].id,
-        title: _notifications[index].title,
-        body: _notifications[index].body,
-        createdAt: _notifications[index].createdAt,
-        isRead: true,
-        source: _notifications[index].source,
+  static Future<List<NotificationModel>> fetchNotifications({
+    bool? onlyRead,
+    String? type,
+    int? perPage,
+  }) async {
+    try {
+      final uri = _buildNotificationsUri(
+        onlyRead: onlyRead,
+        type: type,
+        perPage: perPage,
       );
-    }
-  }
 
-  static Future<void> markAllAsRead() async {
-    await Future.delayed(const Duration(milliseconds: 200));
+      final response = await _authorizedGet(uri);
+      final body = _decodeBody(response.body);
 
-    for (var i = 0; i < _notifications.length; i++) {
-      final current = _notifications[i];
-      _notifications[i] = NotificationModel(
-        id: current.id,
-        title: current.title,
-        body: current.body,
-        createdAt: current.createdAt,
-        isRead: true,
-        source: current.source,
-      );
+      if (!_isSuccessful(response.statusCode, body)) {
+        throw NotificationsFlowException(
+          _extractMessage(body, 'No se pudieron cargar las notificaciones.'),
+          statusCode: response.statusCode,
+        );
+      }
+
+      return _extractDataList(body).map(NotificationModel.fromJson).toList();
+    } on TimeoutException {
+      rethrow;
+    } catch (e) {
+      if (e is NotificationsFlowException) rethrow;
+      throw NotificationsFlowException(_normalizeError(e));
     }
   }
 
   static Future<int> getUnreadCount() async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    return _notifications.where((notification) => !notification.isRead).length;
+    try {
+      final response = await _authorizedGet(Apis.notificationsUnreadCount);
+      final body = _decodeBody(response.body);
+
+      if (!_isSuccessful(response.statusCode, body)) {
+        throw NotificationsFlowException(
+          _extractMessage(body, 'No se pudo obtener el contador de notificaciones.'),
+          statusCode: response.statusCode,
+        );
+      }
+
+      final data = _extractDataMap(body);
+      final countValue = data['unread_count'] ?? data['count'];
+      return _intValue(countValue);
+    } on TimeoutException {
+      rethrow;
+    } catch (e) {
+      if (e is NotificationsFlowException) rethrow;
+      throw NotificationsFlowException(_normalizeError(e));
+    }
+  }
+
+  static Future<void> markAsRead(int id) async {
+    try {
+      final response = await _authorizedPatch(Apis.notificationReadById(id));
+      _throwIfFailed(response, 'No se pudo marcar la notificación como leída.');
+    } on TimeoutException {
+      rethrow;
+    } catch (e) {
+      if (e is NotificationsFlowException) rethrow;
+      throw NotificationsFlowException(_normalizeError(e));
+    }
+  }
+
+  static Future<void> markAllAsRead() async {
+    try {
+      final response = await _authorizedPatch(Apis.notificationsReadAll);
+      _throwIfFailed(response, 'No se pudieron marcar todas como leídas.');
+    } on TimeoutException {
+      rethrow;
+    } catch (e) {
+      if (e is NotificationsFlowException) rethrow;
+      throw NotificationsFlowException(_normalizeError(e));
+    }
+  }
+
+  static Future<void> deleteNotification(int id) async {
+    try {
+      final response = await _authorizedDelete(Apis.notificationById(id));
+      if (response.statusCode == 204) return;
+      _throwIfFailed(response, 'No se pudo eliminar la notificación.');
+    } on TimeoutException {
+      rethrow;
+    } catch (e) {
+      if (e is NotificationsFlowException) rethrow;
+      throw NotificationsFlowException(_normalizeError(e));
+    }
+  }
+
+  static Uri _buildNotificationsUri({
+    bool? onlyRead,
+    String? type,
+    int? perPage,
+  }) {
+    final params = <String, String>{};
+
+    if (onlyRead != null) {
+      params['is_read'] = onlyRead ? '1' : '0';
+    }
+    if (type != null && type.trim().isNotEmpty) {
+      params['type'] = type.trim();
+    }
+    if (perPage != null) {
+      params['per_page'] = perPage.clamp(1, 100).toString();
+    }
+
+    if (params.isEmpty) return Apis.notifications;
+    return Apis.notifications.replace(queryParameters: params);
+  }
+
+  static Future<http.Response> _authorizedGet(Uri uri) async {
+    final headers = await _headers();
+    return http.get(uri, headers: headers).timeout(const Duration(seconds: 20));
+  }
+
+  static Future<http.Response> _authorizedPatch(Uri uri) async {
+    final headers = await _headers();
+    return http.patch(uri, headers: headers).timeout(const Duration(seconds: 20));
+  }
+
+  static Future<http.Response> _authorizedDelete(Uri uri) async {
+    final headers = await _headers();
+    return http.delete(uri, headers: headers).timeout(const Duration(seconds: 20));
+  }
+
+  static Future<Map<String, String>> _headers() async {
+    final token = await SecureStorageService.getToken();
+    if (token == null || token.trim().isEmpty) {
+      throw const NotificationsFlowException('No se encontró un token de acceso.');
+    }
+
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+  }
+
+  static dynamic _decodeBody(String body) {
+    if (body.trim().isEmpty) return const <String, dynamic>{};
+    try {
+      return jsonDecode(body);
+    } catch (_) {
+      return const <String, dynamic>{};
+    }
+  }
+
+  static bool _isSuccessful(int statusCode, dynamic body) {
+    if (statusCode >= 200 && statusCode < 300) return true;
+    if (body is Map<String, dynamic>) {
+      final success = body['success'];
+      if (success is bool) return success;
+    }
+    return false;
+  }
+
+  static void _throwIfFailed(http.Response response, String fallback) {
+    final body = _decodeBody(response.body);
+    if (_isSuccessful(response.statusCode, body)) return;
+    throw NotificationsFlowException(
+      _extractMessage(body, fallback),
+      statusCode: response.statusCode,
+    );
+  }
+
+  static List<Map<String, dynamic>> _extractDataList(dynamic body) {
+    if (body is List) {
+      return body.whereType<Map<String, dynamic>>().toList();
+    }
+
+    if (body is Map<String, dynamic>) {
+      final data = body['data'];
+      if (data is List) return data.whereType<Map<String, dynamic>>().toList();
+
+      final notifications = body['notifications'];
+      if (notifications is List) {
+        return notifications.whereType<Map<String, dynamic>>().toList();
+      }
+
+      final items = body['items'];
+      if (items is List) return items.whereType<Map<String, dynamic>>().toList();
+    }
+
+    return const <Map<String, dynamic>>[];
+  }
+
+  static Map<String, dynamic> _extractDataMap(dynamic body) {
+    if (body is Map<String, dynamic>) {
+      final data = body['data'];
+      if (data is Map<String, dynamic>) return data;
+
+      final result = body['result'];
+      if (result is Map<String, dynamic>) return result;
+
+      return body;
+    }
+
+    return const <String, dynamic>{};
+  }
+
+  static String _extractMessage(dynamic body, String fallback) {
+    if (body is Map<String, dynamic>) {
+      final message = body['message'] ?? body['error'] ?? body['detail'];
+      if (message != null && message.toString().trim().isNotEmpty) {
+        return message.toString();
+      }
+    }
+
+    return fallback;
+  }
+
+  static int _intValue(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static String _normalizeError(Object error) {
+    return error.toString().replaceFirst('Exception: ', '').trim();
   }
 }

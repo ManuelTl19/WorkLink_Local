@@ -96,11 +96,12 @@ class _FreelancerServiceProfileScreenState
     }
     if (!mounted) return;
 
-    final result = await showDialog<FreelancerModel>(
-      context: context,
-      builder: (context) => FreelancerProfileFormDialog(
-        initialProfile: _profile,
-        isEditing: _profile != null,
+    final result = await Navigator.of(context).push(
+      Transitions.slideUpTransition(
+        FreelancerProfileFormDialog(
+          initialProfile: _profile,
+          isEditing: _profile != null,
+        ),
       ),
     );
 
@@ -198,15 +199,17 @@ class _FreelancerServiceProfileScreenState
       return;
     }
 
-    final confirmed = await Dialogs.showConfirmDialog(
+    final confirmed = await Dialogs.showConfirmDialogDelete(
       context,
       title: MultiLanguages.of(context)!.translate('delete_profile'),
       message: MultiLanguages.of(context)!.translate('confirm_delete_profile'),
-      svg: Assets.svgTrashIcon,
       confirmText: MultiLanguages.of(context)!.translate('delete'),
       cancelText: MultiLanguages.of(context)!.translate('cancel'),
+      icon: Icons.delete_outline_rounded,
+      confirmColor: Style.getErrorColor(),
+      cancelColor: Style.getPrimaryColor(),
     );
-    if (!confirmed) return;
+    if (confirmed != true) return;
 
     setState(() => _actionLoading = true);
     try {

@@ -52,7 +52,7 @@ class CustomMultiPickerField<T> extends StatelessWidget {
               border: Border.all(
                 color: showError && errorText != null
                     ? Style.getErrorColor().withValues(alpha: .28)
-                    : Style.getBorderColor().withValues(alpha: .08),
+                    : Style.getFormFieldBorderColor(),
               ),
             ),
             child: values.isEmpty

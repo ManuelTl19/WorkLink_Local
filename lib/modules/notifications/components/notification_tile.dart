@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:worklink_local/modules/notifications/models/notification_model.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 

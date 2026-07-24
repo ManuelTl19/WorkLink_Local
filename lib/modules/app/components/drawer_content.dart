@@ -6,12 +6,13 @@ import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/main.dart';
 import 'package:worklink_local/modules/app/screens/dashboard_screen.dart';
 import 'package:worklink_local/modules/app/screens/starter/login_screen.dart';
-import 'package:worklink_local/modules/companies/screens/companies_screen.dart';
 import 'package:worklink_local/modules/companies/screens/company_profile_screen.dart';
 import 'package:worklink_local/modules/freelancers/freelancers.dart';
 import 'package:worklink_local/modules/notifications/screens/notifications_screen.dart';
-import 'package:worklink_local/modules/requests/requests.dart';
+import 'package:worklink_local/modules/reviews/screens/reviews_screen.dart';
+import 'package:worklink_local/modules/reports/screens/reports_screen.dart';
 import 'package:worklink_local/modules/services/services.dart';
+import 'package:worklink_local/modules/vacancies/screens/my_applications_screen.dart';
 import 'package:worklink_local/modules/vacancies/screens/my_vacancies_screen.dart';
 import 'package:worklink_local/modules/vacancies/screens/vacancies_screen.dart';
 import 'package:worklink_local/modules/users/models/user_model.dart';
@@ -109,7 +110,9 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
                 child: ListView(
                   padding: EdgeInsets.only(top: 8.h, bottom: 12.h),
                   children: [
-                    _groupTitle(MultiLanguages.of(context)!.translate('general')),
+                    _groupTitle(
+                      MultiLanguages.of(context)!.translate('general'),
+                    ),
                     _navItem(
                       title: MultiLanguages.of(context)!.translate('home'),
                       icon: Icons.home_rounded,
@@ -121,7 +124,9 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
                     ),
                     ..._buildRoleMenuItems(),
                     SizedBox(height: 8.h),
-                    _groupTitle(MultiLanguages.of(context)!.translate('account')),
+                    _groupTitle(
+                      MultiLanguages.of(context)!.translate('account'),
+                    ),
                     _navItem(
                       title: MultiLanguages.of(context)!.translate('profile'),
                       icon: Icons.person_rounded,
@@ -131,16 +136,20 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
                         _pushProfile();
                       },
                     ),
-                    if (_hasRole('admin'))
-                      _navItem(
-                        title: MultiLanguages.of(context)!.translate('dashboard'),
-                        icon: Icons.dashboard_rounded,
-                        section: 'general',
-                        item: 'dashboard_admin',
-                        onTap: () {
-                          _navigateToDashboard(1);
-                        },
-                      ),
+                    _navItem(
+                      title: 'Mis calificaciones',
+                      icon: Icons.rate_review_rounded,
+                      section: 'cuenta',
+                      item: 'calificaciones',
+                      onTap: _pushReviews,
+                    ),
+                    _navItem(
+                      title: 'Mis reportes',
+                      icon: Icons.report_problem_rounded,
+                      section: 'cuenta',
+                      item: 'reportes',
+                      onTap: _pushReports,
+                    ),
                     _navItem(
                       title: MultiLanguages.of(context)!.translate('settings'),
                       icon: Icons.settings_rounded,
@@ -422,6 +431,13 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
     ).push(Transitions.slideUpTransition(const MyVacanciesScreen()));
   }
 
+  void _pushMyApplications() {
+    Navigator.of(context).pop();
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const MyApplicationsScreen()));
+  }
+
   void _pushServices() {
     Navigator.of(context).pop();
     Navigator.of(
@@ -440,14 +456,7 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
     Navigator.of(context).pop();
     Navigator.of(
       context,
-    ).push(Transitions.slideUpTransition(const RequestsScreen()));
-  }
-
-  void _pushCompanies() {
-    Navigator.of(context).pop();
-    Navigator.of(
-      context,
-    ).push(Transitions.slideUpTransition(const CompaniesScreen()));
+    ).push(Transitions.slideUpTransition(const ServiceRequestsScreen()));
   }
 
   void _pushCompanyProfile() {
@@ -462,6 +471,20 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
     Navigator.of(
       context,
     ).push(Transitions.slideUpTransition(const NotificationsScreen()));
+  }
+
+  void _pushReviews() {
+    Navigator.of(context).pop();
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const ReviewsScreen()));
+  }
+
+  void _pushReports() {
+    Navigator.of(context).pop();
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const ReportsScreen()));
   }
 
   void _goToChats() {
@@ -488,11 +511,23 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
   }
 
   String get _role {
-    final roles = _user?.roles ?? [];
-    if (roles.isNotEmpty) return roles.first;
+    const restrictedRoles = {'admin', 'administrador'};
+
+    final visibleRole = (_user?.roles ?? [])
+        .map((role) => role.trim())
+        .firstWhere(
+          (role) =>
+              role.isNotEmpty &&
+              !restrictedRoles.contains(role.toLowerCase()),
+          orElse: () => '',
+        );
+    if (visibleRole.isNotEmpty) return visibleRole;
 
     final tipoCuenta = (_user?.tipoCuenta ?? '').trim();
-    if (tipoCuenta.isNotEmpty) return tipoCuenta;
+    if (tipoCuenta.isNotEmpty &&
+        !restrictedRoles.contains(tipoCuenta.toLowerCase())) {
+      return tipoCuenta;
+    }
 
     return 'Usuario';
   }
@@ -535,55 +570,6 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
   }
 
   List<Widget> _buildRoleMenuItems() {
-    if (_hasRole('admin')) {
-      return [
-        SizedBox(height: 8.h),
-        _groupTitle(MultiLanguages.of(context)!.translate('administration')),
-        _navItem(
-          title: MultiLanguages.of(context)!.translate('companies'),
-          icon: Icons.apartment_rounded,
-          section: 'gestion',
-          item: 'empresas_admin',
-          onTap: _pushCompanies,
-        ),
-        _navItem(
-          title: MultiLanguages.of(context)!.translate('freelancers'),
-          icon: Icons.badge_rounded,
-          section: 'gestion',
-          item: 'freelancers_admin',
-          onTap: _pushFreelancers,
-        ),
-        _navItem(
-          title: MultiLanguages.of(context)!.translate('services'),
-          icon: Icons.design_services_rounded,
-          section: 'gestion',
-          item: 'servicios_admin',
-          onTap: _pushServices,
-        ),
-        _navItem(
-          title: MultiLanguages.of(context)!.translate('requests'),
-          icon: Icons.assignment_rounded,
-          section: 'gestion',
-          item: 'solicitudes_admin',
-          onTap: _pushRequests,
-        ),
-        _navItem(
-          title: MultiLanguages.of(context)!.translate('vacancies'),
-          icon: Icons.work_outline_rounded,
-          section: 'gestion',
-          item: 'vacantes_admin',
-          onTap: _pushVacancies,
-        ),
-        _navItem(
-          title: MultiLanguages.of(context)!.translate('notifications'),
-          icon: Icons.notifications_rounded,
-          section: 'gestion',
-          item: 'notificaciones_admin',
-          onTap: _pushNotifications,
-        ),
-      ];
-    }
-
     if (_hasRole('empresa')) {
       return [
         _navItem(
@@ -653,6 +639,13 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
           section: 'gestion',
           item: 'vacantes_freelancer',
           onTap: _pushVacancies,
+        ),
+        _navItem(
+          title: 'Mis postulaciones',
+          icon: Icons.assignment_ind_rounded,
+          section: 'gestion',
+          item: 'postulaciones_freelancer',
+          onTap: _pushMyApplications,
         ),
         _navItem(
           title: MultiLanguages.of(context)!.translate('requests'),

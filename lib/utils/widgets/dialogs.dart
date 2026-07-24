@@ -117,22 +117,40 @@ class Dialogs {
           icon: icon ?? Icons.info_outline_rounded,
           color: cancelColor,
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              style: TextButton.styleFrom(
-                backgroundColor: cancelColor,
-                foregroundColor: Colors.white,
+            Expanded(
+              child: TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                style: TextButton.styleFrom(
+                  backgroundColor: cancelColor,
+                  foregroundColor: Colors.white,
+                  minimumSize: Size.fromHeight(46.h),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: Style.getOnlyBorderRadius(
+                      bottomLeft: 12,
+                      bottomRight: 0,
+                    ),
+                  ),
+                ),
+                child: Text(cancelText),
               ),
-              child: Text(cancelText),
             ),
-            const SizedBox(width: 10),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              style: TextButton.styleFrom(
-                backgroundColor: confirmColor,
-                foregroundColor: Colors.white,
+            SizedBox(width: 6.w),
+            Expanded(
+              child: TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                style: TextButton.styleFrom(
+                  backgroundColor: confirmColor,
+                  foregroundColor: Colors.white,
+                  minimumSize: Size.fromHeight(46.h),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: Style.getOnlyBorderRadius(
+                      bottomLeft: 0,
+                      bottomRight: 12,
+                    ),
+                  ),
+                ),
+                child: Text(confirmText),
               ),
-              child: Text(confirmText),
             ),
           ],
         ),

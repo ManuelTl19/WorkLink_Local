@@ -2,7 +2,7 @@ import 'package:worklink_local/modules/app/components/general/form/form_widgets.
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/services/models/service_model.dart';
 import 'package:worklink_local/modules/services/services_service.dart';
-import 'package:worklink_local/utils/widgets/custom_widgets.dart';
+import 'package:worklink_local/utils/widgets/widgets.dart';
 
 class ServiceFormScreen extends StatefulWidget {
   const ServiceFormScreen({super.key, this.service});
@@ -15,13 +15,18 @@ class ServiceFormScreen extends StatefulWidget {
 
 class _ServiceFormScreenState extends State<ServiceFormScreen> {
   final ServicesService _service = ServicesService();
-  final _formKey = GlobalKey<FormState>();
+  final List<GlobalKey<FormState>> _stepKeys = <GlobalKey<FormState>>[
+    GlobalKey<FormState>(),
+    GlobalKey<FormState>(),
+    GlobalKey<FormState>(),
+  ];
   late final TextEditingController _titleController;
   late final TextEditingController _categoryController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _priceController;
   late final TextEditingController _locationController;
   late ServiceStatus _status;
+  int _currentStep = 0;
   bool _saving = false;
 
   bool get _isEditing => widget.service != null;
@@ -61,8 +66,6 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-
     setState(() => _saving = true);
 
     try {
@@ -113,210 +116,186 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Style.getBackgroundColor(),
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            pinned: true,
-            backgroundColor: Style.getBackgroundColor(),
-            surfaceTintColor: Style.transparent,
-            elevation: 0,
-            titleSpacing: 0,
-            leading: IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Style.getTextColor(),
-              ),
+    return MultiStepFormScaffold(
+      title: _isEditing
+          ? (MultiLanguages.of(context)?.translate('services_edit_title') ??
+                'Editar servicio')
+          : (MultiLanguages.of(context)?.translate('services_new_title') ??
+                'Nuevo servicio'),
+      stepTitles: const <String>['Basico', 'Detalle', 'Publicacion'],
+      currentStep: _currentStep,
+      onClose: () => Navigator.pop(context),
+      onBack: _currentStep == 0 ? null : () => setState(() => _currentStep--),
+      onNext: _saving ? null : _onNext,
+      isLastStep: _currentStep == 2,
+      isLoading: _saving,
+      submitLabel: _isEditing
+          ? (MultiLanguages.of(context)?.translate('save_changes') ??
+                'Guardar cambios')
+          : (MultiLanguages.of(context)?.translate('services_create_button') ??
+                'Crear servicio'),
+      child: _stepContent(),
+    );
+  }
+
+  Future<void> _onNext() async {
+    final valid = _stepKeys[_currentStep].currentState?.validate() ?? true;
+    if (!valid) {
+      _showStepValidationDialog();
+      return;
+    }
+
+    if (_currentStep < 2) {
+      setState(() => _currentStep++);
+      return;
+    }
+
+    await _save();
+  }
+
+  void _showStepValidationDialog() {
+    Dialogs.showSimpleDialog(
+      context,
+      title: MultiLanguages.of(context)?.translate('error') ?? 'Error',
+      message:
+          'No puedes avanzar porque faltan campos requeridos por completar.',
+      color: Style.getErrorColor(),
+      icon: Icons.error_outline_rounded,
+    );
+  }
+
+  Widget _stepContent() {
+    if (_currentStep == 0) {
+      return Form(
+        key: _stepKeys[0],
+        child: Column(
+          children: [
+            _field(
+              controller: _titleController,
+              label:
+                  MultiLanguages.of(
+                    context,
+                  )?.translate('services_field_title') ??
+                  'Titulo',
+              hint:
+                  MultiLanguages.of(
+                    context,
+                  )?.translate('services_hint_title') ??
+                  'Servicio principal',
             ),
-            title: Text(
-              _isEditing
-                  ? (MultiLanguages.of(
-                          context,
-                        )?.translate('services_edit_title') ??
-                        'Editar servicio')
-                  : (MultiLanguages.of(
-                          context,
-                        )?.translate('services_new_title') ??
-                        'Nuevo servicio'),
-              style: Style.getHeaderTwo(
-                color: Style.getTextColor(),
-                fontWeight: FontWeight.w800,
-              ),
+            SizedBox(height: 14.h),
+            _field(
+              controller: _categoryController,
+              label:
+                  MultiLanguages.of(context)?.translate('services_category') ??
+                  'Categoria',
+              hint:
+                  MultiLanguages.of(
+                    context,
+                  )?.translate('services_hint_category') ??
+                  'Desarrollo movil',
             ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.all(Style.horizontalPadding.w),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _field(
-                      controller: _titleController,
-                      label:
-                          MultiLanguages.of(
-                            context,
-                          )?.translate('services_field_title') ??
-                          'Título',
-                      hint:
-                          MultiLanguages.of(
-                            context,
-                          )?.translate('services_hint_title') ??
-                          'Servicio principal',
-                    ),
-                    SizedBox(height: 14.h),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _field(
-                            controller: _categoryController,
-                            label:
-                                MultiLanguages.of(
-                                  context,
-                                )?.translate('services_category') ??
-                                'Categoría',
-                            hint:
-                                MultiLanguages.of(
-                                  context,
-                                )?.translate('services_hint_category') ??
-                                'Desarrollo móvil',
-                          ),
+            SizedBox(height: 14.h),
+            _field(
+              controller: _priceController,
+              label:
+                  MultiLanguages.of(context)?.translate('services_price') ??
+                  'Precio',
+              hint: '8500',
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_currentStep == 1) {
+      return Form(
+        key: _stepKeys[1],
+        child: Column(
+          children: [
+            _field(
+              controller: _descriptionController,
+              label:
+                  MultiLanguages.of(
+                    context,
+                  )?.translate('services_full_description') ??
+                  'Descripcion completa',
+              hint:
+                  MultiLanguages.of(
+                    context,
+                  )?.translate('services_hint_full_description') ??
+                  'Detalle completo del servicio',
+              maxLines: 6,
+            ),
+            SizedBox(height: 14.h),
+            _field(
+              controller: _locationController,
+              label:
+                  MultiLanguages.of(context)?.translate('location') ??
+                  'Ubicacion',
+              hint: MultiLanguages.of(context)?.translate('remote') ?? 'Remoto',
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Form(
+      key: _stepKeys[2],
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+            decoration: BoxDecoration(
+              color: Style.getCardColor(),
+              borderRadius: Style.getBorderRadius(),
+              border: Border.all(color: Style.getBorderColor()),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        MultiLanguages.of(context)?.translate('status') ??
+                            'Estado',
+                        style: Style.getTextStyle(
+                          color: Style.getTextColor(),
+                          fontWeight: FontWeight.w700,
                         ),
-                        SizedBox(width: 12.w),
-                        Expanded(
-                          child: _field(
-                            controller: _priceController,
-                            label:
-                                MultiLanguages.of(
-                                  context,
-                                )?.translate('services_price') ??
-                                'Precio',
-                            hint: '8500',
-                          ),
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        _status == ServiceStatus.activo
+                            ? (MultiLanguages.of(
+                                    context,
+                                  )?.translate('active') ??
+                                  'Activa')
+                            : (MultiLanguages.of(
+                                    context,
+                                  )?.translate('inactive') ??
+                                  'Inactiva'),
+                        style: Style.getTextStyle(
+                          color: Style.getObscureTextColor(),
                         ),
-                      ],
-                    ),
-                    SizedBox(height: 14.h),
-                    _field(
-                      controller: _descriptionController,
-                      label:
-                          MultiLanguages.of(
-                            context,
-                          )?.translate('services_full_description') ??
-                          'Descripción completa',
-                      hint:
-                          MultiLanguages.of(
-                            context,
-                          )?.translate('services_hint_full_description') ??
-                          'Detalle completo del servicio',
-                      maxLines: 6,
-                    ),
-                    SizedBox(height: 14.h),
-                    _field(
-                      controller: _locationController,
-                      label:
-                          MultiLanguages.of(context)?.translate('location') ??
-                          'Ubicación',
-                      hint:
-                          MultiLanguages.of(context)?.translate('remote') ??
-                          'Remoto',
-                    ),
-                    SizedBox(height: 14.h),
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 14.w,
-                        vertical: 6.h,
                       ),
-                      decoration: BoxDecoration(
-                        color: Style.getCardColor(),
-                        borderRadius: Style.getBorderRadius(),
-                        border: Border.all(color: Style.getBorderColor()),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  MultiLanguages.of(
-                                        context,
-                                      )?.translate('status') ??
-                                      'Estado',
-                                  style: Style.getTextStyle(
-                                    color: Style.getTextColor(),
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                SizedBox(height: 4.h),
-                                Text(
-                                  _status == ServiceStatus.activo
-                                      ? (MultiLanguages.of(
-                                              context,
-                                            )?.translate('active') ??
-                                            'Activa')
-                                      : (MultiLanguages.of(
-                                              context,
-                                            )?.translate('inactive') ??
-                                            'Inactiva'),
-                                  style: Style.getTextStyle(
-                                    color: Style.getObscureTextColor(),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch.adaptive(
-                            value: _status == ServiceStatus.activo,
-                            activeColor: Style.getPrimaryColor(),
-                            onChanged: (value) {
-                              setState(() {
-                                _status = value
-                                    ? ServiceStatus.activo
-                                    : ServiceStatus.inactivo;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 22.h),
-                    CustomWidgets.button(
-                      onTap: _saving ? () {} : _save,
-                      color: Style.getPrimaryColor(),
-                      child: _saving
-                          ? SizedBox(
-                              height: 18.w,
-                              width: 18.w,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Style.white,
-                              ),
-                            )
-                          : Text(
-                              _isEditing
-                                  ? (MultiLanguages.of(
-                                          context,
-                                        )?.translate('save_changes') ??
-                                        'Guardar cambios')
-                                  : (MultiLanguages.of(context)?.translate(
-                                          'services_create_button',
-                                        ) ??
-                                        'Crear servicio'),
-                              style: Style.getHeaderThree(
-                                color: Style.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+                Switch.adaptive(
+                  value: _status == ServiceStatus.activo,
+                  activeThumbColor: Style.getPrimaryColor(),
+                  onChanged: (value) {
+                    setState(() {
+                      _status = value
+                          ? ServiceStatus.activo
+                          : ServiceStatus.inactivo;
+                    });
+                  },
+                ),
+              ],
             ),
           ),
         ],
@@ -335,6 +314,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       label: label,
       hintText: hint,
       maxLines: maxLines,
+      requiredField: true,
       validator: (value) => (value == null || value.trim().isEmpty)
           ? (MultiLanguages.of(context)?.translate('field_required') ??
                 'Campo requerido')

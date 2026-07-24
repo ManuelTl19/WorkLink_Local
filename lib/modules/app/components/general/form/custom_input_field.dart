@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 
 class CustomInputField extends StatelessWidget {
@@ -74,14 +73,26 @@ class CustomInputField extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (label != null && label!.isNotEmpty) ...[
-          Text(
-            label!,
-            style:
-                labelStyle ??
-                Style.getHeaderThree(
-                  color: Style.getObscureTextColor(),
-                  fontWeight: FontWeight.w600,
-                ),
+          RichText(
+            text: TextSpan(
+              style:
+                  labelStyle ??
+                  Style.getHeaderThree(
+                    color: Style.getObscureTextColor(),
+                    fontWeight: FontWeight.w600,
+                  ),
+              children: [
+                TextSpan(text: label!),
+                if (requiredField)
+                  TextSpan(
+                    text: ' *',
+                    style: Style.getHeaderThree(
+                      color: Style.getErrorColor(),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+              ],
+            ),
           ),
           SizedBox(height: 6.h),
         ],
@@ -122,9 +133,7 @@ class CustomInputField extends StatelessWidget {
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: Style.getBorderRadius(),
-                borderSide: BorderSide(
-                  color: Style.getBorderColor().withValues(alpha: .08),
-                ),
+                borderSide: BorderSide(color: Style.getFormFieldBorderColor()),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: Style.getBorderRadius(),
@@ -133,10 +142,24 @@ class CustomInputField extends StatelessWidget {
                   width: 1.2,
                 ),
               ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: Style.getBorderRadius(),
+                borderSide: BorderSide(
+                  color: Style.getErrorColor(),
+                  width: 1.2,
+                ),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: Style.getBorderRadius(),
+                borderSide: BorderSide(
+                  color: Style.getErrorColor(),
+                  width: 1.4,
+                ),
+              ),
               disabledBorder: OutlineInputBorder(
                 borderRadius: Style.getBorderRadius(),
                 borderSide: BorderSide(
-                  color: Style.getBorderColor().withValues(alpha: .08),
+                  color: Style.getFormFieldDisabledBorderColor(),
                 ),
               ),
               prefixIcon: prefixIcon,

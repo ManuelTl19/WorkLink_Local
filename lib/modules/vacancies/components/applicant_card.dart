@@ -7,12 +7,16 @@ class ApplicantCard extends StatelessWidget {
   final ApplicantModel applicant;
   final VoidCallback onViewProfile;
   final VoidCallback onContact;
+  final VoidCallback? onAccept;
+  final VoidCallback? onReject;
 
   const ApplicantCard({
     super.key,
     required this.applicant,
     required this.onViewProfile,
     required this.onContact,
+    this.onAccept,
+    this.onReject,
   });
 
   @override
@@ -148,6 +152,38 @@ class ApplicantCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (onAccept != null || onReject != null) ...[
+                    SizedBox(height: 10.h),
+                    Row(
+                      children: [
+                        if (onReject != null)
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: onReject,
+                              icon: Icon(Icons.close_rounded, size: 16.w),
+                              label: const Text('Rechazar'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Style.getErrorColor(),
+                                side: BorderSide(color: Style.getErrorColor()),
+                              ),
+                            ),
+                          ),
+                        if (onReject != null && onAccept != null) SizedBox(width: 10.w),
+                        if (onAccept != null)
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: onAccept,
+                              icon: Icon(Icons.check_rounded, size: 16.w),
+                              label: const Text('Aceptar'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF28C76F),
+                                foregroundColor: Style.white,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

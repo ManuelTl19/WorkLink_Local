@@ -3,10 +3,9 @@ import 'package:worklink_local/modules/vacancies/components/vacancy_card.dart';
 import 'package:worklink_local/modules/vacancies/models/vacancy_model.dart';
 import 'package:worklink_local/modules/vacancies/services/vacancies_service.dart';
 import 'package:worklink_local/modules/vacancies/screens/applicants_screen.dart';
-import 'package:worklink_local/modules/vacancies/screens/company_profile_screen.dart';
+import 'package:worklink_local/modules/companies/screens/company_profile_screen.dart';
 import 'package:worklink_local/modules/vacancies/screens/vacancy_detail_screen.dart';
 import 'package:worklink_local/modules/vacancies/screens/vacancy_form_screen.dart';
-import 'package:worklink_local/utils/widgets/custom_widgets.dart';
 import 'package:worklink_local/utils/utils.dart';
 
 class MyVacanciesScreen extends StatefulWidget {
@@ -276,7 +275,9 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
                           ),
                         );
                       },
-                      onEdit: () => _openForm(vacancy: vacancy),
+                      onEdit: vacancy.status == VacancyStatus.cerrada
+                          ? null
+                          : () => _openForm(vacancy: vacancy),
                       onDelete: () => _deleteVacancy(vacancy),
                       onViewApplicants: () {
                         Navigator.of(context).push(
@@ -285,7 +286,9 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
                           ),
                         );
                       },
-                      onStatusPressed: () => _changeStatus(vacancy),
+                      onStatusPressed: vacancy.status == VacancyStatus.cerrada
+                          ? null
+                          : () => _changeStatus(vacancy),
                       onViewCompany: () {
                         Navigator.of(context).push(
                           Transitions.slideUpTransition(

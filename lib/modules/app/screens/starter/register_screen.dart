@@ -1,12 +1,9 @@
 import 'dart:async';
-import 'dart:typed_data';
 
-import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:worklink_local/modules/app/components/general/form/form_widgets.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/helpers/services/legal_documents_service.dart';
-import 'package:worklink_local/modules/settings/screens/terms_conditions_screen.dart';
 import 'package:worklink_local/modules/users/services/user_service.dart';
 import 'package:worklink_local/utils/extensions/extensions.dart';
 import 'package:worklink_local/utils/widgets/widgets.dart';
@@ -20,7 +17,10 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   static const int _maxProfilePhotoBytes = 2 * 1024 * 1024;
-  final _formKey = GlobalKey<FormState>();
+  final List<GlobalKey<FormState>> _stepKeys = <GlobalKey<FormState>>[
+    GlobalKey<FormState>(),
+    GlobalKey<FormState>(),
+  ];
 
   final nameController = TextEditingController();
   final firstLastNameController = TextEditingController();
@@ -31,9 +31,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final confirmPasswordController = TextEditingController();
   final ValueNotifier<String?> _selectedRole = ValueNotifier<String?>(null);
   final ValueNotifier<bool> _acceptTerms = ValueNotifier<bool>(false);
-  bool _loadingTerms = true;
-  String? _termsError;
-  LegalDocumentMetadata? _termsMetadata;
+  int _currentStep = 0;
+  bool _openingTermsPdf = false;
 
   Uint8List? _photoBytes;
   XFile? _photoFile;
@@ -41,7 +40,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void initState() {
     super.initState();
-    _loadTermsMetadata();
   }
 
   @override
@@ -58,278 +56,255 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  Future<void> _loadTermsMetadata() async {
-    setState(() {
-      _loadingTerms = true;
-      _termsError = null;
-    });
-
-    try {
-      final metadata =
-          await LegalDocumentsService.fetchTermsAndConditionsMetadata();
-      if (!mounted) return;
-      setState(() {
-        _termsMetadata = metadata;
-        _loadingTerms = false;
-      });
-    } on TimeoutException {
-      if (!mounted) return;
-      setState(() {
-        _loadingTerms = false;
-        _termsError = MultiLanguages.of(context)!.translate('timeout_error');
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loadingTerms = false;
-        _termsError = e.toString().replaceFirst('Exception: ', '');
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Style.getBackgroundColor(),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 16.h),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _header(context),
-                SizedBox(height: 20.h),
-                _hero(),
-                SizedBox(height: 26.h),
-                CustomInputField(
-                  controller: nameController,
-                  label: MultiLanguages.of(context)!.translate('name'),
-                  requiredField: true,
-                ),
-                SizedBox(height: 12.h),
-                CustomInputField(
-                  controller: firstLastNameController,
-                  label: MultiLanguages.of(
-                    context,
-                  )!.translate('register_last_name_p'),
-                  requiredField: true,
-                ),
-                SizedBox(height: 12.h),
-                CustomInputField(
-                  controller: secondLastNameController,
-                  label: MultiLanguages.of(
-                    context,
-                  )!.translate('register_last_name_m'),
-                  requiredField: true,
-                ),
-                SizedBox(height: 12.h),
-                CustomInputField(
-                  controller: emailController,
-                  label: MultiLanguages.of(context)!.translate('login_email'),
-                  keyboardType: TextInputType.emailAddress,
-                  requiredField: true,
-                  validator: (value) {
-                    final text = value?.trim() ?? '';
-                    if (text.isEmpty) {
-                      return MultiLanguages.of(
-                        context,
-                      )!.translate('enter_email');
-                    }
-                    if (!text.isEmail) {
-                      return MultiLanguages.of(
-                        context,
-                      )!.translate('enter_valid_email');
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 12.h),
-                CustomInputField(
-                  controller: phoneController,
-                  label: MultiLanguages.of(context)!.translate('phone'),
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-()\s]')),
-                  ],
-                  requiredField: true,
-                  validator: (value) {
-                    final text = value?.trim() ?? '';
-                    if (text.isEmpty) {
-                      return MultiLanguages.of(
-                        context,
-                      )!.translate('register_enter_phone');
-                    }
-                    final normalized = text.replaceAll(
-                      RegExp(r'[\s\-\(\)]'),
-                      '',
-                    );
-                    if (!RegExp(Patterns.phone).hasMatch(normalized)) {
-                      return MultiLanguages.of(
-                        context,
-                      )!.translate('register_phone_invalid');
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 12.h),
-                CustomPasswordField(
-                  controller: passwordController,
-                  label: MultiLanguages.of(
-                    context,
-                  )!.translate('login_password'),
-                  validator: (value) {
-                    if ((value?.trim() ?? '').isEmpty) {
-                      return MultiLanguages.of(
-                        context,
-                      )!.translate('register_enter_password');
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 12.h),
-                CustomPasswordField(
-                  controller: confirmPasswordController,
-                  label: MultiLanguages.of(
-                    context,
-                  )!.translate('confirm_password'),
-                  validator: (value) {
-                    if ((value?.trim() ?? '').isEmpty) {
-                      return MultiLanguages.of(
-                        context,
-                      )!.translate('register_confirm_password_required');
-                    }
-                    if (value != passwordController.text) {
-                      return MultiLanguages.of(
-                        context,
-                      )!.translate('passwords_do_not_match');
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 26.h),
-                _sectionTitle(
-                  MultiLanguages.of(
-                    context,
-                  )!.translate('services_account_type'),
-                ),
-                SizedBox(height: 14.h),
-                ValueListenableBuilder<String?>(
-                  valueListenable: _selectedRole,
-                  builder: (context, value, child) {
-                    return Column(
-                      children: [
-                        _roleCard(
-                          title: MultiLanguages.of(
-                            context,
-                          )!.translate('client'),
-                          subtitle: MultiLanguages.of(
-                            context,
-                          )!.translate('register_role_client_subtitle'),
-                          info: MultiLanguages.of(
-                            context,
-                          )!.translate('register_role_client_info'),
-                          selected: value == 'cliente',
-                          onTap: () => _selectedRole.value = 'cliente',
-                        ),
-                        SizedBox(height: 10.h),
-                        _roleCard(
-                          title: MultiLanguages.of(
-                            context,
-                          )!.translate('company'),
-                          subtitle: MultiLanguages.of(
-                            context,
-                          )!.translate('register_role_company_subtitle'),
-                          info: MultiLanguages.of(
-                            context,
-                          )!.translate('register_role_company_info'),
-                          selected: value == 'empresa',
-                          onTap: () => _selectedRole.value = 'empresa',
-                        ),
-                        SizedBox(height: 10.h),
-                        _roleCard(
-                          title: MultiLanguages.of(
-                            context,
-                          )!.translate('freelancer'),
-                          subtitle: MultiLanguages.of(
-                            context,
-                          )!.translate('register_role_freelancer_subtitle'),
-                          info: MultiLanguages.of(
-                            context,
-                          )!.translate('register_role_freelancer_info'),
-                          selected: value == 'freelancer',
-                          onTap: () => _selectedRole.value = 'freelancer',
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                SizedBox(height: 26.h),
-                _sectionTitle(
-                  MultiLanguages.of(
-                    context,
-                  )!.translate('register_policies_title'),
-                ),
-                _termsDocumentCard(),
-                SizedBox(height: 8.h),
-                _policySwitch(
-                  title: MultiLanguages.of(
-                    context,
-                  )!.translate('terms_conditions'),
-                  valueListenable: _acceptTerms,
-                ),
-                SizedBox(height: 26.h),
-                SizedBox(
-                  width: double.infinity,
-                  child: CustomWidgets.button(
-                    onTap: _createAccount,
-                    color: Style.getPrimaryColor(),
-                    height: 50,
-                    child: Text(
-                      MultiLanguages.of(
-                        context,
-                      )!.translate('login_create_account'),
-                      style: Style.getHeaderTwo(
-                        color: Style.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16.h),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return MultiStepFormScaffold(
+      title: MultiLanguages.of(context)!.translate('login_create_account'),
+      stepTitles: const <String>['Perfil', 'Acceso', 'Rol'],
+      currentStep: _currentStep,
+      onClose: () => Navigator.pop(context),
+      onBack: _currentStep == 0 ? null : () => setState(() => _currentStep--),
+      onNext: _onNextStep,
+      isLastStep: _currentStep == 2,
+      submitLabel: MultiLanguages.of(
+        context,
+      )!.translate('login_create_account'),
+      child: _stepContent(),
     );
   }
 
-  Widget _header(BuildContext context) {
-    return Row(
-      children: [
-        Material(
-          color: Style.getCardColor().withValues(alpha: .12),
-          shape: RoundedRectangleBorder(borderRadius: Style.getBorderRadius()),
-          child: InkWell(
-            borderRadius: Style.getBorderRadius(),
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              width: 42.w,
-              height: 42.w,
-              alignment: Alignment.center,
-              child: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 16.w,
-                color: Style.getTextColor(),
-              ),
-            ),
-          ),
-        ),
-      ],
+  Future<void> _onNextStep() async {
+    if (_currentStep == 0 || _currentStep == 1) {
+      final valid = _stepKeys[_currentStep].currentState?.validate() ?? true;
+      if (!valid) {
+        _showStepValidationDialog();
+        return;
+      }
+    }
+
+    if (_currentStep == 2 && _selectedRole.value == null) {
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(
+          context,
+        )!.translate('register_select_role_title'),
+        message: MultiLanguages.of(
+          context,
+        )!.translate('register_select_role_message'),
+        color: Style.getPrimaryColor(),
+        icon: Icons.info_outline_rounded,
+      );
+      return;
+    }
+
+    if (_currentStep < 2) {
+      setState(() => _currentStep++);
+      return;
+    }
+
+    await _createAccount();
+  }
+
+  void _showStepValidationDialog() {
+    Dialogs.showSimpleDialog(
+      context,
+      title: MultiLanguages.of(context)!.translate('error'),
+      message:
+          'No puedes avanzar porque faltan campos requeridos por completar.',
+      color: Style.getErrorColor(),
+      icon: Icons.error_outline_rounded,
     );
+  }
+
+  Widget _stepContent() {
+    if (_currentStep == 0) {
+      return Form(
+        key: _stepKeys[0],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _hero(),
+            SizedBox(height: 20.h),
+            CustomInputField(
+              controller: nameController,
+              label: MultiLanguages.of(context)!.translate('name'),
+              requiredField: true,
+            ),
+            SizedBox(height: 12.h),
+            CustomInputField(
+              controller: firstLastNameController,
+              label: MultiLanguages.of(
+                context,
+              )!.translate('register_last_name_p'),
+              requiredField: true,
+            ),
+            SizedBox(height: 12.h),
+            CustomInputField(
+              controller: secondLastNameController,
+              label: MultiLanguages.of(
+                context,
+              )!.translate('register_last_name_m'),
+              requiredField: true,
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_currentStep == 1) {
+      return Form(
+        key: _stepKeys[1],
+        child: Column(
+          children: [
+            CustomInputField(
+              controller: emailController,
+              label: MultiLanguages.of(context)!.translate('login_email'),
+              keyboardType: TextInputType.emailAddress,
+              requiredField: true,
+              validator: (value) {
+                final text = value?.trim() ?? '';
+                if (text.isEmpty) {
+                  return MultiLanguages.of(context)!.translate('enter_email');
+                }
+                if (!text.isEmail) {
+                  return MultiLanguages.of(
+                    context,
+                  )!.translate('enter_valid_email');
+                }
+                return null;
+              },
+            ),
+            SizedBox(height: 12.h),
+            CustomInputField(
+              controller: phoneController,
+              label: MultiLanguages.of(context)!.translate('phone'),
+              keyboardType: TextInputType.phone,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-()\s]')),
+              ],
+              requiredField: true,
+              validator: (value) {
+                final text = value?.trim() ?? '';
+                if (text.isEmpty) {
+                  return MultiLanguages.of(
+                    context,
+                  )!.translate('register_enter_phone');
+                }
+                final normalized = text.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+                if (!RegExp(Patterns.phone).hasMatch(normalized)) {
+                  return MultiLanguages.of(
+                    context,
+                  )!.translate('register_phone_invalid');
+                }
+                return null;
+              },
+            ),
+            SizedBox(height: 12.h),
+            CustomPasswordField(
+              controller: passwordController,
+              label: MultiLanguages.of(context)!.translate('login_password'),
+              requiredField: true,
+              validator: (value) {
+                if ((value?.trim() ?? '').isEmpty) {
+                  return MultiLanguages.of(
+                    context,
+                  )!.translate('register_enter_password');
+                }
+                return null;
+              },
+            ),
+            SizedBox(height: 12.h),
+            CustomPasswordField(
+              controller: confirmPasswordController,
+              label: MultiLanguages.of(context)!.translate('confirm_password'),
+              requiredField: true,
+              validator: (value) {
+                if ((value?.trim() ?? '').isEmpty) {
+                  return MultiLanguages.of(
+                    context,
+                  )!.translate('register_confirm_password_required');
+                }
+                if (value != passwordController.text) {
+                  return MultiLanguages.of(
+                    context,
+                  )!.translate('passwords_do_not_match');
+                }
+                return null;
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_currentStep == 2) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(
+            MultiLanguages.of(context)!.translate('services_account_type'),
+          ),
+          SizedBox(height: 14.h),
+          ValueListenableBuilder<String?>(
+            valueListenable: _selectedRole,
+            builder: (context, value, child) {
+              return Column(
+                children: [
+                  _roleCard(
+                    title: MultiLanguages.of(context)!.translate('client'),
+                    subtitle: MultiLanguages.of(
+                      context,
+                    )!.translate('register_role_client_subtitle'),
+                    info: MultiLanguages.of(
+                      context,
+                    )!.translate('register_role_client_info'),
+                    selected: value == 'cliente',
+                    onTap: () => _selectedRole.value = 'cliente',
+                  ),
+                  SizedBox(height: 10.h),
+                  _roleCard(
+                    title: MultiLanguages.of(context)!.translate('company'),
+                    subtitle: MultiLanguages.of(
+                      context,
+                    )!.translate('register_role_company_subtitle'),
+                    info: MultiLanguages.of(
+                      context,
+                    )!.translate('register_role_company_info'),
+                    selected: value == 'empresa',
+                    onTap: () => _selectedRole.value = 'empresa',
+                  ),
+                  SizedBox(height: 10.h),
+                  _roleCard(
+                    title: MultiLanguages.of(context)!.translate('freelancer'),
+                    subtitle: MultiLanguages.of(
+                      context,
+                    )!.translate('register_role_freelancer_subtitle'),
+                    info: MultiLanguages.of(
+                      context,
+                    )!.translate('register_role_freelancer_info'),
+                    selected: value == 'freelancer',
+                    onTap: () => _selectedRole.value = 'freelancer',
+                  ),
+                ],
+              );
+            },
+          ),
+          SizedBox(height: 18.h),
+          _sectionTitle(
+            MultiLanguages.of(context)!.translate('register_policies_title'),
+          ),
+          SizedBox(height: 10.h),
+          _termsDocumentCard(),
+          SizedBox(height: 8.h),
+          _policySwitch(
+            title: MultiLanguages.of(context)!.translate('terms_conditions'),
+            valueListenable: _acceptTerms,
+          ),
+        ],
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _hero() {
@@ -490,10 +465,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ),
-              Switch(
+              Checkbox(
                 value: value,
-                onChanged: (newValue) => valueListenable.value = newValue,
+                onChanged: (newValue) =>
+                    valueListenable.value = newValue ?? false,
                 activeColor: Style.getPrimaryColor(),
+                checkColor: Style.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(3.r),
+                ),
+                side: BorderSide(
+                  color: Style.getFormFieldBorderColor(),
+                  width: 1.2,
+                ),
               ),
             ],
           ),
@@ -503,115 +487,63 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _termsDocumentCard() {
-    final metadata = _termsMetadata;
-
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
-      decoration: BoxDecoration(
-        color: Style.getCardColor(),
-        borderRadius: Style.getBorderRadius(),
-        border: Border.all(
-          color: Style.getBorderColor().withValues(alpha: .10),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            MultiLanguages.of(context)!.translate('terms_conditions'),
-            style: Style.getHeaderThree(
-              color: Style.getTextColor(),
-              fontWeight: FontWeight.w800,
-            ),
+      width: double.infinity,
+      margin: EdgeInsets.only(top: 2.h),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Style.getPrimaryColor().withValues(alpha: .08),
+              Style.getCardColor().withValues(alpha: .02),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
           ),
-          SizedBox(height: 6.h),
-          if (_loadingTerms)
-            Row(
-              children: [
-                SizedBox(
-                  width: 16.w,
-                  height: 16.w,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Style.getPrimaryColor(),
-                  ),
-                ),
-                SizedBox(width: 8.w),
-                Text(
-                  MultiLanguages.of(context)!.translate('terms_loading'),
-                  style: Style.getTextStyle(
-                    color: Style.getObscureTextColor(),
-                    fontSize: 9,
-                  ),
-                ),
-              ],
-            )
-          else if (_termsError != null)
-            Text(
-              _termsError!,
-              style: Style.getTextStyle(
-                color: Style.getErrorColor(),
-                fontSize: 9,
-              ),
-            )
-          else if (metadata != null)
-            Text(
-              '${MultiLanguages.of(context)!.translate('terms_updated_at')}: '
-              '${LegalDocumentsService.formatUpdatedAt(metadata.updatedAt)}  •  '
-              '${MultiLanguages.of(context)!.translate('terms_file_size')}: '
-              '${LegalDocumentsService.formatFileSize(metadata.fileSize)}',
-              style: Style.getTextStyle(
-                color: Style.getObscureTextColor(),
-                fontSize: 9,
-              ),
-            )
-          else
-            Text(
-              MultiLanguages.of(context)!.translate('terms_unavailable'),
-              style: Style.getTextStyle(
-                color: Style.getObscureTextColor(),
-                fontSize: 9,
-              ),
-            ),
-          SizedBox(height: 8.h),
-          Row(
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(
+            color: Style.getPrimaryColor().withValues(alpha: .18),
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+          child: Row(
             children: [
+              Icon(
+                Icons.description_outlined,
+                color: Style.getPrimaryColor(),
+                size: 17.w,
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Text(
+                  MultiLanguages.of(context)!.translate('terms_conditions'),
+                  style: Style.getTextStyle(
+                    color: Style.getTextColor(),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
               TextButton.icon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const TermsConditionsScreen(),
-                    ),
-                  );
-                },
+                onPressed: _openingTermsPdf ? null : _openTermsPdfDirect,
                 icon: Icon(
                   Icons.open_in_new_rounded,
                   color: Style.getPrimaryColor(),
-                  size: 16.w,
+                  size: 15.w,
                 ),
                 label: Text(
-                  MultiLanguages.of(context)!.translate('view_terms'),
+                  _openingTermsPdf
+                      ? 'Abriendo...'
+                      : MultiLanguages.of(context)!.translate('view_terms'),
                   style: Style.getTextStyle(
                     color: Style.getPrimaryColor(),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              const Spacer(),
-              if (_termsError != null)
-                TextButton(
-                  onPressed: _loadTermsMetadata,
-                  child: Text(
-                    MultiLanguages.of(context)!.translate('retry'),
-                    style: Style.getTextStyle(
-                      color: Style.getPrimaryColor(),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -627,8 +559,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _createAccount() async {
-    if (!_formKey.currentState!.validate()) return;
-
     if (_selectedRole.value == null) {
       Dialogs.showSimpleDialog(
         context,
@@ -677,6 +607,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
     }
+
+    if (!mounted) return;
 
     try {
       Dialogs.showLoader(
@@ -728,6 +660,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
         svg: Assets.svgErrorIcon,
         duration: 2600,
       );
+    }
+  }
+
+  Future<void> _openTermsPdfDirect() async {
+    if (_openingTermsPdf) return;
+
+    setState(() => _openingTermsPdf = true);
+    try {
+      final metadata =
+          await LegalDocumentsService.fetchTermsAndConditionsMetadata();
+      if (!mounted) return;
+
+      await LegalDocumentsService.openTermsAndConditionsPdf(metadata);
+    } on TimeoutException {
+      if (!mounted) return;
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('error'),
+        message: MultiLanguages.of(context)!.translate('timeout_error'),
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Dialogs.showSimpleDialog(
+        context,
+        title: MultiLanguages.of(context)!.translate('error'),
+        message: e.toString().replaceFirst('Exception: ', ''),
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _openingTermsPdf = false);
+      }
     }
   }
 }

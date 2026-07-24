@@ -5,15 +5,11 @@ import 'package:worklink_local/main.dart';
 import 'package:worklink_local/modules/companies/screens/companies_screen.dart';
 import 'package:worklink_local/modules/companies/screens/company_profile_screen.dart';
 import 'package:worklink_local/modules/freelancers/freelancers.dart';
-import 'package:worklink_local/modules/freelancers/screens/freelancers_screen.dart';
 import 'package:worklink_local/modules/notifications/screens/notifications_screen.dart';
 import 'package:worklink_local/modules/notifications/services/notification_service.dart';
+import 'package:worklink_local/modules/chatbot/screens/chatbot_screen.dart';
 import 'package:worklink_local/modules/portfolio/screens/portfolio_screen.dart';
 import 'package:worklink_local/modules/requests/requests.dart';
-import 'package:worklink_local/modules/services/models/service_model.dart';
-import 'package:worklink_local/modules/services/screens/service_detail_screen.dart';
-import 'package:worklink_local/modules/services/screens/my_services_screen.dart';
-import 'package:worklink_local/modules/services/screens/services_screen.dart';
 import 'package:worklink_local/modules/services/services.dart';
 import 'package:worklink_local/modules/users/models/user_model.dart';
 import 'package:worklink_local/modules/vacancies/components/vacancy_card.dart';
@@ -69,6 +65,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void didPopNext() {
     _loadHeaderData();
+    _loadNotificationCount();
   }
 
   String get _roleName {
@@ -314,6 +311,8 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
             SizedBox(width: 10.w),
+            _chatbotButton(),
+            SizedBox(width: 8.w),
             _notificationButton(),
           ],
         ),
@@ -411,6 +410,53 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
       ],
+    );
+  }
+
+  Widget _chatbotButton() {
+    return Material(
+      color: Style.getBackgroundColor().lighten(.02),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+          );
+        },
+        child: Container(
+          width: 42.w,
+          height: 42.w,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Style.getObscureTextColor().withValues(alpha: .08),
+            ),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(
+                Icons.auto_awesome_rounded,
+                color: Style.getSecondaryColor(),
+                size: 20.w,
+              ),
+              Positioned(
+                right: 8,
+                bottom: 8,
+                child: Container(
+                  width: 8.w,
+                  height: 8.w,
+                  decoration: BoxDecoration(
+                    color: Style.getPrimaryColor(),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

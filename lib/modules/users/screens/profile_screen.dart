@@ -642,13 +642,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   String get _roleText {
-    final roles = _user?.roles ?? [];
-    if (roles.isNotEmpty) {
-      return roles.first;
-    }
+    const restrictedRoles = {'admin', 'administrador'};
+
+    final visibleRole = (_user?.roles ?? [])
+        .map((role) => role.trim())
+        .firstWhere(
+          (role) =>
+              role.isNotEmpty &&
+              !restrictedRoles.contains(role.toLowerCase()),
+          orElse: () => '',
+        );
+    if (visibleRole.isNotEmpty) return visibleRole;
 
     final type = (_user?.tipoCuenta ?? '').trim();
-    return type;
+    if (type.isEmpty) return '';
+
+    return restrictedRoles.contains(type.toLowerCase()) ? '' : type;
   }
 
   String get _initials {

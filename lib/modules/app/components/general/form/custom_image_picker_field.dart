@@ -73,7 +73,7 @@ class _CustomImagePickerFieldState extends State<CustomImagePickerField> {
               border: Border.all(
                 color: widget.showError && widget.errorText != null
                     ? Style.getErrorColor().withValues(alpha: .24)
-                    : Style.getBorderColor().withValues(alpha: .08),
+                    : Style.getFormFieldBorderColor(),
               ),
             ),
             child: _files.isEmpty

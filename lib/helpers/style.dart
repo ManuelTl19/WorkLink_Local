@@ -46,6 +46,14 @@ class Style {
       ? const Color.fromARGB(255, 130, 131, 131)
       : grey;
 
+    static Color getFormFieldBorderColor() => AppSettings.isDarkModeOn
+      ? white.withValues(alpha: .24)
+      : black.withValues(alpha: .18);
+
+    static Color getFormFieldDisabledBorderColor() => AppSettings.isDarkModeOn
+      ? white.withValues(alpha: .14)
+      : black.withValues(alpha: .10);
+
   // Shadow
   static Color getShadowColor() => AppSettings.isDarkModeOn
       ? white.withValues(alpha: .1)

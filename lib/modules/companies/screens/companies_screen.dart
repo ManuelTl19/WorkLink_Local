@@ -1,12 +1,10 @@
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/companies/components/company_card.dart';
 import 'package:worklink_local/modules/companies/components/company_filters_bar.dart';
+import 'package:worklink_local/modules/companies/models/company_profile_model.dart';
 import 'package:worklink_local/modules/companies/screens/company_profile_screen.dart';
 import 'package:worklink_local/modules/companies/services/companies_service.dart';
 import 'package:worklink_local/utils/utils.dart';
-import 'package:worklink_local/modules/vacancies/models/company_model.dart';
-import 'package:worklink_local/utils/widgets/custom_widgets.dart';
-import 'package:worklink_local/utils/widgets/widgets.dart';
 
 class CompaniesScreen extends StatefulWidget {
   const CompaniesScreen({super.key});
@@ -20,7 +18,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   bool _loading = true;
-  List<CompanyModel> _companies = const [];
+  List<CompanyProfileModel> _companies = const [];
   List<String> _industries = const ['Todas'];
   List<String> _locations = const ['Todas'];
 

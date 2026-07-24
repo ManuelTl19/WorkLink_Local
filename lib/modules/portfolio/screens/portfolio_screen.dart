@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/freelancers/models/freelancer_model.dart';
+import 'package:worklink_local/modules/freelancers/screens/freelancer_availability_screen.dart';
 import 'package:worklink_local/modules/portfolio/portfolio.dart';
 import 'package:worklink_local/modules/users/models/user_model.dart';
 import 'package:worklink_local/utils/utils.dart';
@@ -79,6 +79,17 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     });
   }
 
+  Future<void> _openAvailability() async {
+    final freelancerProfileId = widget.freelancer.id;
+    if (freelancerProfileId == null) return;
+
+    await Navigator.of(context).push(
+      Transitions.slideUpTransition(
+        FreelancerAvailabilityScreen(freelancerProfileId: freelancerProfileId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<AppSettings>(
@@ -114,6 +125,14 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                   onPressed: _loadPortfolio,
                   icon: Icon(Icons.refresh_rounded, color: Style.white),
                 ),
+                if (widget.freelancer.id != null)
+                  IconButton(
+                    onPressed: _isActionLoading ? null : _openAvailability,
+                    icon: Icon(
+                      Icons.event_available_rounded,
+                      color: Style.white,
+                    ),
+                  ),
                 if (_isOwner)
                   IconButton(
                     onPressed: _isActionLoading
@@ -185,13 +204,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                             Expanded(
                               child: CustomWidgets.button(
                                 onTap: widget.onDeleteProfile!,
-                                color: Style.getCardColor(),
+                                color: Style.getErrorColor(),
+                                backgroundColor: Style.getErrorColor()
+                                    .withValues(alpha: .08),
                                 isFilled: false,
                                 withBorder: true,
+                                elevation: false,
                                 child: Text(
                                   'Eliminar perfil',
                                   style: Style.getHeaderThree(
-                                    color: Style.red,
+                                    color: Style.getErrorColor(),
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -706,7 +728,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
             project.description.trim() != result.description.trim();
         final projectUrlChanged =
             project.projectUrl.trim() != result.projectUrl.trim();
-        final textChanged = titleChanged || descriptionChanged || projectUrlChanged;
+        final textChanged =
+            titleChanged || descriptionChanged || projectUrlChanged;
 
         var imageRemoved = false;
         var imageUpdated = false;
@@ -822,13 +845,14 @@ class _ProjectFormDialogState extends State<_ProjectFormDialog> {
   static const int _maxImageBytes = 2 * 1024 * 1024;
   static const List<int> _compressionQualities = <int>[85, 75, 65, 55, 45, 35];
 
-  final _formKey = GlobalKey<FormState>();
+  final _detailsFormKey = GlobalKey<FormState>();
   final ImagePicker _imagePicker = ImagePicker();
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _projectUrlController;
   String? _selectedImagePath;
   Uint8List? _selectedImageBytes;
+  int _currentStep = 0;
 
   @override
   void initState() {
@@ -870,117 +894,190 @@ class _ProjectFormDialogState extends State<_ProjectFormDialog> {
           borderRadius: BorderRadius.circular(22.r),
         ),
         padding: EdgeInsets.all(16.w),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isEditing ? 'Editar proyecto' : 'Nuevo proyecto',
-                  style: Style.getHeaderTwo(
-                    color: Style.getTextColor(),
-                    fontWeight: FontWeight.w800,
-                  ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isEditing ? 'Editar proyecto' : 'Nuevo proyecto',
+                style: Style.getHeaderTwo(
+                  color: Style.getTextColor(),
+                  fontWeight: FontWeight.w800,
                 ),
-                SizedBox(height: 14.h),
-                _buildField(
-                  controller: _titleController,
-                  label: 'Título',
-                  validator: (value) {
-                    final text = (value ?? '').trim();
-                    if (text.isEmpty) return 'Campo requerido';
-                    if (text.length < 3) return 'Mínimo 3 caracteres';
-                    return null;
-                  },
-                ),
-                SizedBox(height: 10.h),
-                _buildField(
-                  controller: _descriptionController,
-                  label: 'Descripción',
-                  minLines: 3,
-                  maxLines: 5,
-                  validator: (value) {
-                    final text = (value ?? '').trim();
-                    if (text.isEmpty) return 'Campo requerido';
-                    if (text.length < 10) return 'Mínimo 10 caracteres';
-                    return null;
-                  },
-                ),
-                SizedBox(height: 10.h),
-                _buildField(
-                  controller: _projectUrlController,
-                  label: 'URL de proyecto (opcional)',
-                  keyboardType: TextInputType.url,
-                  validator: (_) => null,
-                ),
-                SizedBox(height: 10.h),
-                _buildImagePicker(),
-                SizedBox(height: 16.h),
-                Row(
-                  children: [
-                    Expanded(
-                      child: CustomWidgets.button(
-                        onTap: () => Navigator.pop(context),
-                        color: Style.getCardColor(),
-                        withBorder: true,
-                        isFilled: false,
-                        child: Text(
-                          'Cancelar',
-                          style: Style.getHeaderThree(
-                            color: Style.getTextColor(),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 10.w),
-                    Expanded(
-                      child: CustomWidgets.button(
-                        onTap: () {
-                          if (!_formKey.currentState!.validate()) {
-                            return;
-                          }
-
-                          Navigator.pop(
-                            context,
-                            ProjectModel(
-                              id: widget.initialProject?.id ?? 0,
-                              freelancerId: widget.initialProject?.freelancerId,
-                              title: _titleController.text.trim(),
-                              description: _descriptionController.text.trim(),
-                                imageUrl:
-                                  _selectedImagePath ??
-                                  widget.initialProject?.imageUrl ??
-                                  '',
-                              projectUrl: _projectUrlController.text.trim(),
-                              dateLabel: widget.initialProject?.dateLabel ?? '',
-                              fullDescription: _descriptionController.text
-                                  .trim(),
-                              technologies:
-                                  widget.initialProject?.technologies ??
-                                  const [],
-                            ),
-                          );
+              ),
+              SizedBox(height: 12.h),
+              _projectSteps(),
+              SizedBox(height: 14.h),
+              if (_currentStep == 0)
+                Form(
+                  key: _detailsFormKey,
+                  child: Column(
+                    children: [
+                      _buildField(
+                        controller: _titleController,
+                        label: 'Titulo',
+                        validator: (value) {
+                          final text = (value ?? '').trim();
+                          if (text.isEmpty) return 'Campo requerido';
+                          if (text.length < 3) return 'Minimo 3 caracteres';
+                          return null;
                         },
-                        color: Style.getPrimaryColor(),
-                        child: Text(
-                          isEditing ? 'Guardar' : 'Crear',
-                          style: Style.getHeaderThree(
-                            color: Style.white,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      ),
+                      SizedBox(height: 10.h),
+                      _buildField(
+                        controller: _descriptionController,
+                        label: 'Descripcion',
+                        minLines: 3,
+                        maxLines: 5,
+                        validator: (value) {
+                          final text = (value ?? '').trim();
+                          if (text.isEmpty) return 'Campo requerido';
+                          if (text.length < 10) return 'Minimo 10 caracteres';
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 10.h),
+                      _buildField(
+                        controller: _projectUrlController,
+                        label: 'URL de proyecto (opcional)',
+                        keyboardType: TextInputType.url,
+                        validator: (_) => null,
+                      ),
+                    ],
+                  ),
+                )
+              else
+                _buildImagePicker(),
+              SizedBox(height: 16.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomWidgets.button(
+                      onTap: () {
+                        if (_currentStep == 0) {
+                          Navigator.pop(context);
+                          return;
+                        }
+                        setState(() => _currentStep--);
+                      },
+                      color: Style.getCardColor(),
+                      withBorder: true,
+                      isFilled: false,
+                      child: Text(
+                        _currentStep == 0 ? 'Cancelar' : 'Atras',
+                        style: Style.getHeaderThree(
+                          color: Style.getTextColor(),
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: CustomWidgets.button(
+                      onTap: () {
+                        if (_currentStep == 0) {
+                          final valid =
+                              _detailsFormKey.currentState?.validate() ?? false;
+                          if (!valid) return;
+                          setState(() => _currentStep = 1);
+                          return;
+                        }
+
+                        Navigator.pop(
+                          context,
+                          ProjectModel(
+                            id: widget.initialProject?.id ?? 0,
+                            freelancerId: widget.initialProject?.freelancerId,
+                            title: _titleController.text.trim(),
+                            description: _descriptionController.text.trim(),
+                            imageUrl:
+                                _selectedImagePath ??
+                                widget.initialProject?.imageUrl ??
+                                '',
+                            projectUrl: _projectUrlController.text.trim(),
+                            dateLabel: widget.initialProject?.dateLabel ?? '',
+                            fullDescription: _descriptionController.text.trim(),
+                            technologies:
+                                widget.initialProject?.technologies ?? const [],
+                          ),
+                        );
+                      },
+                      color: Style.getPrimaryColor(),
+                      child: Text(
+                        _currentStep == 0
+                            ? 'Siguiente'
+                            : (isEditing ? 'Guardar' : 'Crear'),
+                        style: Style.getHeaderThree(
+                          color: Style.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _projectSteps() {
+    Widget item(int index, String label) {
+      final active = _currentStep == index;
+      final done = _currentStep > index;
+      final color = active || done
+          ? Style.getPrimaryColor()
+          : Style.getBorderColor().withValues(alpha: .35);
+
+      return Expanded(
+        child: Column(
+          children: [
+            Container(
+              width: 18.w,
+              height: 18.w,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: active ? color : Style.getBackgroundColor(),
+                border: Border.all(color: color, width: 2),
+              ),
+              child: done
+                  ? Icon(Icons.check_rounded, color: Style.white, size: 12.w)
+                  : null,
+            ),
+            SizedBox(height: 4.h),
+            Text(
+              label,
+              style: Style.getTextStyle(
+                color: active
+                    ? Style.getTextColor()
+                    : Style.getObscureTextColor(),
+                fontSize: 7,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        item(0, 'Datos'),
+        Expanded(
+          child: Container(
+            margin: EdgeInsets.only(bottom: 16.h),
+            height: 2.h,
+            color: _currentStep > 0
+                ? Style.getPrimaryColor()
+                : Style.getBorderColor().withValues(alpha: .3),
+          ),
+        ),
+        item(1, 'Imagen'),
+      ],
     );
   }
 
@@ -1008,8 +1105,10 @@ class _ProjectFormDialogState extends State<_ProjectFormDialog> {
 
   Widget _buildImagePicker() {
     final imagePath = _selectedImagePath ?? '';
-    final hasLocalImage = imagePath.isNotEmpty && !imagePath.toLowerCase().startsWith('http');
-    final hasRemoteImage = imagePath.isNotEmpty && imagePath.toLowerCase().startsWith('http');
+    final hasLocalImage =
+        imagePath.isNotEmpty && !imagePath.toLowerCase().startsWith('http');
+    final hasRemoteImage =
+        imagePath.isNotEmpty && imagePath.toLowerCase().startsWith('http');
     final hasSelectedImage = imagePath.isNotEmpty;
 
     Widget preview;
@@ -1054,7 +1153,10 @@ class _ProjectFormDialogState extends State<_ProjectFormDialog> {
                 top: 10.h,
                 right: 10.w,
                 child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10.w,
+                    vertical: 5.h,
+                  ),
                   decoration: BoxDecoration(
                     color: Style.getPrimaryColor(),
                     borderRadius: BorderRadius.circular(30.r),
@@ -1092,7 +1194,8 @@ class _ProjectFormDialogState extends State<_ProjectFormDialog> {
                 label: const Text('Elegir imagen'),
               ),
             ),
-            if (_selectedImagePath != null && _selectedImagePath!.trim().isNotEmpty) ...[
+            if (_selectedImagePath != null &&
+                _selectedImagePath!.trim().isNotEmpty) ...[
               SizedBox(width: 8.w),
               IconButton(
                 tooltip: 'Quitar imagen',
@@ -1139,14 +1242,22 @@ class _ProjectFormDialogState extends State<_ProjectFormDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: Icon(Icons.photo_camera_rounded, color: Style.getPrimaryColor()),
+                leading: Icon(
+                  Icons.photo_camera_rounded,
+                  color: Style.getPrimaryColor(),
+                ),
                 title: const Text('Tomar foto'),
-                onTap: () => _pickProjectImage(sheetContext, ImageSource.camera),
+                onTap: () =>
+                    _pickProjectImage(sheetContext, ImageSource.camera),
               ),
               ListTile(
-                leading: Icon(Icons.photo_library_rounded, color: Style.getPrimaryColor()),
+                leading: Icon(
+                  Icons.photo_library_rounded,
+                  color: Style.getPrimaryColor(),
+                ),
                 title: const Text('Elegir de galería'),
-                onTap: () => _pickProjectImage(sheetContext, ImageSource.gallery),
+                onTap: () =>
+                    _pickProjectImage(sheetContext, ImageSource.gallery),
               ),
             ],
           ),
@@ -1155,8 +1266,14 @@ class _ProjectFormDialogState extends State<_ProjectFormDialog> {
     );
   }
 
-  Future<void> _pickProjectImage(BuildContext sheetContext, ImageSource source) async {
-    final picked = await _imagePicker.pickImage(source: source, imageQuality: 90);
+  Future<void> _pickProjectImage(
+    BuildContext sheetContext,
+    ImageSource source,
+  ) async {
+    final picked = await _imagePicker.pickImage(
+      source: source,
+      imageQuality: 90,
+    );
     if (picked == null) {
       if (sheetContext.mounted) Navigator.pop(sheetContext);
       return;
@@ -1233,8 +1350,5 @@ class _PreparedProjectImage {
   final String path;
   final Uint8List bytes;
 
-  const _PreparedProjectImage({
-    required this.path,
-    required this.bytes,
-  });
+  const _PreparedProjectImage({required this.path, required this.bytes});
 }
