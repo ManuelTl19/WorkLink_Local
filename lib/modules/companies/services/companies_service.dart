@@ -395,6 +395,19 @@ class CompaniesService {
       if (data is List) {
         return data.whereType<Map<String, dynamic>>().toList();
       }
+      if (data is Map<String, dynamic>) {
+        final nestedListCandidates = [
+          data['company_profiles'],
+          data['companies'],
+          data['items'],
+          data['results'],
+        ];
+        for (final candidate in nestedListCandidates) {
+          if (candidate is List) {
+            return candidate.whereType<Map<String, dynamic>>().toList();
+          }
+        }
+      }
 
       final results = body['results'];
       if (results is List) {
@@ -408,7 +421,19 @@ class CompaniesService {
   Map<String, dynamic> _extractDataMap(dynamic body) {
     if (body is Map<String, dynamic>) {
       final data = body['data'];
-      if (data is Map<String, dynamic>) return data;
+      if (data is Map<String, dynamic>) {
+        final nestedMapCandidates = [
+          data['company_profile'],
+          data['company'],
+          data['profile'],
+        ];
+        for (final candidate in nestedMapCandidates) {
+          if (candidate is Map<String, dynamic>) {
+            return candidate;
+          }
+        }
+        return data;
+      }
 
       final result = body['result'];
       if (result is Map<String, dynamic>) return result;

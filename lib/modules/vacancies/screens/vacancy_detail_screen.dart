@@ -33,20 +33,40 @@ class _VacancyDetailScreenState extends State<VacancyDetailScreen> {
   }
 
   Future<void> _loadVacancy() async {
-    final companyProfileId = await _service.getCurrentCompanyProfileId();
-    final publicVacancy = await _service.getPublicVacancyById(widget.vacancyId);
-    final vacancy =
-        publicVacancy ?? await _service.getVacancyById(widget.vacancyId);
+    if (mounted) {
+      setState(() => _loading = true);
+    }
 
-    if (!mounted) return;
-    setState(() {
-      _vacancy = vacancy;
-      _isOwner =
-          vacancy != null &&
-          companyProfileId != null &&
-          vacancy.companyId == companyProfileId;
-      _loading = false;
-    });
+    try {
+      final companyProfileId = await _service.getCurrentCompanyProfileId();
+      final publicVacancy = await _service.getPublicVacancyById(widget.vacancyId);
+      final vacancy =
+          publicVacancy ?? await _service.getVacancyById(widget.vacancyId);
+
+      if (!mounted) return;
+      setState(() {
+        _vacancy = vacancy;
+        _isOwner =
+            vacancy != null &&
+            companyProfileId != null &&
+            vacancy.companyId == companyProfileId;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _vacancy = null;
+        _isOwner = false;
+        _loading = false;
+      });
+      Dialogs.showSimpleDialog(
+        context,
+        title: 'Vacantes',
+        message: e.toString().replaceFirst('Exception: ', ''),
+        color: Style.getErrorColor(),
+        icon: Icons.error_outline_rounded,
+      );
+    }
   }
 
   Future<void> _apply() async {

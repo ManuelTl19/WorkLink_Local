@@ -171,7 +171,7 @@ class VacanciesService {
   }
 
   Future<List<String>> getCategories() async {
-    final vacancies = await getPublicVacancies(perPage: 200);
+    final vacancies = await getPublicVacancies(perPage: 100);
     final categories = vacancies
         .map((vacancy) => vacancy.category.trim())
         .where((category) => category.isNotEmpty)
@@ -344,6 +344,11 @@ class VacanciesService {
     required int vacancyId,
     String message = '',
   }) async {
+    if (vacancyId <= 0) {
+      throw const VacanciesFlowException('La vacante es invalida.');
+    }
+    final normalizedMessage = _normalizeApplicationMessage(message);
+
     try {
       final response = await http
           .post(
@@ -351,7 +356,7 @@ class VacanciesService {
             headers: await _headersWithToken(),
             body: jsonEncode({
               'vacancy_id': vacancyId,
-              if (message.trim().isNotEmpty) 'message': message.trim(),
+              if (normalizedMessage.isNotEmpty) 'message': normalizedMessage,
             }),
           )
           .timeout(const Duration(seconds: 20));
@@ -371,7 +376,7 @@ class VacanciesService {
         id: 0,
         vacancyId: vacancyId,
         freelancerId: 0,
-        message: message.trim(),
+        message: normalizedMessage,
         status: ApplicationStatus.pendiente,
         appliedAt: DateTime.now(),
       );
@@ -388,12 +393,14 @@ class VacanciesService {
     required int applicationId,
     required String message,
   }) async {
+    final normalizedMessage = _normalizeApplicationMessage(message);
+
     try {
       final response = await http
           .patch(
             Apis.applicationById(applicationId),
             headers: await _headersWithToken(),
-            body: jsonEncode({'message': message.trim()}),
+            body: jsonEncode({'message': normalizedMessage}),
           )
           .timeout(const Duration(seconds: 20));
 
@@ -409,7 +416,7 @@ class VacanciesService {
       if (data.isNotEmpty) return VacancyApplicationModel.fromJson(data);
 
       final current = await getApplicationById(applicationId);
-      if (current != null) return current.copyWith(message: message.trim());
+      if (current != null) return current.copyWith(message: normalizedMessage);
 
       throw VacanciesFlowException(
         'No se pudo obtener la postulación actualizada.',
@@ -427,6 +434,13 @@ class VacanciesService {
     required int applicationId,
     required ApplicationStatus status,
   }) async {
+    if (status != ApplicationStatus.aceptada &&
+        status != ApplicationStatus.rechazada) {
+      throw const VacanciesFlowException(
+        'Solo se puede actualizar a accepted o rejected.',
+      );
+    }
+
     try {
       final response = await http
           .patch(
@@ -502,6 +516,7 @@ class VacanciesService {
     VacancyStatus status = VacancyStatus.abierta,
   }) async {
     try {
+      final normalizedSalary = _parseSalaryForApi(salary);
       final token = await _requireToken();
       final response = await http
           .post(
@@ -513,7 +528,7 @@ class VacanciesService {
               'description': description.trim(),
               'category': category.trim(),
               'location': location.trim(),
-              if (salary.trim().isNotEmpty) 'salary': salary.trim(),
+              if (normalizedSalary != null) 'salary': normalizedSalary,
               if (status != VacancyStatus.abierta)
                 'status': _statusToApi(status),
             }),
@@ -563,6 +578,7 @@ class VacanciesService {
 
   Future<VacancyModel> updateVacancy(VacancyModel vacancy) async {
     try {
+      final normalizedSalary = _parseSalaryForApi(vacancy.salary);
       final current = await getVacancyById(vacancy.id);
       if (current == null) {
         throw VacanciesFlowException('No se pudo actualizar la vacante.');
@@ -583,8 +599,7 @@ class VacanciesService {
               'description': vacancy.description.trim(),
               'category': vacancy.category.trim(),
               'location': vacancy.location.trim(),
-              if (vacancy.salary.trim().isNotEmpty)
-                'salary': vacancy.salary.trim(),
+              if (normalizedSalary != null) 'salary': normalizedSalary,
               'status': _statusToApi(vacancy.status),
             }),
           )
@@ -688,8 +703,17 @@ class VacanciesService {
   }
 
   Future<int?> getCurrentCompanyProfileId() async {
-    final profile = await _companyProfilesService.getMyCompanyProfile();
-    return profile?.id;
+    try {
+      final profile = await _companyProfilesService.getMyCompanyProfile();
+      return profile?.id;
+    } on CompanyProfilesFlowException catch (e) {
+      final normalizedMessage = e.message.toLowerCase();
+      if (normalizedMessage.contains('solo los usuarios empresa') ||
+          normalizedMessage.contains('perfil de empresa')) {
+        return null;
+      }
+      rethrow;
+    }
   }
 
   Future<int?> getCurrentFreelancerProfileId() async {
@@ -751,6 +775,9 @@ class VacanciesService {
           statusCode: response.statusCode,
         );
       }
+
+      final nestedVacancy = _extractNestedVacancyMap(body);
+      if (nestedVacancy.isNotEmpty) return VacancyModel.fromJson(nestedVacancy);
 
       final data = _extractDataMap(body);
       if (data.isNotEmpty) return VacancyModel.fromJson(data);
@@ -913,7 +940,10 @@ class VacanciesService {
     if (vacancyId != null) params['vacancy_id'] = vacancyId.toString();
     if (freelancerId != null) params['freelancer_id'] = freelancerId.toString();
     if (search.trim().isNotEmpty) params['search'] = search.trim();
-    if (perPage != null) params['per_page'] = perPage.toString();
+    if (perPage != null) {
+      final normalizedPerPage = perPage.clamp(1, 100);
+      params['per_page'] = normalizedPerPage.toString();
+    }
 
     if (params.isEmpty) return base;
     return base.replace(queryParameters: params);
@@ -945,6 +975,28 @@ class VacanciesService {
     if (body is Map<String, dynamic>) {
       final data = body['data'];
       if (data is List) return data.whereType<Map<String, dynamic>>().toList();
+
+      if (data is Map<String, dynamic>) {
+        final vacancies = data['vacancies'];
+        if (vacancies is List) {
+          return vacancies.whereType<Map<String, dynamic>>().toList();
+        }
+
+        final nestedData = data['data'];
+        if (nestedData is List) {
+          return nestedData.whereType<Map<String, dynamic>>().toList();
+        }
+
+        final nestedItems = data['items'];
+        if (nestedItems is List) {
+          return nestedItems.whereType<Map<String, dynamic>>().toList();
+        }
+      }
+
+      final vacancies = body['vacancies'];
+      if (vacancies is List) {
+        return vacancies.whereType<Map<String, dynamic>>().toList();
+      }
 
       final results = body['results'];
       if (results is List) {
@@ -1022,6 +1074,16 @@ class VacanciesService {
     return error.toString().replaceFirst('Exception: ', '').trim();
   }
 
+  String _normalizeApplicationMessage(String message) {
+    final normalized = message.trim();
+    if (normalized.length > 5000) {
+      throw const VacanciesFlowException(
+        'El mensaje no puede superar 5000 caracteres.',
+      );
+    }
+    return normalized;
+  }
+
   String _statusToApi(VacancyStatus status) {
     switch (status) {
       case VacancyStatus.abierta:
@@ -1033,20 +1095,70 @@ class VacanciesService {
     }
   }
 
+  double? _parseSalaryForApi(String rawSalary) {
+    final raw = rawSalary.trim();
+    if (raw.isEmpty) return null;
+
+    var cleaned = raw.replaceAll(RegExp(r'[^0-9,\.]'), '');
+    if (cleaned.isEmpty) return null;
+
+    if (cleaned.contains(',') && cleaned.contains('.')) {
+      cleaned = cleaned.replaceAll(',', '');
+    } else if (cleaned.contains(',')) {
+      cleaned = cleaned.replaceAll(',', '.');
+    }
+
+    final parsed = double.tryParse(cleaned);
+    if (parsed == null) {
+      throw const VacanciesFlowException('El salario es invalido.');
+    }
+    if (parsed < 0 || parsed > 9999999999.99) {
+      throw const VacanciesFlowException(
+        'El salario debe estar entre 0 y 9999999999.99.',
+      );
+    }
+
+    return parsed;
+  }
+
   Future<VacancyModel> _resolveVacancyFromResponse(
     dynamic body, {
     required VacancyModel fallback,
   }) async {
+    final nestedVacancy = _extractNestedVacancyMap(body);
     final data = _extractDataMap(body);
     final list = _extractDataList(body);
 
     VacancyModel vacancy = fallback;
-    if (data.isNotEmpty) {
+    if (nestedVacancy.isNotEmpty) {
+      vacancy = VacancyModel.fromJson(nestedVacancy);
+    } else if (data.isNotEmpty) {
       vacancy = VacancyModel.fromJson(data);
     } else if (list.isNotEmpty) {
       vacancy = VacancyModel.fromJson(list.first);
     }
 
     return _hydrateVacancy(vacancy);
+  }
+
+  Map<String, dynamic> _extractNestedVacancyMap(dynamic body) {
+    if (body is! Map<String, dynamic>) return const <String, dynamic>{};
+
+    final directVacancy = body['vacancy'];
+    if (directVacancy is Map<String, dynamic>) return directVacancy;
+
+    final data = body['data'];
+    if (data is Map<String, dynamic>) {
+      final dataVacancy = data['vacancy'];
+      if (dataVacancy is Map<String, dynamic>) return dataVacancy;
+
+      final nestedData = data['data'];
+      if (nestedData is Map<String, dynamic>) {
+        final nestedVacancy = nestedData['vacancy'];
+        if (nestedVacancy is Map<String, dynamic>) return nestedVacancy;
+      }
+    }
+
+    return const <String, dynamic>{};
   }
 }

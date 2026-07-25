@@ -1,9 +1,8 @@
 import 'package:worklink_local/helpers/helpers.dart';
+import 'package:worklink_local/modules/app/components/general/form/form_widgets.dart';
 import 'package:worklink_local/modules/vacancies/components/vacancy_card.dart';
-import 'package:worklink_local/modules/vacancies/components/vacancy_filters_bar.dart';
 import 'package:worklink_local/modules/vacancies/models/vacancy_model.dart';
 import 'package:worklink_local/modules/vacancies/services/vacancies_service.dart';
-import 'package:worklink_local/modules/companies/screens/company_profile_screen.dart';
 import 'package:worklink_local/modules/vacancies/screens/vacancy_detail_screen.dart';
 import 'package:worklink_local/utils/utils.dart';
 
@@ -43,13 +42,36 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
   Future<void> _loadData() async {
     setState(() => _loading = true);
 
-    final categories = await _service.getCategories();
-    final locations = await _service.getLocations();
-    final vacancies = await _service.getFreelancerVacancies(
-      query: _query,
-      category: _selectedCategory,
-      location: _selectedLocation,
-    );
+    List<String> categories = const [];
+    List<String> locations = const [];
+    List<VacancyModel> vacancies = const [];
+
+    try {
+      categories = await _service.getCategories();
+    } catch (_) {
+      categories = const [];
+    }
+
+    try {
+      locations = await _service.getLocations();
+    } catch (_) {
+      locations = const [];
+    }
+
+    try {
+      vacancies = await _service.getFreelancerVacancies(
+        query: _query,
+        category: _selectedCategory,
+        location: _selectedLocation,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudieron cargar vacantes: $e')),
+        );
+      }
+      vacancies = const [];
+    }
 
     if (!mounted) return;
 
@@ -103,10 +125,14 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
     return Consumer<AppSettings>(
       builder: (context, app, child) => Scaffold(
         backgroundColor: Style.getBackgroundColor(),
-        body: CustomScrollView(
-          controller: _scrollController,
-          physics: const BouncingScrollPhysics(),
-          slivers: [
+        body: RefreshIndicator(
+          onRefresh: _loadData,
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            slivers: [
             SliverAppBar(
               pinned: true,
               backgroundColor: Style.getBackgroundColor(),
@@ -120,15 +146,6 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
                   color: Style.getTextColor(),
                 ),
               ),
-              actions: [
-                IconButton(
-                  onPressed: _loadData,
-                  icon: Icon(
-                    Icons.refresh_rounded,
-                    color: Style.getTextColor(),
-                  ),
-                ),
-              ],
               title: Text(
                 'Vacantes',
                 style: Style.getHeaderTwo(
@@ -141,91 +158,27 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   Style.horizontalPadding.w,
-                  8.h,
+                  12.h,
                   Style.horizontalPadding.w,
-                  14.h,
+                  12.h,
                 ),
-                child: Container(
-                  padding: EdgeInsets.all(16.w),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Style.getPrimaryColor().withValues(alpha: .18),
-                        Style.getPrimaryColor().withValues(alpha: .06),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: Style.getCircularBorderRadius(24),
-                    border: Border.all(
-                      color: Style.getPrimaryColor().withValues(alpha: .10),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(12.w),
-                        decoration: BoxDecoration(
-                          color: Style.getPrimaryColor().withValues(alpha: .12),
-                          borderRadius: Style.getCircularBorderRadius(16),
-                        ),
-                        child: Icon(
-                          Icons.work_outline_rounded,
-                          color: Style.getPrimaryColor(),
-                          size: 22.w,
-                        ),
-                      ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Marketplace profesional',
-                              style: Style.getHeaderTwo(
-                                color: Style.getTextColor(),
-                                fontWeight: FontWeight.w800,
-                                fontSize: 15,
-                              ),
-                            ),
-                            SizedBox(height: 4.h),
-                            Text(
-                              'Explora vacantes, revisa detalles y aplica con un flujo preparado para API real.',
-                              style: Style.getTextStyle(
-                                color: Style.getObscureTextColor(),
-                              ).copyWith(height: 1.35),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: Style.horizontalPadding.w,
-                ),
-                child: VacancyFiltersBar(
-                  searchController: _searchController,
-                  selectedCategory: _selectedCategory,
-                  selectedLocation: _selectedLocation,
-                  categories: _categories,
-                  locations: _locations,
-                  onSearchChanged: (value) {
+                child: CustomInputField(
+                  controller: _searchController,
+                  label:
+                      MultiLanguages.of(context)?.translate('vacancies_search_label') ??
+                      'Buscar vacantes, empresas o habilidades',
+                  hintText:
+                      MultiLanguages.of(context)?.translate('vacancies_search_hint') ??
+                      'Buscar vacantes, empresas o habilidades',
+                  textInputAction: TextInputAction.search,
+                  onChanged: (value) {
                     _query = value;
                     _refreshList();
                   },
-                  onCategoryChanged: (value) {
-                    setState(() => _selectedCategory = value ?? 'Todas');
-                    _refreshList();
-                  },
-                  onLocationChanged: (value) {
-                    setState(() => _selectedLocation = value ?? 'Todas');
-                    _refreshList();
-                  },
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: Style.getObscureTextColor(),
+                  ),
                 ),
               ),
             ),
@@ -280,18 +233,12 @@ class _VacanciesScreenState extends State<VacanciesScreen> {
                       onApply: vacancy.isOpen
                           ? () => _applyToVacancy(vacancy)
                           : null,
-                      onViewCompany: () {
-                        Navigator.of(context).push(
-                          Transitions.slideUpTransition(
-                            CompanyProfileScreen(companyId: vacancy.companyId),
-                          ),
-                        );
-                      },
                     );
                   },
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );

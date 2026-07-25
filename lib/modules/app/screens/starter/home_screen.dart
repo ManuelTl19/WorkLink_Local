@@ -3,14 +3,17 @@ import 'package:worklink_local/modules/app/components/general/form/form_widgets.
 import 'package:worklink_local/utils/utils.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/main.dart';
+import 'package:worklink_local/modules/companies/components/company_card.dart';
+import 'package:worklink_local/modules/companies/models/company_profile_model.dart';
 import 'package:worklink_local/modules/companies/screens/companies_screen.dart';
 import 'package:worklink_local/modules/companies/screens/company_profile_screen.dart';
+import 'package:worklink_local/modules/companies/services/companies_service.dart';
 import 'package:worklink_local/modules/freelancers/freelancers.dart';
 import 'package:worklink_local/modules/notifications/screens/notifications_screen.dart';
 import 'package:worklink_local/modules/notifications/services/notification_service.dart';
 import 'package:worklink_local/modules/chatbot/screens/chatbot_screen.dart';
+import 'package:worklink_local/modules/messages/messages.dart';
 import 'package:worklink_local/modules/portfolio/screens/portfolio_screen.dart';
-import 'package:worklink_local/modules/requests/requests.dart';
 import 'package:worklink_local/modules/services/services.dart';
 import 'package:worklink_local/modules/users/models/user_model.dart';
 import 'package:worklink_local/modules/vacancies/components/vacancy_card.dart';
@@ -42,11 +45,12 @@ class _HomeScreenState extends State<HomeScreen>
   bool _hasFreelancerProfile = true;
   int _notificationCount = 0;
   final ServicesService _servicesService = ServicesService();
-  final RequestsService _requestsService = RequestsService();
   final VacanciesService _vacanciesService = VacanciesService();
+  final CompaniesService _companiesService = CompaniesService();
   List<FreelancerModel> _freelancers = const [];
+  List<CompanyProfileModel> _companies = const [];
   List<ServiceModel> _services = const [];
-  List<WorkRequestModel> _requests = const [];
+  List<ServiceRequestModel> _requests = const [];
   List<VacancyModel> _vacancies = const [];
 
   @override
@@ -274,6 +278,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _loadHomeCards() async {
     List<FreelancerModel> freelancers = const [];
+    List<CompanyProfileModel> companies = const [];
 
     try {
       freelancers = await FreelancersService.getFreelancers();
@@ -281,14 +286,26 @@ class _HomeScreenState extends State<HomeScreen>
       freelancers = const [];
     }
 
+    try {
+      companies = await _companiesService.getCompanies();
+    } catch (_) {
+      companies = const [];
+    }
+
     final services = await _servicesService.getServices();
-    final requests = await _requestsService.getRequests();
+    List<ServiceRequestModel> requests = const [];
+    try {
+      requests = await _servicesService.getContractRequests();
+    } catch (_) {
+      requests = const [];
+    }
     final vacancies = await _vacanciesService.getFreelancerVacancies();
 
     if (!mounted) return;
 
     setState(() {
       _freelancers = freelancers.take(6).toList();
+      _companies = companies.take(6).toList();
       _services = services.take(6).toList();
       _requests = requests.take(6).toList();
       _vacancies = vacancies.take(6).toList();
@@ -961,6 +978,15 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           _servicesCarousel(),
         ],
+        if (_showCompaniesSection) ...[
+          SizedBox(height: 8.h),
+          title(
+            MultiLanguages.of(context)!.translate('companies'),
+            icon: Icons.apartment_rounded,
+            action: _openCompanies,
+          ),
+          _companiesCarousel(),
+        ],
         if (_showRequestsSection) ...[
           SizedBox(height: 8.h),
           title(
@@ -988,13 +1014,10 @@ class _HomeScreenState extends State<HomeScreen>
       _hasRole('empresa') || _hasRole('cliente') || _hasRole('admin');
   bool get _showServicesSection =>
       _hasRole('empresa') || _hasRole('cliente') || _hasRole('admin');
+    bool get _showCompaniesSection => _hasRole('freelancer') || _hasRole('admin');
   bool get _showRequestsSection =>
-      _hasRole('cliente') || _hasRole('freelancer') || _hasRole('admin');
-  bool get _showVacanciesSection =>
-      _hasRole('empresa') ||
-      _hasRole('cliente') ||
-      _hasRole('freelancer') ||
-      _hasRole('admin');
+      _hasRole('freelancer') || _hasRole('admin');
+    bool get _showVacanciesSection => _hasRole('freelancer') || _hasRole('admin');
 
   Widget _freelancersCarousel() {
     if (isLoading) {
@@ -1022,7 +1045,10 @@ class _HomeScreenState extends State<HomeScreen>
               onTap: () {
                 Navigator.of(context).push(
                   Transitions.slideUpTransition(
-                    PortfolioScreen(freelancer: freelancer),
+                    PortfolioScreen(
+                      freelancer: freelancer,
+                      showContactFab: true,
+                    ),
                   ),
                 );
               },
@@ -1081,9 +1107,50 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  Widget _companiesCarousel() {
+    if (isLoading) {
+      return _loadingHorizontal(height: 182.h);
+    }
+    if (_companies.isEmpty) {
+      return _emptyHorizontal('No hay empresas disponibles por ahora.');
+    }
+
+    return SizedBox(
+      height: 182.h,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: Style.getPadding(),
+        itemCount: _companies.length,
+        separatorBuilder: (_, __) => SizedBox(width: 10.w),
+        itemBuilder: (context, index) {
+          final company = _companies[index];
+          return SizedBox(
+            width: 320.w,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                height: 166.h,
+                child: CompanyCard(
+                  company: company,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      Transitions.slideUpTransition(
+                        CompanyProfileScreen(companyId: company.id),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _requestsCarousel() {
     if (isLoading) {
-      return _loadingHorizontal(height: 315.h);
+      return _loadingHorizontal(height: 248.h);
     }
     if (_requests.isEmpty) {
       return _emptyHorizontal(
@@ -1092,7 +1159,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     return SizedBox(
-      height: 315.h,
+      height: 248.h,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: Style.getPadding(),
@@ -1102,15 +1169,9 @@ class _HomeScreenState extends State<HomeScreen>
           final request = _requests[index];
           return SizedBox(
             width: 340.w,
-            child: RequestCard(
+            child: ServiceRequestCard(
               request: request,
-              mode: RequestCardMode.browse,
-              onTap: () {
-                _openRequestDetail(request);
-              },
-              onInterested: () {
-                _openRequestDetail(request);
-              },
+              onContact: () => _contactRequester(request),
             ),
           );
         },
@@ -1118,27 +1179,20 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _openRequestDetail(WorkRequestModel request) {
-    if (!_guardFreelancerProfile()) return;
-
-    if (request.id <= 0) {
-      Dialogs.showSimpleDialog(
-        context,
-        title: MultiLanguages.of(
-          context,
-        )!.translate('home_invalid_request_title'),
-        message: MultiLanguages.of(
-          context,
-        )!.translate('home_invalid_request_message'),
-        color: Style.getErrorColor(),
-        icon: Icons.error_outline_rounded,
-      );
-      return;
-    }
-
-    Navigator.of(context).push(
-      Transitions.slideUpTransition(RequestDetailScreen(requestId: request.id)),
+  Future<void> _contactRequester(ServiceRequestModel request) async {
+    final chat = await MessageService.getOrCreateChat(
+      name: request.requesterName,
+      avatarSeed: request.requesterName,
+      subtitle: request.accountType,
+      avatarUrl: request.avatarUrl,
+      relatedEntityId: request.requesterId,
+      relatedEntityType: 'service_requester',
     );
+
+    if (!mounted) return;
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(ConversationScreen(chat: chat)));
   }
 
   Widget _vacanciesCarousel() {
@@ -1300,6 +1354,12 @@ class _HomeScreenState extends State<HomeScreen>
     if (_hasRole('freelancer')) {
       return [
         _homeActionCard(
+          MultiLanguages.of(context)!.translate('companies'),
+          Icons.apartment_rounded,
+          Style.getAccentColor(),
+          _openCompanies,
+        ),
+        _homeActionCard(
           MultiLanguages.of(context)!.translate('vacancies'),
           Icons.work_outline_rounded,
           Style.getPrimaryColor(),
@@ -1433,14 +1493,11 @@ class _HomeScreenState extends State<HomeScreen>
     if (!_guardFreelancerProfile()) return;
     Navigator.of(
       context,
-    ).push(Transitions.slideUpTransition(const RequestsScreen()));
+    ).push(Transitions.slideUpTransition(const ServiceRequestsScreen()));
   }
 
   void _openMyRequests() {
-    if (!_guardFreelancerProfile()) return;
-    Navigator.of(
-      context,
-    ).push(Transitions.slideUpTransition(const MyRequestsScreen()));
+    _openRequests();
   }
 
   void _openVacancies() {

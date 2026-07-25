@@ -2,7 +2,6 @@ import 'package:worklink_local/modules/app/components/general/form/form_widgets.
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/modules/vacancies/models/vacancy_model.dart';
 import 'package:worklink_local/modules/vacancies/services/vacancies_service.dart';
-import 'package:worklink_local/utils/widgets/widgets.dart';
 
 class VacancyFormScreen extends StatefulWidget {
   const VacancyFormScreen({super.key, this.vacancy, this.companyId});
@@ -16,22 +15,22 @@ class VacancyFormScreen extends StatefulWidget {
 
 class _VacancyFormScreenState extends State<VacancyFormScreen> {
   final VacanciesService _service = VacanciesService();
-  final List<GlobalKey<FormState>> _stepKeys = <GlobalKey<FormState>>[
-    GlobalKey<FormState>(),
-    GlobalKey<FormState>(),
-    GlobalKey<FormState>(),
-  ];
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _categoryController;
   late final TextEditingController _locationController;
   late final TextEditingController _salaryController;
   late VacancyStatus _status;
-  int _currentStep = 0;
+
   bool _saving = false;
 
   bool get _isEditing => widget.vacancy != null;
   bool get _isClosed => widget.vacancy?.status == VacancyStatus.cerrada;
+  List<VacancyStatus> get _statusOptions => _isEditing
+      ? VacancyStatus.values
+      : const <VacancyStatus>[VacancyStatus.abierta, VacancyStatus.pausada];
 
   @override
   void initState() {
@@ -46,9 +45,7 @@ class _VacancyFormScreenState extends State<VacancyFormScreen> {
     _locationController = TextEditingController(
       text: widget.vacancy?.location ?? '',
     );
-    _salaryController = TextEditingController(
-      text: widget.vacancy?.salary ?? '',
-    );
+    _salaryController = TextEditingController(text: widget.vacancy?.salary ?? '');
     _status = widget.vacancy?.status ?? VacancyStatus.abierta;
   }
 
@@ -63,18 +60,10 @@ class _VacancyFormScreenState extends State<VacancyFormScreen> {
   }
 
   Future<void> _save() async {
-    if (_isEditing && _isClosed) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            MultiLanguages.of(context)?.translate('vacancy_closed') ??
-                'La vacante está cerrada y no puede modificarse.',
-          ),
-        ),
-      );
-      return;
-    }
+    if (_saving || _isClosed) return;
+
+    final valid = _formKey.currentState?.validate() ?? false;
+    if (!valid) return;
 
     setState(() => _saving = true);
 
@@ -121,136 +110,165 @@ class _VacancyFormScreenState extends State<VacancyFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiStepFormScaffold(
-      title: _isEditing
-          ? (MultiLanguages.of(context)?.translate('vacancies_edit_title') ??
-                'Editar vacante')
-          : (MultiLanguages.of(context)?.translate('vacancies_new_title') ??
-                'Nueva vacante'),
-      stepTitles: const <String>['Puesto', 'Condiciones', 'Estado'],
-      currentStep: _currentStep,
-      onClose: () => Navigator.pop(context),
-      onBack: _currentStep == 0 ? null : () => setState(() => _currentStep--),
-      onNext: (_saving || _isClosed) ? null : _onNext,
-      isLastStep: _currentStep == 2,
-      isLoading: _saving,
-      submitLabel: _isEditing
-          ? (MultiLanguages.of(context)?.translate('save_changes') ??
-                'Guardar cambios')
-          : (MultiLanguages.of(context)?.translate('vacancies_create_button') ??
-                'Crear vacante'),
-      child: _stepContent(),
-    );
-  }
-
-  Future<void> _onNext() async {
-    final valid = _stepKeys[_currentStep].currentState?.validate() ?? true;
-    if (!valid) {
-      _showStepValidationDialog();
-      return;
-    }
-
-    if (_currentStep < 2) {
-      setState(() => _currentStep++);
-      return;
-    }
-
-    await _save();
-  }
-
-  void _showStepValidationDialog() {
-    Dialogs.showSimpleDialog(
-      context,
-      title: MultiLanguages.of(context)?.translate('error') ?? 'Error',
-      message:
-          'No puedes avanzar porque faltan campos requeridos por completar.',
-      color: Style.getErrorColor(),
-      icon: Icons.error_outline_rounded,
-    );
-  }
-
-  Widget _stepContent() {
-    if (_currentStep == 0) {
-      return Form(
-        key: _stepKeys[0],
+    return Scaffold(
+      backgroundColor: Style.getBackgroundColor(),
+      body: SafeArea(
         child: Column(
           children: [
-            _field(
-              controller: _titleController,
-              label:
-                  MultiLanguages.of(
-                    context,
-                  )?.translate('services_field_title') ??
-                  'Titulo',
-              hint: 'Senior Flutter Developer',
-              enabled: !_isClosed,
+            Padding(
+              padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 4.h),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: Style.getTextColor(),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      _isEditing
+                          ? (MultiLanguages.of(context)?.translate(
+                                    'vacancies_edit_title',
+                                  ) ??
+                                'Editar vacante')
+                          : (MultiLanguages.of(context)?.translate(
+                                    'vacancies_new_title',
+                                  ) ??
+                                'Nueva vacante'),
+                      textAlign: TextAlign.center,
+                      style: Style.getHeaderThree(
+                        color: Style.getTextColor(),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 48.w),
+                ],
+              ),
             ),
-            SizedBox(height: 14.h),
-            _field(
-              controller: _descriptionController,
-              label:
-                  MultiLanguages.of(context)?.translate('description') ??
-                  'Descripcion',
-              hint: 'Describe el rol, responsabilidades y requisitos',
-              maxLines: 5,
-              enabled: !_isClosed,
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(18.w, 8.h, 18.w, 12.h),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      _field(
+                        controller: _titleController,
+                        label: MultiLanguages.of(context)
+                                ?.translate('services_field_title') ??
+                            'Titulo',
+                        hint: 'Senior Flutter Developer',
+                        enabled: !_isClosed,
+                      ),
+                      SizedBox(height: 14.h),
+                      _field(
+                        controller: _descriptionController,
+                        label: MultiLanguages.of(context)
+                                ?.translate('description') ??
+                            'Descripcion',
+                        hint: 'Describe el rol, responsabilidades y requisitos',
+                        maxLines: 5,
+                        enabled: !_isClosed,
+                      ),
+                      SizedBox(height: 14.h),
+                      _field(
+                        controller: _categoryController,
+                        label: MultiLanguages.of(context)
+                                ?.translate('services_category') ??
+                            'Categoria',
+                        hint: 'Desarrollo Movil',
+                        enabled: !_isClosed,
+                      ),
+                      SizedBox(height: 14.h),
+                      _field(
+                        controller: _locationController,
+                        label: MultiLanguages.of(context)?.translate('location') ??
+                            'Ubicacion',
+                        hint: 'Remoto',
+                        enabled: !_isClosed,
+                      ),
+                      SizedBox(height: 14.h),
+                      _field(
+                        controller: _salaryController,
+                        label: MultiLanguages.of(context)?.translate('salary') ??
+                            'Salario',
+                        hint: 'Ej. 22000.00',
+                        enabled: !_isClosed,
+                        requiredField: false,
+                        validator: (value) {
+                          final raw = (value ?? '').trim();
+                          if (raw.isEmpty) return null;
+
+                          final sanitized = raw
+                              .replaceAll(RegExp(r'[^0-9,\.]'), '')
+                              .replaceAll(',', '.');
+                          final parsed = double.tryParse(sanitized);
+                          if (parsed == null) {
+                            return 'Ingresa un salario numerico valido.';
+                          }
+                          if (parsed < 0) {
+                            return 'El salario no puede ser negativo.';
+                          }
+                          if (parsed > 9999999999.99) {
+                            return 'El salario excede el maximo permitido.';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 14.h),
+                      CustomPickerField<VacancyStatus>(
+                        label: MultiLanguages.of(context)?.translate('status') ??
+                            'Estado',
+                        value: _status,
+                        enabled: !_isClosed,
+                        items: _statusOptions
+                            .map(
+                              (status) => CustomPickerOption(
+                                value: status,
+                                label: status.label,
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() => _status = value);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Container(
+              padding: EdgeInsets.fromLTRB(18.w, 10.h, 18.w, 16.h),
+              decoration: BoxDecoration(
+                color: Style.getBackgroundColor(),
+                border: Border(
+                  top: BorderSide(
+                    color: Style.getBorderColor().withValues(alpha: .2),
+                  ),
+                ),
+              ),
+              child: CustomFormButtons(
+                primaryLabel: _isEditing
+                    ? (MultiLanguages.of(context)?.translate('save_changes') ??
+                          'Guardar cambios')
+                    : (MultiLanguages.of(context)
+                                ?.translate('vacancies_create_button') ??
+                          'Crear vacante'),
+                onPrimary: _save,
+                loading: _saving,
+                secondaryLabel:
+                    MultiLanguages.of(context)?.translate('cancel') ?? 'Cancelar',
+                onSecondary: () => Navigator.pop(context),
+              ),
             ),
           ],
         ),
-      );
-    }
-
-    if (_currentStep == 1) {
-      return Form(
-        key: _stepKeys[1],
-        child: Column(
-          children: [
-            _field(
-              controller: _categoryController,
-              label:
-                  MultiLanguages.of(context)?.translate('services_category') ??
-                  'Categoria',
-              hint: 'Desarrollo Movil',
-              enabled: !_isClosed,
-            ),
-            SizedBox(height: 14.h),
-            _field(
-              controller: _locationController,
-              label:
-                  MultiLanguages.of(context)?.translate('location') ??
-                  'Ubicacion',
-              hint: 'Remoto',
-              enabled: !_isClosed,
-            ),
-            SizedBox(height: 14.h),
-            _field(
-              controller: _salaryController,
-              label:
-                  MultiLanguages.of(context)?.translate('salary') ?? 'Salario',
-              hint: 'MXN \$40,000 - \$60,000',
-              enabled: !_isClosed,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Form(
-      key: _stepKeys[2],
-      child: CustomPickerField<VacancyStatus>(
-        label: MultiLanguages.of(context)?.translate('status') ?? 'Estado',
-        value: _status,
-        enabled: !_isClosed,
-        items: VacancyStatus.values
-            .map(
-              (status) =>
-                  CustomPickerOption(value: status, label: status.label),
-            )
-            .toList(),
-        onChanged: (value) {
-          if (value == null) return;
-          setState(() => _status = value);
-        },
       ),
     );
   }
@@ -261,6 +279,8 @@ class _VacancyFormScreenState extends State<VacancyFormScreen> {
     required String hint,
     int maxLines = 1,
     bool enabled = true,
+    bool requiredField = true,
+    String? Function(String?)? validator,
   }) {
     return CustomInputField(
       controller: controller,
@@ -268,11 +288,13 @@ class _VacancyFormScreenState extends State<VacancyFormScreen> {
       hintText: hint,
       maxLines: maxLines,
       enabled: enabled,
-      requiredField: true,
-      validator: (value) => (value == null || value.trim().isEmpty)
-          ? (MultiLanguages.of(context)?.translate('field_required') ??
-                'Campo requerido')
-          : null,
+      requiredField: requiredField,
+      validator: validator ??
+          (value) =>
+              (requiredField && (value == null || value.trim().isEmpty))
+                  ? (MultiLanguages.of(context)?.translate('field_required') ??
+                      'Campo requerido')
+                  : null,
     );
   }
 }

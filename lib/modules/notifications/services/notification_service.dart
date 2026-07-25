@@ -194,6 +194,18 @@ class NotificationService {
       final data = body['data'];
       if (data is List) return data.whereType<Map<String, dynamic>>().toList();
 
+      if (data is Map<String, dynamic>) {
+        final nestedNotifications = data['notifications'];
+        if (nestedNotifications is List) {
+          return nestedNotifications.whereType<Map<String, dynamic>>().toList();
+        }
+
+        final nestedItems = data['items'];
+        if (nestedItems is List) {
+          return nestedItems.whereType<Map<String, dynamic>>().toList();
+        }
+      }
+
       final notifications = body['notifications'];
       if (notifications is List) {
         return notifications.whereType<Map<String, dynamic>>().toList();

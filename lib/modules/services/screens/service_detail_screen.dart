@@ -10,6 +10,7 @@ import 'package:worklink_local/modules/messages/messages.dart';
 import 'package:worklink_local/modules/services/models/service_model.dart';
 import 'package:worklink_local/modules/services/models/service_request_model.dart';
 import 'package:worklink_local/modules/services/services_service.dart';
+import 'package:worklink_local/modules/services/components/contract_request_form_dialog.dart';
 import 'package:worklink_local/modules/services/screens/freelancer_service_profile_screen.dart';
 import 'package:worklink_local/modules/users/models/user_model.dart';
 import 'package:worklink_local/utils/utils.dart';
@@ -121,103 +122,13 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     final user = _currentUser;
     if (service == null || user == null) return;
 
-    final descriptionController = TextEditingController();
-    final budgetController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    final payload = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Style.getCardColor(),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+    final payload = await Navigator.of(context).push(
+      Transitions.slideUpTransition(
+        ContractRequestFormDialog(serviceTitle: service.title),
       ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            18.w,
-            18.h,
-            18.w,
-            20.h + MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Solicitar contratacion',
-                  style: Style.getHeaderTwo(
-                    color: Style.getTextColor(),
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                SizedBox(height: 10.h),
-                Text(
-                  'Describe lo que necesitas para este servicio.',
-                  style: Style.getTextStyle(color: Style.getObscureTextColor()),
-                ),
-                SizedBox(height: 14.h),
-                TextFormField(
-                  controller: descriptionController,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Descripcion',
-                    hintText: 'Necesito este servicio para...',
-                  ),
-                  validator: (value) {
-                    final text = value?.trim() ?? '';
-                    if (text.isEmpty) return 'La descripcion es obligatoria.';
-                    if (text.length < 8) return 'Agrega mas detalle en la descripcion.';
-                    return null;
-                  },
-                ),
-                SizedBox(height: 10.h),
-                TextFormField(
-                  controller: budgetController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Presupuesto (opcional)',
-                    hintText: 'Ej. 1200',
-                  ),
-                ),
-                SizedBox(height: 14.h),
-                SizedBox(
-                  width: double.infinity,
-                  child: CustomWidgets.button(
-                    onTap: () {
-                      final isValid = formKey.currentState?.validate() ?? false;
-                      if (!isValid) return;
-
-                      final rawBudget = budgetController.text.trim();
-                      final budget = rawBudget.isEmpty
-                          ? null
-                          : double.tryParse(rawBudget.replaceAll(',', '.'));
-
-                      Navigator.of(context).pop({
-                        'description': descriptionController.text.trim(),
-                        'budget': budget,
-                      });
-                    },
-                    color: Style.getPrimaryColor(),
-                    child: Text(
-                      'Enviar solicitud',
-                      style: Style.getHeaderThree(
-                        color: Style.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
 
-    if (payload == null) return;
+    if (payload is! Map<String, dynamic>) return;
 
     final description = payload['description']?.toString() ?? '';
     final budget = payload['budget'] as double?;
@@ -361,9 +272,28 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     final canRequest = _canRequestHiring && serviceModel?.isActive == true;
     final hasActiveRequest = currentRequest != null;
     final requestIsPending = currentRequest?.isPending ?? false;
+    final isServiceOwner =
+        _freelancer?.userId != null && _freelancer?.userId == _currentUser?.id;
+    final canShowFloatingContact =
+        !_loading && serviceModel != null && _freelancer != null && !isServiceOwner;
 
     return Scaffold(
       backgroundColor: Style.getBackgroundColor(),
+      floatingActionButton: canShowFloatingContact
+          ? FloatingActionButton.extended(
+              onPressed: _contactFreelancer,
+              backgroundColor: Style.getPrimaryColor(),
+              icon: Icon(Icons.chat_bubble_rounded, color: Style.white),
+              label: Text(
+                MultiLanguages.of(context)?.translate('contact') ?? 'Contactar',
+                style: Style.getTextStyle(
+                  color: Style.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: CustomScrollView(
         controller: _scrollController,
         physics: const BouncingScrollPhysics(),
@@ -423,25 +353,11 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                   Style.horizontalPadding.w,
                   12.h,
                 ),
-                child: Row(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: CustomWidgets.button(
-                        onTap: _contactFreelancer,
-                        color: Style.getPrimaryColor(),
-                        child: Text(
-                          MultiLanguages.of(context)?.translate('contact') ??
-                              'Contactar',
-                          style: Style.getHeaderThree(
-                            color: Style.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (canRequest) ...[
-                      SizedBox(width: 10.w),
-                      Expanded(
+                    if (canRequest)
+                      SizedBox(
+                        width: double.infinity,
                         child: CustomWidgets.button(
                           onTap: _submittingRequest
                               ? () {}
@@ -471,8 +387,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                                             : 'Ya solicitado')
                                       : 'Solicitar contratacion',
                                   style: Style.getHeaderThree(
-                                    color: hasActiveRequest &&
-                                            !requestIsPending
+                                    color: hasActiveRequest && !requestIsPending
                                         ? Style.getObscureTextColor()
                                         : Style.getTextColor(),
                                     fontWeight: FontWeight.w700,
@@ -480,27 +395,23 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                                 ),
                         ),
                       ),
-                    ],
                     if (_canRequestHiring && serviceModel != null && !serviceModel.isActive)
-                      SizedBox(width: 10.w),
-                    if (_canRequestHiring && serviceModel != null && !serviceModel.isActive)
-                      Expanded(
-                        child: Container(
-                          height: 48.h,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: Style.getErrorColor().withValues(alpha: .08),
-                            borderRadius: BorderRadius.circular(14.r),
-                            border: Border.all(
-                              color: Style.getErrorColor().withValues(alpha: .18),
-                            ),
+                      Container(
+                        width: double.infinity,
+                        height: 48.h,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Style.getErrorColor().withValues(alpha: .08),
+                          borderRadius: BorderRadius.circular(14.r),
+                          border: Border.all(
+                            color: Style.getErrorColor().withValues(alpha: .18),
                           ),
-                          child: Text(
-                            'Servicio inactivo',
-                            style: Style.getTextStyle(
-                              color: Style.getErrorColor(),
-                              fontWeight: FontWeight.w700,
-                            ),
+                        ),
+                        child: Text(
+                          'Servicio inactivo',
+                          style: Style.getTextStyle(
+                            color: Style.getErrorColor(),
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -625,7 +536,9 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 child: _freelancerCard(),
               ),
             ),
-            SliverToBoxAdapter(child: SizedBox(height: 20.h)),
+            SliverToBoxAdapter(
+              child: SizedBox(height: canShowFloatingContact ? 96.h : 20.h),
+            ),
           ],
         ],
       ),

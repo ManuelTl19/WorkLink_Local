@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:worklink_local/helpers/helpers.dart';
 import 'package:worklink_local/main.dart';
 import 'package:worklink_local/modules/app/screens/dashboard_screen.dart';
+import 'package:worklink_local/modules/companies/screens/companies_screen.dart';
 import 'package:worklink_local/modules/app/screens/starter/login_screen.dart';
 import 'package:worklink_local/modules/companies/screens/company_profile_screen.dart';
 import 'package:worklink_local/modules/freelancers/freelancers.dart';
@@ -545,6 +546,13 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
     ).push(Transitions.slideUpTransition(const CompanyProfileScreen()));
   }
 
+  void _pushCompanies() {
+    Navigator.of(context).pop();
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(const CompaniesScreen()));
+  }
+
   void _pushReviews() {
     Navigator.of(context).pop();
     Navigator.of(
@@ -661,13 +669,6 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
           onTap: _pushMyVacancies,
         ),
         _navItem(
-          title: MultiLanguages.of(context)!.translate('vacancies'),
-          icon: Icons.work_outline_rounded,
-          section: 'gestion',
-          item: 'vacantes_empresa',
-          onTap: _pushVacancies,
-        ),
-        _navItem(
           title: MultiLanguages.of(context)!.translate('business_profile'),
           icon: Icons.apartment_rounded,
           section: 'gestion',
@@ -679,6 +680,13 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
 
     if (_hasRole('freelancer')) {
       return [
+        _navItem(
+          title: MultiLanguages.of(context)!.translate('companies'),
+          icon: Icons.apartment_rounded,
+          section: 'gestion',
+          item: 'empresas_freelancer',
+          onTap: _freelancerRestrictedAction(_pushCompanies),
+        ),
         _navItem(
           title: MultiLanguages.of(context)!.translate('my_services'),
           icon: Icons.work_history_rounded,
@@ -738,13 +746,6 @@ class _DrawerContentState extends State<DrawerContent> with RouteAware {
         section: 'gestion',
         item: 'servicios_cliente',
         onTap: _pushServices,
-      ),
-      _navItem(
-        title: MultiLanguages.of(context)!.translate('requests'),
-        icon: Icons.assignment_rounded,
-        section: 'gestion',
-        item: 'solicitudes_cliente',
-        onTap: _pushRequests,
       ),
     ];
   }

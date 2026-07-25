@@ -799,7 +799,6 @@ class _ServiceRequestsScreenState extends State<ServiceRequestsScreen> {
                       padding: EdgeInsets.only(bottom: 12.h),
                       child: ServiceRequestCard(
                         request: request,
-                        onViewProfile: () => _showRequesterProfile(request),
                         onContact: () => _contactRequester(request),
                         actions: _buildActions(request),
                       ),

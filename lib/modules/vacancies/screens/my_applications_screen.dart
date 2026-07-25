@@ -218,8 +218,6 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
         return const Color(0xFF28C76F);
       case ApplicationStatus.rechazada:
         return Style.getErrorColor();
-      case ApplicationStatus.enRevision:
-        return Colors.orange;
       case ApplicationStatus.pendiente:
         return Style.getSecondaryColor();
     }

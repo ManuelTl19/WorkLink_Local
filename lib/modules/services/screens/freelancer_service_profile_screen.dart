@@ -7,6 +7,7 @@ import 'package:worklink_local/modules/freelancers/models/freelancer_availabilit
 import 'package:worklink_local/modules/freelancers/models/freelancer_model.dart';
 import 'package:worklink_local/modules/freelancers/services/freelancer_availability_service.dart';
 import 'package:worklink_local/modules/freelancers/services/freelancers_service.dart';
+import 'package:worklink_local/modules/messages/messages.dart';
 import 'package:worklink_local/modules/portfolio/screens/portfolio_screen.dart';
 import 'package:worklink_local/modules/users/models/user_model.dart';
 import 'package:worklink_local/utils/utils.dart';
@@ -280,6 +281,25 @@ class _FreelancerServiceProfileScreenState
     });
   }
 
+  Future<void> _contactFreelancer() async {
+    final profile = _profile;
+    if (profile == null) return;
+
+    final chat = await MessageService.getOrCreateChat(
+      name: profile.fullName,
+      avatarSeed: profile.fullName,
+      subtitle: profile.specialty,
+      avatarUrl: profile.avatarUrl,
+      relatedEntityId: profile.id,
+      relatedEntityType: 'freelancer',
+    );
+
+    if (!mounted) return;
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(ConversationScreen(chat: chat)));
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -300,6 +320,8 @@ class _FreelancerServiceProfileScreenState
             forceOwner: widget.ownerPreview,
             onEditProfile: widget.ownerPreview ? _openProfileForm : null,
             onDeleteProfile: widget.ownerPreview ? _deleteProfile : null,
+            showContactFab: !widget.ownerPreview,
+            onContact: _contactFreelancer,
           ),
           if (widget.ownerPreview && _profile?.id != null)
             Positioned(

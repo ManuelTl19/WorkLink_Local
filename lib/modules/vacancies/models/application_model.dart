@@ -1,11 +1,9 @@
-enum ApplicationStatus { pendiente, enRevision, aceptada, rechazada }
+enum ApplicationStatus { pendiente, aceptada, rechazada }
 
 extension ApplicationStatusX on ApplicationStatus {
   String get apiValue {
     switch (this) {
       case ApplicationStatus.pendiente:
-        return 'pending';
-      case ApplicationStatus.enRevision:
         return 'pending';
       case ApplicationStatus.aceptada:
         return 'accepted';
@@ -18,8 +16,6 @@ extension ApplicationStatusX on ApplicationStatus {
     switch (this) {
       case ApplicationStatus.pendiente:
         return 'Pendiente';
-      case ApplicationStatus.enRevision:
-        return 'En revisión';
       case ApplicationStatus.aceptada:
         return 'Aceptada';
       case ApplicationStatus.rechazada:
@@ -31,11 +27,12 @@ extension ApplicationStatusX on ApplicationStatus {
 ApplicationStatus applicationStatusFromString(Object? value) {
   final text = value?.toString().trim().toLowerCase() ?? '';
 
-  if (text.contains('revisión') || text.contains('revision')) {
-    return ApplicationStatus.enRevision;
+  if (text == 'accepted' || text.contains('acept')) {
+    return ApplicationStatus.aceptada;
   }
-  if (text.contains('acept')) return ApplicationStatus.aceptada;
-  if (text.contains('rech')) return ApplicationStatus.rechazada;
+  if (text == 'rejected' || text.contains('rech')) {
+    return ApplicationStatus.rechazada;
+  }
   return ApplicationStatus.pendiente;
 }
 

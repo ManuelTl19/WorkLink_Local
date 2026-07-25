@@ -442,9 +442,7 @@ class MessageService {
             senderMap['nombre'] ??
             (mine ? 'Tú' : 'Usuario'),
       ),
-      text: _stringValue(
-        json['content'] ?? json['text'] ?? json['message'] ?? '',
-      ),
+      text: _extractMessageTextValue(json),
       imageUrl: _stringValue(json['image_url'] ?? json['imageUrl']),
       sentAt:
           _extractDateTime(
@@ -458,6 +456,25 @@ class MessageService {
       ),
       status: status,
     );
+  }
+
+  static String _extractMessageTextValue(Map<String, dynamic> json) {
+    final candidates = [json['content'], json['text'], json['message']];
+    for (final value in candidates) {
+      if (value == null) continue;
+      if (value is Map<String, dynamic>) {
+        final nestedText = _stringValue(
+          value['content'] ?? value['text'] ?? value['message'],
+        );
+        if (nestedText.isNotEmpty) return nestedText;
+        continue;
+      }
+
+      final normalized = _stringValue(value);
+      if (normalized.isNotEmpty) return normalized;
+    }
+
+    return '';
   }
 
   static Future<http.Response> _authorizedGet(Uri uri) async {
@@ -570,10 +587,34 @@ class MessageService {
   static Map<String, dynamic> _extractDataMap(dynamic body) {
     if (body is Map<String, dynamic>) {
       final data = body['data'];
-      if (data is Map<String, dynamic>) return data;
+      if (data is Map<String, dynamic>) {
+        final nestedMapCandidates = [
+          data['message'],
+          data['mensaje'],
+          data['chat_message'],
+          data['conversation'],
+        ];
+        for (final candidate in nestedMapCandidates) {
+          if (candidate is Map<String, dynamic>) {
+            return candidate;
+          }
+        }
+        return data;
+      }
 
       final result = body['result'];
       if (result is Map<String, dynamic>) return result;
+
+      final topLevelMapCandidates = [
+        body['message'],
+        body['mensaje'],
+        body['chat_message'],
+      ];
+      for (final candidate in topLevelMapCandidates) {
+        if (candidate is Map<String, dynamic>) {
+          return candidate;
+        }
+      }
 
       return body;
     }

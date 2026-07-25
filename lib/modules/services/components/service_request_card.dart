@@ -4,14 +4,12 @@ import 'package:worklink_local/modules/services/models/service_request_model.dar
 
 class ServiceRequestCard extends StatelessWidget {
   final ServiceRequestModel request;
-  final VoidCallback onViewProfile;
   final VoidCallback onContact;
   final List<Widget> actions;
 
   const ServiceRequestCard({
     super.key,
     required this.request,
-    required this.onViewProfile,
     required this.onContact,
     this.actions = const <Widget>[],
   });
@@ -24,15 +22,16 @@ class ServiceRequestCard extends StatelessWidget {
       shadowColor: Style.getShadowColor(),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
       child: Padding(
-        padding: EdgeInsets.all(14.w),
+        padding: EdgeInsets.all(10.w),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _avatar(),
-                SizedBox(width: 12.w),
+                SizedBox(width: 10.w),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,26 +43,28 @@ class ServiceRequestCard extends StatelessWidget {
                         style: Style.getHeaderTwo(
                           color: Style.getTextColor(),
                           fontWeight: FontWeight.w800,
-                          fontSize: 15,
+                          fontSize: 13,
                         ),
                       ),
-                      SizedBox(height: 4.h),
+                      SizedBox(height: 3.h),
                       Text(
                         request.accountType,
                         style: Style.getTextStyle(
                           color: Style.getPrimaryColor(),
                           fontWeight: FontWeight.w700,
+                          fontSize: 8,
                         ),
                       ),
-                      SizedBox(height: 6.h),
+                      SizedBox(height: 4.h),
                       _statusPill(),
-                      SizedBox(height: 6.h),
+                      SizedBox(height: 4.h),
                       Text(
                         DateFormat(
                           'dd MMM yyyy, HH:mm',
                         ).format(request.requestedAt),
                         style: Style.getTextStyle(
                           color: Style.getObscureTextColor(),
+                          fontSize: 8,
                         ),
                       ),
                     ],
@@ -71,59 +72,53 @@ class ServiceRequestCard extends StatelessWidget {
                 ),
               ],
             ),
-            SizedBox(height: 12.h),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onViewProfile,
-                    icon: Icon(Icons.person_outline_rounded, size: 16.w),
-                    label: Text(
-                      MultiLanguages.of(context)?.translate('view_profile') ??
-                          'Ver perfil',
-                    ),
+            SizedBox(height: 8.h),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: onContact,
+                icon: Icon(Icons.chat_rounded, size: 14.w),
+                label: Text(
+                  MultiLanguages.of(context)?.translate('contact') ??
+                      'Contactar',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Style.getPrimaryColor(),
+                  foregroundColor: Style.white,
+                  padding: EdgeInsets.symmetric(vertical: 10.h),
+                  textStyle: Style.getTextStyle(
+                    color: Style.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 8,
                   ),
                 ),
-                SizedBox(width: 10.w),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: onContact,
-                    icon: Icon(Icons.chat_rounded, size: 16.w),
-                    label: Text(
-                      MultiLanguages.of(context)?.translate('contact') ??
-                          'Contactar',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Style.getPrimaryColor(),
-                      foregroundColor: Style.white,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
             if (request.description.trim().isNotEmpty) ...[
-              SizedBox(height: 10.h),
+              SizedBox(height: 8.h),
               Text(
                 request.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: Style.getTextStyle(
                   color: Style.getObscureTextColor(),
+                  fontSize: 8,
                 ).copyWith(height: 1.35),
               ),
             ],
             if (request.budget != null) ...[
-              SizedBox(height: 8.h),
+              SizedBox(height: 6.h),
               Text(
                 'Presupuesto: ${request.budgetLabel}',
                 style: Style.getTextStyle(
                   color: Style.getTextColor(),
                   fontWeight: FontWeight.w700,
+                  fontSize: 8,
                 ),
               ),
             ],
             if (actions.isNotEmpty) ...[
-              SizedBox(height: 12.h),
+              SizedBox(height: 10.h),
               Wrap(spacing: 8.w, runSpacing: 8.h, children: actions),
             ],
           ],
@@ -154,7 +149,7 @@ class ServiceRequestCard extends StatelessWidget {
     }
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+      padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 4.h),
       decoration: BoxDecoration(
         color: color.withValues(alpha: .12),
         borderRadius: BorderRadius.circular(999),
@@ -165,7 +160,7 @@ class ServiceRequestCard extends StatelessWidget {
         style: Style.getTextStyle(
           color: color,
           fontWeight: FontWeight.w700,
-          fontSize: 7,
+          fontSize: 6.5,
         ),
       ),
     );
@@ -175,8 +170,8 @@ class ServiceRequestCard extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(18.r),
       child: Container(
-        width: 60.w,
-        height: 60.w,
+        width: 52.w,
+        height: 52.w,
         color: Style.getPrimaryColor().withValues(alpha: .08),
         child: CachedNetworkImage(
           imageUrl: request.avatarUrl,
@@ -186,7 +181,7 @@ class ServiceRequestCard extends StatelessWidget {
           errorWidget: (_, __, ___) => Icon(
             Icons.groups_rounded,
             color: Style.getPrimaryColor(),
-            size: 24.w,
+            size: 20.w,
           ),
         ),
       ),

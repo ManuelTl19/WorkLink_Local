@@ -103,24 +103,96 @@ class VacancyModel {
   }
 
   factory VacancyModel.fromJson(Map<String, dynamic> json) {
+    int parseInt(Object? value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    double parseDouble(Object? value) {
+      if (value is double) return value;
+      if (value is num) return value.toDouble();
+      return double.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    String readString(Object? value) {
+      if (value == null) return '';
+      if (value is String) return value.trim();
+      return value.toString().trim();
+    }
+
+    final payload = json['vacancy'] is Map<String, dynamic>
+        ? json['vacancy'] as Map<String, dynamic>
+        : json;
+
+    final companyProfile = payload['company_profile'] is Map<String, dynamic>
+        ? payload['company_profile'] as Map<String, dynamic>
+        : const <String, dynamic>{};
+
+    final companyUser = companyProfile['user'] is Map<String, dynamic>
+        ? companyProfile['user'] as Map<String, dynamic>
+        : const <String, dynamic>{};
+
+    final salaryValue = readString(payload['salary']).isNotEmpty
+        ? readString(payload['salary'])
+        : readString(payload['salario']);
+
+    final parsedPostedAt =
+        DateTime.tryParse(readString(payload['posted_at']).isNotEmpty
+            ? readString(payload['posted_at'])
+            : readString(payload['created_at'])) ??
+        DateTime.now();
+
     return VacancyModel(
-      id: json['id'] ?? 0,
-      companyId: json['company_id'] ?? json['empresa_id'] ?? 0,
-      title: json['title']?.toString() ?? json['titulo']?.toString() ?? '',
-      description: json['description']?.toString() ?? json['descripcion']?.toString() ?? '',
-      category: json['category']?.toString() ?? json['categoria']?.toString() ?? '',
-      location: json['location']?.toString() ?? json['ubicacion']?.toString() ?? '',
-      salary: json['salary']?.toString() ?? json['salario']?.toString() ?? '',
-      status: vacancyStatusFromString(json['status'] ?? json['estado']),
-      applicantsCount: json['applicants_count'] ?? json['postulantes_count'] ?? 0,
-      companyName: json['company_name']?.toString() ?? json['empresa_nombre']?.toString() ?? '',
-      companyDescription: json['company_description']?.toString() ?? '',
-      companyIndustry: json['company_industry']?.toString() ?? '',
-      companyRating: (json['company_rating'] as num?)?.toDouble() ?? 0,
-      companyLocation: json['company_location']?.toString() ?? '',
-      companyLogoUrl: json['company_logo_url']?.toString() ?? '',
-      postedAt: DateTime.tryParse(json['posted_at']?.toString() ?? '') ?? DateTime.now(),
-      featured: json['featured'] ?? false,
+      id: parseInt(payload['id']),
+      companyId: parseInt(payload['company_id'] ?? payload['empresa_id']),
+      title: readString(payload['title']).isNotEmpty
+          ? readString(payload['title'])
+          : readString(payload['titulo']),
+      description: readString(payload['description']).isNotEmpty
+          ? readString(payload['description'])
+          : readString(payload['descripcion']),
+      category: readString(payload['category']).isNotEmpty
+          ? readString(payload['category'])
+          : readString(payload['categoria']),
+      location: readString(payload['location']).isNotEmpty
+          ? readString(payload['location'])
+          : readString(payload['ubicacion']),
+      salary: salaryValue,
+      status: vacancyStatusFromString(payload['status'] ?? payload['estado']),
+      applicantsCount: parseInt(
+        payload['applicants_count'] ?? payload['postulantes_count'] ?? payload['applications_count'],
+      ),
+      companyName: readString(payload['company_name']).isNotEmpty
+          ? readString(payload['company_name'])
+          : readString(payload['empresa_nombre']).isNotEmpty
+          ? readString(payload['empresa_nombre'])
+          : readString(companyProfile['company_name']).isNotEmpty
+          ? readString(companyProfile['company_name'])
+          : [
+              readString(companyUser['name']),
+              readString(companyUser['last_name']),
+              readString(companyUser['maternal_last_name']),
+            ].where((part) => part.isNotEmpty).join(' ').trim(),
+      companyDescription: readString(payload['company_description']).isNotEmpty
+          ? readString(payload['company_description'])
+          : readString(companyProfile['description']),
+      companyIndustry: readString(payload['company_industry']).isNotEmpty
+          ? readString(payload['company_industry'])
+          : readString(companyProfile['industry']),
+      companyRating: parseDouble(
+        payload['company_rating'] ?? companyProfile['average_rate'],
+      ),
+      companyLocation: readString(payload['company_location']).isNotEmpty
+          ? readString(payload['company_location'])
+          : readString(companyProfile['location']),
+      companyLogoUrl: readString(payload['company_logo_url']).isNotEmpty
+          ? readString(payload['company_logo_url'])
+          : readString(companyProfile['photo_url']).isNotEmpty
+          ? readString(companyProfile['photo_url'])
+          : readString(companyUser['profile_photo_url']),
+      postedAt: parsedPostedAt,
+      featured: payload['featured'] == true,
     );
   }
 

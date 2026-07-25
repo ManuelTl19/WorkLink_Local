@@ -222,8 +222,6 @@ class ApplicantCard extends StatelessWidget {
     switch (status) {
       case ApplicationStatus.aceptada:
         return const Color(0xFF28C76F);
-      case ApplicationStatus.enRevision:
-        return const Color(0xFFFFA500);
       case ApplicationStatus.rechazada:
         return Style.getErrorColor();
       case ApplicationStatus.pendiente:

@@ -7,6 +7,9 @@ class CompanyProfileModel {
   final String location;
   final double averageRate;
   final String ownerName;
+  final String ownerEmail;
+  final String ownerPhone;
+  final String ownerRole;
   final String photoUrl;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -20,6 +23,9 @@ class CompanyProfileModel {
     required this.location,
     required this.averageRate,
     required this.ownerName,
+    required this.ownerEmail,
+    required this.ownerPhone,
+    required this.ownerRole,
     required this.photoUrl,
     required this.createdAt,
     required this.updatedAt,
@@ -34,6 +40,9 @@ class CompanyProfileModel {
     String? location,
     double? averageRate,
     String? ownerName,
+    String? ownerEmail,
+    String? ownerPhone,
+    String? ownerRole,
     String? photoUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -47,6 +56,9 @@ class CompanyProfileModel {
       location: location ?? this.location,
       averageRate: averageRate ?? this.averageRate,
       ownerName: ownerName ?? this.ownerName,
+      ownerEmail: ownerEmail ?? this.ownerEmail,
+      ownerPhone: ownerPhone ?? this.ownerPhone,
+      ownerRole: ownerRole ?? this.ownerRole,
       photoUrl: photoUrl ?? this.photoUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -73,6 +85,9 @@ class CompanyProfileModel {
         json['average_rate'] ?? json['averageRating'] ?? json['average_rate'],
       ),
       ownerName: ownerName,
+      ownerEmail: _stringValue(user['email']),
+      ownerPhone: _stringValue(user['phone']),
+      ownerRole: _stringValue((user['role'] as Map<String, dynamic>?)?['name']),
       photoUrl: _composePhotoUrl(user, json),
       createdAt: _dateValue(json['created_at'] ?? json['createdAt']),
       updatedAt: _dateValue(json['updated_at'] ?? json['updatedAt']),
@@ -120,10 +135,18 @@ class CompanyProfileModel {
     Map<String, dynamic> user,
     Map<String, dynamic> json,
   ) {
-    final candidateValues = <String>[
+    final primaryNameParts = <String>[
       user['name']?.toString() ?? '',
-      user['first_name']?.toString() ?? '',
       user['last_name']?.toString() ?? '',
+      user['maternal_last_name']?.toString() ?? '',
+    ].where((value) => value.trim().isNotEmpty).toList();
+
+    if (primaryNameParts.isNotEmpty) {
+      return primaryNameParts.join(' ').trim();
+    }
+
+    final candidateValues = <String>[
+      user['first_name']?.toString() ?? '',
       user['apellidoP']?.toString() ?? '',
       user['apellidoM']?.toString() ?? '',
       json['owner_name']?.toString() ?? '',

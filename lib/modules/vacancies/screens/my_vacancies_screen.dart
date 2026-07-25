@@ -3,7 +3,6 @@ import 'package:worklink_local/modules/vacancies/components/vacancy_card.dart';
 import 'package:worklink_local/modules/vacancies/models/vacancy_model.dart';
 import 'package:worklink_local/modules/vacancies/services/vacancies_service.dart';
 import 'package:worklink_local/modules/vacancies/screens/applicants_screen.dart';
-import 'package:worklink_local/modules/companies/screens/company_profile_screen.dart';
 import 'package:worklink_local/modules/vacancies/screens/vacancy_detail_screen.dart';
 import 'package:worklink_local/modules/vacancies/screens/vacancy_form_screen.dart';
 import 'package:worklink_local/utils/utils.dart';
@@ -120,10 +119,28 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
     return Consumer<AppSettings>(
       builder: (context, app, child) => Scaffold(
         backgroundColor: Style.getBackgroundColor(),
-        body: CustomScrollView(
-          controller: _scrollController,
-          physics: const BouncingScrollPhysics(),
-          slivers: [
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _openForm(),
+          backgroundColor: Style.getPrimaryColor(),
+          icon: Icon(Icons.add_rounded, color: Style.white),
+          label: Text(
+            MultiLanguages.of(context)?.translate('vacancies_create_button') ??
+                'Crear vacante',
+            style: Style.getTextStyle(
+              color: Style.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        body: RefreshIndicator(
+          onRefresh: _loadVacancies,
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            slivers: [
             SliverAppBar(
               pinned: true,
               backgroundColor: Style.getBackgroundColor(),
@@ -137,22 +154,6 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
                   color: Style.getTextColor(),
                 ),
               ),
-              actions: [
-                IconButton(
-                  onPressed: _loadVacancies,
-                  icon: Icon(
-                    Icons.refresh_rounded,
-                    color: Style.getTextColor(),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => _openForm(),
-                  icon: Icon(
-                    Icons.add_circle_outline_rounded,
-                    color: Style.getTextColor(),
-                  ),
-                ),
-              ],
               title: Text(
                 MultiLanguages.of(context)?.translate('my_vacancies_title') ??
                     'Mis Vacantes',
@@ -205,30 +206,6 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
                 ),
               ),
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: Style.horizontalPadding.w,
-                ),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: CustomWidgets.button(
-                    onTap: () => _openForm(),
-                    color: Style.getPrimaryColor(),
-                    child: Text(
-                      MultiLanguages.of(
-                            context,
-                          )?.translate('vacancies_create_button') ??
-                          'Crear vacante',
-                      style: Style.getHeaderThree(
-                        color: Style.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
             SliverToBoxAdapter(child: SizedBox(height: 12.h)),
             if (_loading)
               SliverFillRemaining(
@@ -258,7 +235,7 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
                   Style.horizontalPadding.w,
                   6.h,
                   Style.horizontalPadding.w,
-                  20.h,
+                  96.h,
                 ),
                 sliver: SliverList.separated(
                   itemCount: _vacancies.length,
@@ -289,18 +266,12 @@ class _MyVacanciesScreenState extends State<MyVacanciesScreen> {
                       onStatusPressed: vacancy.status == VacancyStatus.cerrada
                           ? null
                           : () => _changeStatus(vacancy),
-                      onViewCompany: () {
-                        Navigator.of(context).push(
-                          Transitions.slideUpTransition(
-                            CompanyProfileScreen(companyId: vacancy.companyId),
-                          ),
-                        );
-                      },
                     );
                   },
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );

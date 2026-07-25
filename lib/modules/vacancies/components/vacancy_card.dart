@@ -12,7 +12,6 @@ class VacancyCard extends StatelessWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onViewApplicants;
   final VoidCallback? onStatusPressed;
-  final VoidCallback? onViewCompany;
 
   const VacancyCard({
     super.key,
@@ -24,7 +23,6 @@ class VacancyCard extends StatelessWidget {
     this.onDelete,
     this.onViewApplicants,
     this.onStatusPressed,
-    this.onViewCompany,
   });
 
   @override
@@ -81,7 +79,18 @@ class VacancyCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _statusChip(vacancy.status),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (mode == VacancyCardMode.company &&
+                          (onEdit != null || onDelete != null))
+                        _overflowMenu(context),
+                      if (mode == VacancyCardMode.company &&
+                          (onEdit != null || onDelete != null))
+                        SizedBox(height: 6.h),
+                      _statusChip(vacancy.status),
+                    ],
+                  ),
                 ],
               ),
               SizedBox(height: 12.h),
@@ -217,122 +226,117 @@ class VacancyCard extends StatelessWidget {
   }
 
   Widget _freelancerActions(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: onTap,
-            icon: Icon(Icons.visibility_rounded, size: 16.w),
-            label: Text(
-              MultiLanguages.of(context)?.translate('view_detail') ?? 'Ver',
-            ),
-          ),
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: onApply,
+        icon: Icon(Icons.send_rounded, size: 16.w),
+        label: Text(
+          MultiLanguages.of(context)?.translate('apply') ?? 'Aplicar',
         ),
-        SizedBox(width: 10.w),
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: onApply,
-            icon: Icon(Icons.send_rounded, size: 16.w),
-            label: Text(
-              MultiLanguages.of(context)?.translate('apply') ?? 'Aplicar',
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Style.getPrimaryColor(),
-              foregroundColor: Style.white,
-            ),
-          ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Style.getPrimaryColor(),
+          foregroundColor: Style.white,
         ),
-      ],
+      ),
     );
   }
 
   Widget _companyActions(BuildContext context) {
-    return Wrap(
-      spacing: 8.w,
-      runSpacing: 8.h,
+    return Row(
       children: [
-        _actionButton(
-          label: MultiLanguages.of(context)?.translate('view_detail') ?? 'Ver',
-          icon: Icons.visibility_rounded,
-          onPressed: onTap,
-          filled: false,
-        ),
-        _actionButton(
-          label:
-              MultiLanguages.of(context)?.translate('edit_profile') ?? 'Editar',
-          icon: Icons.edit_rounded,
-          onPressed: onEdit,
-        ),
-        _actionButton(
-          label: MultiLanguages.of(context)?.translate('delete') ?? 'Eliminar',
-          icon: Icons.delete_rounded,
-          onPressed: onDelete,
-          destructive: true,
-          filled: false,
-        ),
-        _actionButton(
-          label:
-              MultiLanguages.of(context)?.translate('applicants') ??
-              'Postulantes',
-          icon: Icons.people_alt_rounded,
-          onPressed: onViewApplicants,
-        ),
-        if (onStatusPressed != null)
-          _actionButton(
-            label: MultiLanguages.of(context)?.translate('status') ?? 'Estado',
-            icon: Icons.sync_alt_rounded,
-            onPressed: onStatusPressed,
-            filled: false,
+        if (onViewApplicants != null)
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: onViewApplicants,
+              icon: Icon(Icons.people_alt_rounded, size: 16.w),
+              label: Text(
+                MultiLanguages.of(context)?.translate('applicants') ??
+                    'Postulantes',
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Style.getPrimaryColor(),
+                foregroundColor: Style.white,
+              ),
+            ),
           ),
-        if (onViewCompany != null)
-          _actionButton(
-            label:
-                MultiLanguages.of(context)?.translate('company') ?? 'Empresa',
-            icon: Icons.apartment_rounded,
-            onPressed: onViewCompany,
-            filled: false,
+        if (onViewApplicants != null && onStatusPressed != null)
+          SizedBox(width: 10.w),
+        if (onStatusPressed != null)
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: onStatusPressed,
+              icon: Icon(Icons.sync_alt_rounded, size: 16.w),
+              label: Text(
+                MultiLanguages.of(context)?.translate('status') ?? 'Estado',
+              ),
+            ),
           ),
       ],
     );
   }
 
-  Widget _actionButton({
-    required String label,
-    required IconData icon,
-    required VoidCallback? onPressed,
-    bool filled = true,
-    bool destructive = false,
-  }) {
-    final foreground = destructive ? Style.getErrorColor() : Style.white;
-    final background = destructive
-        ? Style.getErrorColor()
-        : Style.getPrimaryColor();
-
-    return filled
-        ? ElevatedButton.icon(
-            onPressed: onPressed,
-            icon: Icon(icon, size: 16.w),
-            label: Text(label),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: background,
-              foregroundColor: foreground,
-            ),
-          )
-        : OutlinedButton.icon(
-            onPressed: onPressed,
-            icon: Icon(icon, size: 16.w),
-            label: Text(label),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: destructive
-                  ? Style.getErrorColor()
-                  : Style.getTextColor(),
-              side: BorderSide(
-                color: destructive
-                    ? Style.getErrorColor()
-                    : Style.getBorderColor(),
+  Widget _overflowMenu(BuildContext context) {
+    return PopupMenuButton<_VacancyCardAction>(
+      tooltip: 'Acciones',
+      color: Style.getCardColor(),
+      surfaceTintColor: Style.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.r)),
+      icon: Icon(
+        Icons.more_vert_rounded,
+        color: Style.getObscureTextColor(),
+        size: 20.w,
+      ),
+      onSelected: (value) {
+        if (value == _VacancyCardAction.edit) {
+          onEdit?.call();
+          return;
+        }
+        if (value == _VacancyCardAction.delete) {
+          onDelete?.call();
+        }
+      },
+      itemBuilder: (context) {
+        final items = <PopupMenuEntry<_VacancyCardAction>>[];
+        if (onEdit != null) {
+          items.add(
+            PopupMenuItem<_VacancyCardAction>(
+              value: _VacancyCardAction.edit,
+              child: Row(
+                children: [
+                  Icon(Icons.edit_rounded, size: 18.w, color: Style.getTextColor()),
+                  SizedBox(width: 10.w),
+                  Text(
+                    MultiLanguages.of(context)?.translate('edit_profile') ??
+                        'Editar',
+                    style: Style.getTextStyle(color: Style.getTextColor()),
+                  ),
+                ],
               ),
             ),
           );
+        }
+        if (onDelete != null) {
+          items.add(
+            PopupMenuItem<_VacancyCardAction>(
+              value: _VacancyCardAction.delete,
+              child: Row(
+                children: [
+                  Icon(Icons.delete_rounded, size: 18.w, color: Style.getErrorColor()),
+                  SizedBox(width: 10.w),
+                  Text(
+                    MultiLanguages.of(context)?.translate('delete') ??
+                        'Eliminar',
+                    style: Style.getTextStyle(color: Style.getErrorColor()),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        return items;
+      },
+    );
   }
 
   Color _statusColor(VacancyStatus status) {
@@ -346,3 +350,5 @@ class VacancyCard extends StatelessWidget {
     }
   }
 }
+
+enum _VacancyCardAction { edit, delete }

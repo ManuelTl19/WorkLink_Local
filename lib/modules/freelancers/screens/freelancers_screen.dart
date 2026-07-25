@@ -180,7 +180,10 @@ class _FreelancersScreenState extends State<FreelancersScreen> {
                       onTap: () {
                         Navigator.of(context).push(
                           Transitions.slideUpTransition(
-                            PortfolioScreen(freelancer: freelancer),
+                            PortfolioScreen(
+                              freelancer: freelancer,
+                              showContactFab: true,
+                            ),
                           ),
                         );
                       },

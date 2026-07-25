@@ -30,6 +30,7 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
 
   bool _loading = true;
   bool _saving = false;
+  bool _actionLoading = false;
   bool _canEdit = false;
   bool _canCreate = false;
   bool _isAdmin = false;
@@ -56,6 +57,11 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
     return _viewerRoles.contains('empresa') || _viewerRoles.contains('company');
   }
 
+  bool get _hasFreelancerRole {
+    final accountType = (_viewer?.tipoCuenta ?? '').toLowerCase().trim();
+    return _viewerRoles.contains('freelancer') || accountType == 'freelancer';
+  }
+
   List<String> get _viewerRoles {
     final user = _viewer;
     if (user == null) return const <String>[];
@@ -71,7 +77,8 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final userRaw = prefs.getString(Constants.userEmailKey);
+      final userRaw =
+          prefs.getString(Constants.userEmailKey) ?? prefs.getString('user');
 
       if (userRaw != null && userRaw.isNotEmpty) {
         _viewer = UserModel.fromJson(
@@ -151,113 +158,217 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
     );
   }
 
-  Future<void> _saveProfile() async {
-    if (_saving) return;
-    if (!(_canEdit || _canCreate)) return;
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _openProfileForm() async {
+    _syncForm(_company);
+    final companyBeforeOpen = _company;
 
-    final isNewProfile = _company == null;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Style.getCardColor(),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Future<void> saveFromModal() async {
+              if (_saving) return;
+              if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _saving = true);
+              setModalState(() => _saving = true);
 
-    try {
-      final companyName = _companyNameCtrl.text.trim();
-      final description = _descriptionCtrl.text.trim();
-      final industry = _industryCtrl.text.trim();
-      final location = _locationCtrl.text.trim();
+              try {
+                final companyName = _companyNameCtrl.text.trim();
+                final description = _descriptionCtrl.text.trim();
+                final industry = _industryCtrl.text.trim();
+                final location = _locationCtrl.text.trim();
 
-      final saved = isNewProfile
-          ? await _service.createCompanyProfile(
-              companyName: companyName,
-              description: description,
-              industry: industry,
-              location: location,
-              userId: widget.userId,
-            )
-          : await _service.updateCompanyProfile(
-              _company!.copyWith(
-                companyName: companyName,
-                description: description,
-                industry: industry,
-                location: location,
+                final saved = companyBeforeOpen == null
+                    ? await _service.createCompanyProfile(
+                        companyName: companyName,
+                        description: description,
+                        industry: industry,
+                        location: location,
+                        userId: widget.userId,
+                      )
+                    : await _service.updateCompanyProfile(
+                        companyBeforeOpen.copyWith(
+                          companyName: companyName,
+                          description: description,
+                          industry: industry,
+                          location: location,
+                        ),
+                      );
+
+                if (!mounted) return;
+                setState(() {
+                  _company = saved;
+                  _canEdit = true;
+                  _canCreate = false;
+                });
+
+                if (sheetContext.mounted) {
+                  Navigator.pop(sheetContext);
+                }
+
+                Dialogs.showSimpleDialog(
+                  this.context,
+                  title:
+                      companyBeforeOpen == null
+                          ? 'Perfil creado'
+                          : 'Perfil actualizado',
+                  message: 'La información empresarial se guardó correctamente.',
+                  color: Style.getPrimaryColor(),
+                  icon: Icons.check_circle_outline_rounded,
+                );
+
+                await _loadData();
+              } catch (e) {
+                if (!mounted) return;
+                setModalState(() => _saving = false);
+                _showError(e.toString().replaceFirst('Exception: ', ''));
+              } finally {
+                if (mounted) {
+                  setState(() => _saving = false);
+                }
+              }
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  16.w,
+                  14.h,
+                  16.w,
+                  MediaQuery.of(context).viewInsets.bottom + 14.h,
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          companyBeforeOpen == null
+                              ? 'Crear perfil empresarial'
+                              : 'Editar perfil empresarial',
+                          style: Style.getHeaderTwo(
+                            color: Style.getTextColor(),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 12.h),
+                        CustomInputField(
+                          controller: _companyNameCtrl,
+                          label: 'Nombre comercial',
+                          enabled: !_saving,
+                          validator: (value) {
+                            if ((value ?? '').trim().isEmpty) {
+                              return 'Ingresa el nombre comercial';
+                            }
+                            return null;
+                          },
+                        ),
+                        SizedBox(height: 10.h),
+                        CustomInputField(
+                          controller: _industryCtrl,
+                          label: 'Industria',
+                          enabled: !_saving,
+                        ),
+                        SizedBox(height: 10.h),
+                        CustomInputField(
+                          controller: _locationCtrl,
+                          label: 'Ubicación',
+                          enabled: !_saving,
+                        ),
+                        SizedBox(height: 10.h),
+                        CustomInputField(
+                          controller: _descriptionCtrl,
+                          label: 'Descripción',
+                          maxLines: 4,
+                          enabled: !_saving,
+                        ),
+                        SizedBox(height: 14.h),
+                        SizedBox(
+                          width: double.infinity,
+                          child: CustomWidgets.button(
+                            onTap: _saving ? () {} : saveFromModal,
+                            color: Style.getPrimaryColor(),
+                            child: _saving
+                                ? SizedBox(
+                                    width: 18.w,
+                                    height: 18.w,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Style.white,
+                                    ),
+                                  )
+                                : Text(
+                                    companyBeforeOpen == null
+                                        ? 'Crear perfil'
+                                        : 'Guardar cambios',
+                                    style: Style.getHeaderThree(
+                                      color: Style.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             );
-
-      if (!mounted) return;
-
-      setState(() {
-        _company = saved;
-        _canEdit = true;
-        _canCreate = false;
-        _saving = false;
-        _syncForm(saved);
-      });
-
-      Dialogs.showSimpleDialog(
-        context,
-        title: isNewProfile ? 'Perfil creado' : 'Perfil actualizado',
-        message: 'La información empresarial se guardó correctamente.',
-        color: Style.getPrimaryColor(),
-        icon: Icons.check_circle_outline_rounded,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      _showError(e.toString().replaceFirst('Exception: ', ''));
-    }
+          },
+        );
+      },
+    );
   }
 
   Future<void> _deleteProfile() async {
     final company = _company;
     if (company == null || !_canEdit) return;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: Style.getCardColor(),
-        title: Text(
-          'Eliminar perfil',
-          style: Style.getHeaderTwo(
-            color: Style.getTextColor(),
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        content: Text(
-          'Este cambio eliminará lógicamente el perfil empresarial.',
-          style: Style.getTextStyle(color: Style.getTextColor()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(
-              'Cancelar',
-              style: Style.getTextStyle(color: Style.getObscureTextColor()),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(
-              'Eliminar',
-              style: Style.getTextStyle(color: Style.getErrorColor()),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await Dialogs.showConfirmDialogDelete(
+      context,
+      title: MultiLanguages.of(context)!.translate('delete_profile'),
+      message: MultiLanguages.of(context)!.translate('confirm_delete_profile'),
+      confirmText: MultiLanguages.of(context)!.translate('delete'),
+      cancelText: MultiLanguages.of(context)!.translate('cancel'),
+      icon: Icons.delete_outline_rounded,
+      confirmColor: Style.getErrorColor(),
+      cancelColor: Style.getPrimaryColor(),
     );
 
     if (confirmed != true) return;
 
-    setState(() => _saving = true);
+    setState(() => _actionLoading = true);
 
     try {
       await _service.deleteCompanyProfile(company.id);
       if (!mounted) return;
-
-      Navigator.pop(context, true);
+      setState(() {
+        _company = null;
+        _canEdit = false;
+        _canCreate = _hasCompanyRole || (_isAdmin && widget.userId != null);
+      });
+      Dialogs.showSimpleDialog(
+        context,
+        title: 'Perfil eliminado',
+        message: 'El perfil empresarial fue eliminado correctamente.',
+        color: Style.getPrimaryColor(),
+        icon: Icons.check_circle_outline_rounded,
+      );
     } catch (e) {
       if (!mounted) return;
-      setState(() => _saving = false);
+      setState(() => _actionLoading = false);
       _showError(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() => _actionLoading = false);
+      }
     }
   }
 
@@ -283,451 +394,536 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final company = _company;
+    final canShowFloatingContact =
+        !_loading && company != null && _hasFreelancerRole && !_canEdit;
 
     return Scaffold(
       backgroundColor: Style.getBackgroundColor(),
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            pinned: true,
-            backgroundColor: Style.getBackgroundColor(),
-            surfaceTintColor: Style.transparent,
-            elevation: 0,
-            titleSpacing: 0,
-            leading: IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Style.getTextColor(),
-              ),
-            ),
-            actions: [
-              IconButton(
-                onPressed: _loadData,
-                icon: Icon(Icons.refresh_rounded, color: Style.getTextColor()),
-              ),
-              if (company != null && _canEdit)
-                IconButton(
-                  onPressed: _saving ? null : _deleteProfile,
-                  icon: Icon(
-                    Icons.delete_outline_rounded,
-                    color: Style.getErrorColor(),
-                  ),
+      floatingActionButton: canShowFloatingContact
+          ? FloatingActionButton.extended(
+              onPressed: _contactCompany,
+              backgroundColor: Style.getPrimaryColor(),
+              icon: Icon(Icons.chat_bubble_rounded, color: Style.white),
+              label: Text(
+                'Contactar',
+                style: Style.getTextStyle(
+                  color: Style.white,
+                  fontWeight: FontWeight.w700,
                 ),
-            ],
-            title: Text(
-              'Perfil de empresa',
-              style: Style.getHeaderTwo(
-                color: Style.getTextColor(),
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          if (_loading)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: CustomWidgets.mProgress(Style.getPrimaryColor()),
               ),
             )
-          else if (company == null && !(_canCreate || _canEdit))
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: Style.horizontalPadding.w,
-                  ),
-                  child: Text(
-                    'No se encontró información empresarial para mostrar.',
-                    textAlign: TextAlign.center,
-                    style: Style.getTextStyle(
-                      color: Style.getObscureTextColor(),
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      body: Stack(
+        children: [
+          if (_loading)
+            Center(child: CustomWidgets.mProgress(Style.getPrimaryColor()))
+          else if (company != null)
+            RefreshIndicator(
+              onRefresh: _loadData,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                slivers: [
+                  SliverAppBar(
+                    pinned: true,
+                    expandedHeight: 300.h,
+                    backgroundColor: Style.getBackgroundColor(),
+                    surfaceTintColor: Style.transparent,
+                    elevation: 0,
+                    titleSpacing: 0,
+                    leading: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Style.white,
+                      ),
+                    ),
+                    title: Text(
+                      'Perfil empresarial',
+                      style: Style.getHeaderTwo(
+                        color: Style.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    flexibleSpace: FlexibleSpaceBar(
+                      collapseMode: CollapseMode.pin,
+                      background: _buildHeader(company),
                     ),
                   ),
-                ),
-              ),
-            )
-          else ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  Style.horizontalPadding.w,
-                  10.h,
-                  Style.horizontalPadding.w,
-                  0,
-                ),
-                child: _headerCard(company),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  Style.horizontalPadding.w,
-                  16.h,
-                  Style.horizontalPadding.w,
-                  0,
-                ),
-                child: _overviewCard(company),
-              ),
-            ),
-            if (company != null)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    Style.horizontalPadding.w,
-                    16.h,
-                    Style.horizontalPadding.w,
-                    0,
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: CustomWidgets.button(
-                      onTap: _contactCompany,
-                      color: Style.getPrimaryColor(),
-                      child: Text(
-                        'Contactar empresa',
-                        style: Style.getHeaderThree(
-                          color: Style.white,
-                          fontWeight: FontWeight.w700,
-                        ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        Style.horizontalPadding.w,
+                        16.h,
+                        Style.horizontalPadding.w,
+                        0,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (_canEdit) ...[
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: CustomWidgets.button(
+                                    onTap: _openProfileForm,
+                                    color: Style.getPrimaryColor(),
+                                    child: Text(
+                                      'Editar perfil',
+                                      style: Style.getHeaderThree(
+                                        color: Style.white,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 10.w),
+                                Expanded(
+                                  child: CustomWidgets.button(
+                                    onTap:
+                                        _actionLoading ? () {} : _deleteProfile,
+                                    color: Style.getErrorColor(),
+                                    backgroundColor: Style.getErrorColor()
+                                        .withValues(alpha: .08),
+                                    isFilled: false,
+                                    withBorder: true,
+                                    elevation: false,
+                                    child: Text(
+                                      'Eliminar perfil',
+                                      style: Style.getHeaderThree(
+                                        color: Style.getErrorColor(),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 18.h),
+                          ],
+                          _sectionCard(
+                            title: 'Información principal',
+                            subtitle:
+                                'Resumen comercial y operativo de la empresa.',
+                            child: _mainInfo(company),
+                          ),
+                          SizedBox(height: 18.h),
+                          _sectionCard(
+                            title: 'Descripción',
+                            subtitle:
+                                'Contexto empresarial y propuesta de valor.',
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: Text(
+                                _textOrFallback(
+                                  company.description,
+                                  'Esta empresa aún no agregó una descripción.',
+                                ),
+                                style: Style.getTextStyle(
+                                  color: Style.getTextColor(),
+                                ).copyWith(height: 1.45),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 18.h),
+                          _sectionCard(
+                            title: 'Datos de la cuenta',
+                            subtitle:
+                                'Información del propietario y trazabilidad del perfil.',
+                            child: Column(
+                              children: [
+                                _infoRow(
+                                  icon: Icons.person_rounded,
+                                  title: 'Propietario',
+                                  value: _textOrFallback(
+                                    company.ownerName,
+                                    'Sin definir',
+                                  ),
+                                ),
+                                SizedBox(height: 10.h),
+                                _infoRow(
+                                  icon: Icons.email_rounded,
+                                  title: 'Correo',
+                                  value: _textOrFallback(
+                                    company.ownerEmail,
+                                    'Sin definir',
+                                  ),
+                                ),
+                                SizedBox(height: 10.h),
+                                _infoRow(
+                                  icon: Icons.phone_rounded,
+                                  title: 'Teléfono',
+                                  value: _textOrFallback(
+                                    company.ownerPhone,
+                                    'Sin definir',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            height:
+                                (_hasFreelancerRole && !_canEdit) ? 92.h : 24.h,
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-            if (_canEdit || _canCreate)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    Style.horizontalPadding.w,
-                    18.h,
-                    Style.horizontalPadding.w,
-                    24.h,
+            )
+          else
+            RefreshIndicator(
+              onRefresh: _loadData,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                children: [
+                  SizedBox(height: MediaQuery.of(context).size.height * .18),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24.w),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.apartment_rounded,
+                          size: 42.w,
+                          color: Style.getPrimaryColor(),
+                        ),
+                        SizedBox(height: 12.h),
+                        Text(
+                          _canCreate
+                              ? 'Aún no tienes perfil empresarial.'
+                              : 'No se encontró información empresarial para mostrar.',
+                          textAlign: TextAlign.center,
+                          style: Style.getTextStyle(
+                            color: Style.getObscureTextColor(),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (_canCreate) ...[
+                          SizedBox(height: 14.h),
+                          CustomWidgets.button(
+                            onTap: _openProfileForm,
+                            color: Style.getPrimaryColor(),
+                            child: Text(
+                              'Crear perfil empresarial',
+                              style: Style.getHeaderThree(
+                                color: Style.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                  child: _formCard(company),
+                ],
+              ),
+            ),
+          if (!_loading && company == null)
+            Positioned(
+              left: 8.w,
+              top: MediaQuery.of(context).padding.top + 4.h,
+              child: IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Style.getTextColor(),
                 ),
               ),
-          ],
+            ),
+          if (_actionLoading)
+            Positioned.fill(
+              child: Container(
+                color: Style.black.withValues(alpha: .14),
+                child: Center(
+                  child: CustomWidgets.mProgress(Style.getPrimaryColor()),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _headerCard(CompanyProfileModel? company) {
-    final displayName = company?.companyName.isNotEmpty == true
-        ? company!.companyName
-        : 'Perfil empresarial';
-    final ownerName = company?.ownerName.trim().isNotEmpty == true
-        ? company!.ownerName
-        : 'Empresa';
+  Widget _buildHeader(CompanyProfileModel company) {
+    final avatarUrl = company.photoUrl.trim();
 
-    return Container(
-      padding: EdgeInsets.all(18.w),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26.r),
-        gradient: LinearGradient(
-          colors: [
-            Style.getPrimaryColor(),
-            Style.getPrimaryColor().darken(.18),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Style.getPrimaryColor().withValues(alpha: .18),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 32.w,
-            backgroundColor: Style.white.withValues(alpha: .16),
-            child: Text(
-              company?.initials ?? 'WL',
-              style: Style.getHeaderTwo(
-                color: Style.white,
-                fontWeight: FontWeight.w800,
-              ),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (avatarUrl.isNotEmpty)
+          CachedNetworkImage(imageUrl: avatarUrl, fit: BoxFit.cover)
+        else
+          Image.asset(Assets.profileBg, fit: BoxFit.cover),
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Style.getBackgroundColor().withValues(alpha: .06),
+                Style.getPrimaryColor().withValues(alpha: .55),
+                Style.getBackgroundColor().withValues(alpha: .96),
+              ],
             ),
           ),
-          SizedBox(width: 14.w),
-          Expanded(
+        ),
+        SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 18.h),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                _avatar(company),
+                SizedBox(height: 14.h),
                 Text(
-                  displayName,
+                  _textOrFallback(company.companyName, 'Empresa'),
+                  textAlign: TextAlign.center,
                   style: Style.getHeaderTwo(
                     color: Style.white,
                     fontWeight: FontWeight.w800,
+                    fontSize: 16,
                   ),
                 ),
                 SizedBox(height: 4.h),
                 Text(
-                  company?.industry.isNotEmpty == true
-                      ? company!.industry
-                      : 'Industria por definir',
+                  _textOrFallback(company.industry, 'Industria por definir'),
+                  textAlign: TextAlign.center,
                   style: Style.getTextStyle(
-                    color: Style.white.withValues(alpha: .88),
-                    fontWeight: FontWeight.w600,
+                    color: Style.white.withValues(alpha: .92),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                SizedBox(height: 8.h),
+                SizedBox(height: 12.h),
                 Wrap(
+                  alignment: WrapAlignment.center,
                   spacing: 8.w,
                   runSpacing: 8.h,
                   children: [
-                    _headerChip(
-                      Icons.location_on_rounded,
-                      company?.location.isNotEmpty == true
-                          ? company!.location
-                          : 'Sin ubicación',
-                    ),
-                    _headerChip(
+                    _topBadge(
                       Icons.star_rounded,
-                      company == null
-                          ? '0.0'
-                          : company.averageRate.toStringAsFixed(1),
+                      company.averageRate.toStringAsFixed(1),
                     ),
-                    _headerChip(Icons.person_rounded, ownerName),
+                    _topBadge(
+                      Icons.place_rounded,
+                      _textOrFallback(company.location, 'Sin ubicación'),
+                    ),
+                    _topBadge(
+                      Icons.verified_user_rounded,
+                      _textOrFallback(company.ownerRole, 'empresa'),
+                    ),
                   ],
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _headerChip(IconData icon, String label) {
+  Widget _avatar(CompanyProfileModel company) {
+    final avatarUrl = company.photoUrl.trim();
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+      padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
-        color: Style.white.withValues(alpha: .14),
-        borderRadius: BorderRadius.circular(99.r),
-        border: Border.all(color: Style.white.withValues(alpha: .18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14.w, color: Style.white),
-          SizedBox(width: 5.w),
-          Text(
-            label,
-            style: Style.getTextStyle(
-              color: Style.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _overviewCard(CompanyProfileModel? company) {
-    final description = company?.description.trim() ?? '';
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: Style.getCardColor(),
-        borderRadius: BorderRadius.circular(22.r),
+        shape: BoxShape.circle,
+        color: Style.white.withValues(alpha: .2),
         boxShadow: [
           BoxShadow(
-            color: Style.getShadowColor().withValues(alpha: .12),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
+            color: Style.black.withValues(alpha: .2),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Identidad pública',
-            style: Style.getHeaderThree(
-              color: Style.getTextColor(),
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          SizedBox(height: 10.h),
-          Text(
-            description.isNotEmpty
-                ? description
-                : 'Este perfil es la identidad pública de la empresa dentro de WorkLink y sirve como base para vacantes y reputación.',
-            style: Style.getTextStyle(
-              color: Style.getTextColor(),
-            ).copyWith(height: 1.5),
-          ),
-          SizedBox(height: 14.h),
-          Wrap(
-            spacing: 10.w,
-            runSpacing: 10.h,
-            children: [
-              _infoPill(
-                'Industria',
-                company?.industry.isNotEmpty == true
-                    ? company!.industry
-                    : 'Sin definir',
-              ),
-              _infoPill(
-                'Ubicación',
-                company?.location.isNotEmpty == true
-                    ? company!.location
-                    : 'Sin definir',
-              ),
-              _infoPill(
-                'Promedio',
-                company == null
-                    ? '0.0'
-                    : company.averageRate.toStringAsFixed(1),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoPill(String label, String value) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-      decoration: BoxDecoration(
-        color: Style.getPrimaryColor().withValues(alpha: .06),
-        borderRadius: BorderRadius.circular(16.r),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: Style.getTextStyle(
-              color: Style.getObscureTextColor(),
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
-            ),
-          ),
-          SizedBox(height: 3.h),
-          Text(
-            value,
-            style: Style.getTextStyle(
-              color: Style.getTextColor(),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _formCard(CompanyProfileModel? company) {
-    final isNewProfile = company == null;
-
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: Style.getCardColor(),
-        borderRadius: BorderRadius.circular(22.r),
-        boxShadow: [
-          BoxShadow(
-            color: Style.getShadowColor().withValues(alpha: .12),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isNewProfile
-                  ? 'Crear perfil empresarial'
-                  : 'Editar perfil empresarial',
-              style: Style.getHeaderThree(
-                color: Style.getTextColor(),
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            SizedBox(height: 12.h),
-            CustomInputField(
-              controller: _companyNameCtrl,
-              label: 'Nombre comercial',
-              enabled: !_saving,
-              validator: (value) {
-                if ((value ?? '').trim().isEmpty) {
-                  return 'Ingresa el nombre comercial';
-                }
-                return null;
-              },
-            ),
-            SizedBox(height: 10.h),
-            CustomInputField(
-              controller: _industryCtrl,
-              label: 'Industria',
-              enabled: !_saving,
-            ),
-            SizedBox(height: 10.h),
-            CustomInputField(
-              controller: _locationCtrl,
-              label: 'Ubicación',
-              enabled: !_saving,
-            ),
-            SizedBox(height: 10.h),
-            CustomInputField(
-              controller: _descriptionCtrl,
-              label: 'Descripción',
-              maxLines: 4,
-              enabled: !_saving,
-            ),
-            SizedBox(height: 12.h),
-            Row(
-              children: [
-                Expanded(
-                  child: CustomWidgets.button(
-                    onTap: _saving ? () {} : _saveProfile,
-                    color: Style.getPrimaryColor(),
-                    child: _saving
-                        ? SizedBox(
-                            width: 18.w,
-                            height: 18.w,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Style.white,
-                            ),
-                          )
-                        : Text(
-                            isNewProfile ? 'Crear perfil' : 'Guardar cambios',
-                            style: Style.getHeaderThree(
-                              color: Style.white,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+      child: CircleAvatar(
+        radius: 46.r,
+        backgroundColor: Style.getPrimaryColor().withValues(alpha: .14),
+        child: ClipOval(
+          child: avatarUrl.isEmpty
+              ? Center(
+                  child: Text(
+                    company.initials,
+                    style: Style.getHeaderTwo(
+                      color: Style.getPrimaryColor(),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
                   ),
+                )
+              : CachedNetworkImage(
+                  imageUrl: avatarUrl,
+                  width: 92.w,
+                  height: 92.w,
+                  fit: BoxFit.cover,
                 ),
-              ],
-            ),
-            if (_isAdmin && widget.userId != null)
-              Padding(
-                padding: EdgeInsets.only(top: 10.h),
-                child: Text(
-                  'Administrando perfil para el usuario ID ${widget.userId}.',
-                  style: Style.getTextStyle(color: Style.getObscureTextColor()),
-                ),
-              ),
-          ],
         ),
       ),
     );
   }
+
+  Widget _topBadge(IconData icon, String label) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: Style.white.withValues(alpha: .12),
+        borderRadius: Style.getCircularBorderRadius(100),
+        border: Border.all(color: Style.white.withValues(alpha: .16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Style.white, size: 15.w),
+          SizedBox(width: 6.w),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 160.w),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Style.getTextStyle(
+                color: Style.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 7,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionCard({
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        color: Style.getCardColor(),
+        elevation: 5,
+        shadowColor: Style.getShadowColor(),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 18.h),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: Style.getHeaderTwo(
+                  color: Style.getTextColor(),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                ),
+              ),
+              SizedBox(height: 4.h),
+              Text(
+                subtitle,
+                style: Style.getTextStyle(
+                  color: Style.getObscureTextColor(),
+                ).copyWith(height: 1.4),
+              ),
+              SizedBox(height: 16.h),
+              child,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _mainInfo(CompanyProfileModel company) {
+    return Column(
+      children: [
+        _infoRow(
+          icon: Icons.business_rounded,
+          title: 'Empresa',
+          value: _textOrFallback(company.companyName, 'Sin definir'),
+        ),
+        SizedBox(height: 10.h),
+        _infoRow(
+          icon: Icons.category_rounded,
+          title: 'Industria',
+          value: _textOrFallback(company.industry, 'Sin definir'),
+        ),
+        SizedBox(height: 10.h),
+        _infoRow(
+          icon: Icons.place_rounded,
+          title: 'Ubicación',
+          value: _textOrFallback(company.location, 'Sin definir'),
+        ),
+      ],
+    );
+  }
+
+  Widget _infoRow({
+    required IconData icon,
+    required String title,
+    required String value,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        color: Style.getBackgroundColor(),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(
+          color: Style.getObscureTextColor().withValues(alpha: .15),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 30.w,
+            height: 30.w,
+            decoration: BoxDecoration(
+              color: Style.getPrimaryColor().withValues(alpha: .12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 15.w, color: Style.getPrimaryColor()),
+          ),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Style.getTextStyle(
+                    color: Style.getObscureTextColor(),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                  ),
+                ),
+                SizedBox(height: 2.h),
+                Text(
+                  value,
+                  style: Style.getTextStyle(
+                    color: Style.getTextColor(),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _textOrFallback(String? value, String fallback) {
+    if (value == null || value.trim().isEmpty) return fallback;
+    return value.trim();
+  }
+
 }

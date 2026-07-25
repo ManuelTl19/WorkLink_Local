@@ -10,6 +10,7 @@ import 'package:worklink_local/modules/app/components/general/form/form_widgets.
 import 'package:worklink_local/modules/freelancers/models/freelancer_availability_model.dart';
 import 'package:worklink_local/modules/freelancers/models/freelancer_model.dart';
 import 'package:worklink_local/modules/freelancers/services/freelancer_availability_service.dart';
+import 'package:worklink_local/modules/messages/messages.dart';
 import 'package:worklink_local/modules/portfolio/portfolio.dart';
 import 'package:worklink_local/modules/users/models/user_model.dart';
 import 'package:worklink_local/utils/utils.dart';
@@ -19,6 +20,8 @@ class PortfolioScreen extends StatefulWidget {
   final bool forceOwner;
   final VoidCallback? onEditProfile;
   final VoidCallback? onDeleteProfile;
+  final bool showContactFab;
+  final VoidCallback? onContact;
 
   const PortfolioScreen({
     super.key,
@@ -26,6 +29,8 @@ class PortfolioScreen extends StatefulWidget {
     this.forceOwner = false,
     this.onEditProfile,
     this.onDeleteProfile,
+    this.showContactFab = false,
+    this.onContact,
   });
 
   @override
@@ -100,6 +105,25 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     }
   }
 
+  Future<void> _openContactChat() async {
+    final freelancerId = widget.freelancer.id;
+    if (freelancerId == null) return;
+
+    final chat = await MessageService.getOrCreateChat(
+      name: widget.freelancer.fullName,
+      avatarSeed: widget.freelancer.fullName,
+      subtitle: widget.freelancer.specialty,
+      avatarUrl: widget.freelancer.avatarUrl,
+      relatedEntityId: freelancerId,
+      relatedEntityType: 'freelancer',
+    );
+
+    if (!mounted) return;
+    Navigator.of(
+      context,
+    ).push(Transitions.slideUpTransition(ConversationScreen(chat: chat)));
+  }
+
   String? _resolveAvailabilityLabel(List<FreelancerAvailabilityModel> items) {
     if (items.isEmpty) return null;
 
@@ -162,9 +186,27 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canShowContactFab = widget.showContactFab && !_isOwner;
+    final contactAction = widget.onContact ?? _openContactChat;
+
     return Consumer<AppSettings>(
       builder: (context, app, child) => Scaffold(
         backgroundColor: Style.getBackgroundColor(),
+        floatingActionButton: canShowContactFab
+            ? FloatingActionButton.extended(
+                onPressed: contactAction,
+                backgroundColor: Style.getPrimaryColor(),
+                icon: Icon(Icons.chat_bubble_rounded, color: Style.white),
+                label: Text(
+                  MultiLanguages.of(context)?.translate('contact') ?? 'Contactar',
+                  style: Style.getTextStyle(
+                    color: Style.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              )
+            : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         body: RefreshIndicator(
           onRefresh: _loadViewerAndPortfolio,
           child: CustomScrollView(
@@ -224,7 +266,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                     Style.horizontalPadding.w,
                     16.h,
                     Style.horizontalPadding.w,
-                    24.h,
+                    canShowContactFab ? 96.h : 24.h,
                   ),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
